@@ -1,0 +1,18 @@
+[package]
+name = "oxitalk_core"
+description = "OxiTalk's Rust core: the Matrix facade the Flutter app talks to."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+flutter_rust_bridge.workspace = true
+
+[lints]
+workspace = true
