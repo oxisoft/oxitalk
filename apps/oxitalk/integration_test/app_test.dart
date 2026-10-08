@@ -9,6 +9,6 @@ void main() {
 
   testWidgets('the app starts and shows the core version', (tester) async {
     await tester.pumpWidget(const OxiTalkApp());
-    expect(find.text('Rust core 0.1.3'), findsOneWidget);
+    expect(find.text('Rust core 0.1.4'), findsOneWidget);
   });
 }

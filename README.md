@@ -13,6 +13,7 @@ apps/oxitalk/        Flutter app
 rust/                Cargo workspace
 rust/oxitalk_core/   Rust core: the Matrix facade the app calls through flutter_rust_bridge
 scripts/ci.sh        every check CI runs on Linux
+test-infra/          Synapse test homeserver (compose) for the Rust integration tests
 ```
 
 ## Building

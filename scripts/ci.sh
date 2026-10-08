@@ -2,7 +2,8 @@
 # Everything CI checks on Linux, runnable locally: ./scripts/ci.sh
 # Needs: the Rust toolchain from rust/rust-toolchain.toml, Flutter (version in
 # apps/oxitalk/pubspec.yaml), flutter_rust_bridge_codegen 2.13.0, ANDROID_HOME with the NDK
-# pinned in apps/oxitalk/android/app/build.gradle.kts, actionlint and zizmor.
+# pinned in apps/oxitalk/android/app/build.gradle.kts, actionlint, zizmor, and podman compose
+# (with the user podman.socket enabled) or, when CI is set, docker compose.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -38,6 +39,20 @@ CC_aarch64_linux_android=$ndk_bin/aarch64-linux-android36-clang \
   AR_aarch64_linux_android=$ndk_bin/llvm-ar \
   cargo clippy --workspace --locked --target aarch64-linux-android -- -D warnings
 cargo test --workspace --locked
+
+step "rust: tests against the Synapse test homeserver"
+if [ -n "${CI:-}" ]; then compose=(docker compose); else compose=(podman compose); fi
+compose+=(--file "$root/test-infra/compose.yaml")
+"${compose[@]}" down --volumes --timeout 1 >/dev/null 2>&1 || true
+trap '"${compose[@]}" down --volumes --timeout 1 >/dev/null 2>&1 || true' EXIT
+"${compose[@]}" up --detach
+for _ in $(seq 60); do
+  curl --silent --fail http://localhost:8008/health >/dev/null && break
+  sleep 1
+done
+curl --silent --show-error --fail http://localhost:8008/health >/dev/null \
+  || { "${compose[@]}" logs; exit 1; }
+cargo test --workspace --locked -- --ignored
 
 step "dart: format, analyze, tests"
 cd "$app"

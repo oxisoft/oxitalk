@@ -1,0 +1,44 @@
+# TEST ONLY. Reachable on 127.0.0.1 only; the secret below is public on purpose.
+server_name: localhost
+public_baseurl: http://localhost:8008/
+pid_file: /data/homeserver.pid
+signing_key_path: /data/localhost.signing.key
+media_store_path: /data/media_store
+report_stats: false
+trusted_key_servers: []
+suppress_key_server_warning: true
+
+listeners:
+  - port: 8008
+    type: http
+    tls: false
+    x_forwarded: false
+    bind_addresses: ["0.0.0.0"]
+    resources:
+      - names: [client]
+        compress: false
+
+database:
+  name: sqlite3
+  args:
+    database: /data/homeserver.db
+
+# Tests register their own users; create-users.sh uses the shared secret.
+enable_registration: true
+enable_registration_without_verification: true
+registration_shared_secret: oxitalk-test-only-shared-secret
+
+# No rate limits: tests fire many requests at once.
+rc_message: {per_second: 1000, burst_count: 1000}
+rc_registration: {per_second: 1000, burst_count: 1000}
+rc_login:
+  address: {per_second: 1000, burst_count: 1000}
+  account: {per_second: 1000, burst_count: 1000}
+  failed_attempts: {per_second: 1000, burst_count: 1000}
+rc_joins:
+  local: {per_second: 1000, burst_count: 1000}
+  remote: {per_second: 1000, burst_count: 1000}
+rc_invites:
+  per_room: {per_second: 1000, burst_count: 1000}
+  per_user: {per_second: 1000, burst_count: 1000}
+  per_issuer: {per_second: 1000, burst_count: 1000}
