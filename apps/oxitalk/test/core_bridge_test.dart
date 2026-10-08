@@ -8,11 +8,11 @@ void main() {
   setUpAll(initRustCore);
 
   test('the Rust core answers through the bridge', () {
-    expect(coreVersion(), '0.1.0');
+    expect(coreVersion(), '0.1.1');
   });
 
   testWidgets('the app shows the core version', (tester) async {
     await tester.pumpWidget(const OxiTalkApp());
-    expect(find.text('Rust core 0.1.0'), findsOneWidget);
+    expect(find.text('Rust core 0.1.1'), findsOneWidget);
   });
 }
