@@ -16,7 +16,7 @@ env:
 
 jobs:
   linux:
-    name: scripts/ci.sh (Linux, Android, Web)
+    name: scripts/ci.sh (Linux, Android)
     runs-on: ubuntu-latest
     permissions:
       contents: read

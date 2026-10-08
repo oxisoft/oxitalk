@@ -28,7 +28,7 @@ if [ -n "$(git -C "$root" ls-files --others --exclude-standard -- "${generated[@
   exit 1
 fi
 
-step "rust: fmt, clippy (host, android, wasm), tests"
+step "rust: fmt, clippy (host, android), tests"
 cd "$rust"
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -37,7 +37,6 @@ ndk_bin=$ANDROID_HOME/ndk/$ndk_version/toolchains/llvm/prebuilt/linux-x86_64/bin
 CC_aarch64_linux_android=$ndk_bin/aarch64-linux-android36-clang \
   AR_aarch64_linux_android=$ndk_bin/llvm-ar \
   cargo clippy --workspace --locked --target aarch64-linux-android -- -D warnings
-cargo clippy --workspace --locked --target wasm32-unknown-unknown -- -D warnings
 cargo test --workspace --locked
 
 step "dart: format, analyze, tests"
@@ -47,10 +46,9 @@ dart format --output=none --set-exit-if-changed lib/main.dart test integration_t
 flutter analyze --fatal-infos --fatal-warnings
 flutter test
 
-step "debug builds: linux, android, web"
+step "debug builds: linux, android"
 flutter build linux --debug
 flutter build apk --debug
-flutter build web --debug
 
 step "integration test (linux)"
 if [ -n "${CI:-}" ]; then

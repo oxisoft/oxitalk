@@ -1,7 +1,7 @@
 # OxiTalk
 
-An open-source [Matrix](https://matrix.org) client for iOS, Android, macOS, Windows, Linux and
-the web, built with Flutter on top of [matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk),
+An open-source [Matrix](https://matrix.org) client for iOS, Android, macOS, Windows and Linux,
+built with Flutter on top of [matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk),
 the engine behind Element X.
 
 > **Status: early proof of concept.** Nothing here is usable yet.
