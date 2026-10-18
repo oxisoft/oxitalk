@@ -13,11 +13,19 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 flutter_rust_bridge.workspace = true
+futures-util.workspace = true
 matrix-sdk.workspace = true
+matrix-sdk-sqlite.workspace = true
+matrix-sdk-ui.workspace = true
 rustls.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
 
 [dev-dependencies]
+matrix-sdk = { workspace = true, features = ["testing"] }
+serde_json.workspace = true
+tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+wiremock.workspace = true
 
 [lints]
 workspace = true

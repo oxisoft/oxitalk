@@ -2,7 +2,8 @@
 # cargo run from here reads this one. scripts/ci.sh fails if they differ.
 [toolchain]
 channel = "1.99.0"
-components = ["clippy", "rustfmt"]
+# llvm-tools: cargo llvm-cov (scripts/ci.sh).
+components = ["clippy", "llvm-tools", "rustfmt"]
 profile = "minimal"
 targets = [
   "aarch64-apple-darwin",

@@ -4,6 +4,11 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/error.dart';
+import 'api/room_list.dart';
+import 'api/session.dart';
+import 'api/sync.dart';
+import 'api/timeline.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -69,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -2116733136;
+  int get rustContentHash => 1521955482;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -81,9 +86,86 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<String> crateApiSessionSessionCreateDm({
+    required Session that,
+    required String userId,
+  });
+
+  Future<void> crateApiSessionSessionJoin({
+    required Session that,
+    required String roomId,
+  });
+
+  SessionData crateApiSessionSessionSessionData({required Session that});
+
+  Future<void> crateApiSessionSessionStartSync({required Session that});
+
+  Future<void> crateApiSessionSessionStopSync({required Session that});
+
+  Stream<List<RoomListDiff>> crateApiSessionSessionSubscribeRooms({
+    required Session that,
+  });
+
+  Stream<SessionChange> crateApiSessionSessionSubscribeSessionChanges({
+    required Session that,
+  });
+
+  Stream<SyncState> crateApiSessionSessionSubscribeSyncState({
+    required Session that,
+  });
+
+  Future<Timeline> crateApiSessionSessionTimeline({
+    required Session that,
+    required String roomId,
+  });
+
+  String crateApiSessionSessionUserId({required Session that});
+
+  Future<bool> crateApiTimelineTimelinePaginateBack({
+    required Timeline that,
+    required int count,
+  });
+
+  Future<void> crateApiTimelineTimelineSendText({
+    required Timeline that,
+    required String body,
+  });
+
+  Stream<List<TimelineDiff>> crateApiTimelineTimelineSubscribeItems({
+    required Timeline that,
+  });
+
   String crateApiCoreVersion();
 
   Future<void> crateApiInitApp();
+
+  Future<Session> crateApiSessionLogin({
+    required String homeserverUrl,
+    required String username,
+    required String password,
+    required String storeDir,
+    required String storePassphrase,
+  });
+
+  Future<Session> crateApiSessionRestore({
+    required SessionData data,
+    required String storeDir,
+    required String storePassphrase,
+  });
+
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Session;
+
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Session;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SessionPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_Timeline;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_Timeline;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_TimelinePtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -95,12 +177,483 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<String> crateApiSessionSessionCreateDm({
+    required Session that,
+    required String userId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          sse_encode_String(userId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionCreateDmConstMeta,
+        argValues: [that, userId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionCreateDmConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_create_dm",
+        argNames: ["that", "userId"],
+      );
+
+  @override
+  Future<void> crateApiSessionSessionJoin({
+    required Session that,
+    required String roomId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          sse_encode_String(roomId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionJoinConstMeta,
+        argValues: [that, roomId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionJoinConstMeta => const TaskConstMeta(
+    debugName: "Session_join",
+    argNames: ["that", "roomId"],
+  );
+
+  @override
+  SessionData crateApiSessionSessionSessionData({required Session that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_session_data,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionSessionDataConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionSessionDataConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_session_data",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiSessionSessionStartSync({required Session that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSessionSessionStartSyncConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionStartSyncConstMeta =>
+      const TaskConstMeta(debugName: "Session_start_sync", argNames: ["that"]);
+
+  @override
+  Future<void> crateApiSessionSessionStopSync({required Session that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSessionSessionStopSyncConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionStopSyncConstMeta =>
+      const TaskConstMeta(debugName: "Session_stop_sync", argNames: ["that"]);
+
+  @override
+  Stream<List<RoomListDiff>> crateApiSessionSessionSubscribeRooms({
+    required Session that,
+  }) {
+    final sink = RustStreamSink<List<RoomListDiff>>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_list_room_list_diff_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 6,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: sse_decode_core_error,
+          ),
+          constMeta: kCrateApiSessionSessionSubscribeRoomsConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionSubscribeRoomsConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_subscribe_rooms",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Stream<SessionChange> crateApiSessionSessionSubscribeSessionChanges({
+    required Session that,
+  }) {
+    final sink = RustStreamSink<SessionChange>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_session_change_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 7,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiSessionSessionSubscribeSessionChangesConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionSubscribeSessionChangesConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_subscribe_session_changes",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Stream<SyncState> crateApiSessionSessionSubscribeSyncState({
+    required Session that,
+  }) {
+    final sink = RustStreamSink<SyncState>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_sync_state_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 8,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiSessionSessionSubscribeSyncStateConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionSubscribeSyncStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_subscribe_sync_state",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Future<Timeline> crateApiSessionSessionTimeline({
+    required Session that,
+    required String roomId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          sse_encode_String(roomId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionTimelineConstMeta,
+        argValues: [that, roomId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionTimelineConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_timeline",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  String crateApiSessionSessionUserId({required Session that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSessionSessionUserIdConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionUserIdConstMeta =>
+      const TaskConstMeta(debugName: "Session_user_id", argNames: ["that"]);
+
+  @override
+  Future<bool> crateApiTimelineTimelinePaginateBack({
+    required Timeline that,
+    required int count,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(count, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiTimelineTimelinePaginateBackConstMeta,
+        argValues: [that, count],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTimelineTimelinePaginateBackConstMeta =>
+      const TaskConstMeta(
+        debugName: "Timeline_paginate_back",
+        argNames: ["that", "count"],
+      );
+
+  @override
+  Future<void> crateApiTimelineTimelineSendText({
+    required Timeline that,
+    required String body,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+            that,
+            serializer,
+          );
+          sse_encode_String(body, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiTimelineTimelineSendTextConstMeta,
+        argValues: [that, body],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTimelineTimelineSendTextConstMeta =>
+      const TaskConstMeta(
+        debugName: "Timeline_send_text",
+        argNames: ["that", "body"],
+      );
+
+  @override
+  Stream<List<TimelineDiff>> crateApiTimelineTimelineSubscribeItems({
+    required Timeline that,
+  }) {
+    final sink = RustStreamSink<List<TimelineDiff>>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_list_timeline_diff_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 13,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiTimelineTimelineSubscribeItemsConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiTimelineTimelineSubscribeItemsConstMeta =>
+      const TaskConstMeta(
+        debugName: "Timeline_subscribe_items",
+        argNames: ["that", "sink"],
+      );
+
+  @override
   String crateApiCoreVersion() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -125,7 +678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 15,
             port: port_,
           );
         },
@@ -143,6 +696,200 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiInitAppConstMeta =>
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
+  @override
+  Future<Session> crateApiSessionLogin({
+    required String homeserverUrl,
+    required String username,
+    required String password,
+    required String storeDir,
+    required String storePassphrase,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(homeserverUrl, serializer);
+          sse_encode_String(username, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_String(storeDir, serializer);
+          sse_encode_String(storePassphrase, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionLoginConstMeta,
+        argValues: [
+          homeserverUrl,
+          username,
+          password,
+          storeDir,
+          storePassphrase,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionLoginConstMeta => const TaskConstMeta(
+    debugName: "login",
+    argNames: [
+      "homeserverUrl",
+      "username",
+      "password",
+      "storeDir",
+      "storePassphrase",
+    ],
+  );
+
+  @override
+  Future<Session> crateApiSessionRestore({
+    required SessionData data,
+    required String storeDir,
+    required String storePassphrase,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_session_data(data, serializer);
+          sse_encode_String(storeDir, serializer);
+          sse_encode_String(storePassphrase, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionRestoreConstMeta,
+        argValues: [data, storeDir, storePassphrase],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionRestoreConstMeta => const TaskConstMeta(
+    debugName: "restore",
+    argNames: ["data", "storeDir", "storePassphrase"],
+  );
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_Session => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_Session => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_Timeline => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_Timeline => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline;
+
+  @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
+
+  @protected
+  Session
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SessionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Timeline
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return TimelineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Session
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SessionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Timeline
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return TimelineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Session
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SessionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Timeline
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return TimelineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  RustStreamSink<List<RoomListDiff>>
+  dco_decode_StreamSink_list_room_list_diff_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<List<TimelineDiff>>
+  dco_decode_StreamSink_list_timeline_diff_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<SessionChange> dco_decode_StreamSink_session_change_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<SyncState> dco_decode_StreamSink_sync_state_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -150,9 +897,354 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  CoreError dco_decode_box_autoadd_core_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_core_error(raw);
+  }
+
+  @protected
+  EventInfo dco_decode_box_autoadd_event_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_event_info(raw);
+  }
+
+  @protected
+  RoomSummary dco_decode_box_autoadd_room_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_room_summary(raw);
+  }
+
+  @protected
+  SessionData dco_decode_box_autoadd_session_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_session_data(raw);
+  }
+
+  @protected
+  TimelineItem dco_decode_box_autoadd_timeline_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_timeline_item(raw);
+  }
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
+  CoreError dco_decode_core_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return CoreError_InvalidHomeserver(message: dco_decode_String(raw[1]));
+      case 1:
+        return CoreError_Network(message: dco_decode_String(raw[1]));
+      case 2:
+        return CoreError_Forbidden(message: dco_decode_String(raw[1]));
+      case 3:
+        return CoreError_SessionExpired();
+      case 4:
+        return CoreError_WrongStorePassphrase();
+      case 5:
+        return CoreError_InvalidId(id: dco_decode_String(raw[1]));
+      case 6:
+        return CoreError_RoomNotFound(roomId: dco_decode_String(raw[1]));
+      case 7:
+        return CoreError_Internal(message: dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  EventInfo dco_decode_event_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return EventInfo(
+      eventId: dco_decode_opt_String(arr[0]),
+      sender: dco_decode_String(arr[1]),
+      senderName: dco_decode_opt_String(arr[2]),
+      timestampMs: dco_decode_u_64(arr[3]),
+      isOwn: dco_decode_bool(arr[4]),
+      sendState: dco_decode_send_state(arr[5]),
+    );
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  List<RoomListDiff> dco_decode_list_room_list_diff(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_room_list_diff).toList();
+  }
+
+  @protected
+  List<RoomSummary> dco_decode_list_room_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_room_summary).toList();
+  }
+
+  @protected
+  List<TimelineDiff> dco_decode_list_timeline_diff(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_timeline_diff).toList();
+  }
+
+  @protected
+  List<TimelineItem> dco_decode_list_timeline_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_timeline_item).toList();
+  }
+
+  @protected
+  Membership dco_decode_membership(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Membership.values[raw as int];
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
+  RoomListDiff dco_decode_room_list_diff(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return RoomListDiff_Append(
+          values: dco_decode_list_room_summary(raw[1]),
+        );
+      case 1:
+        return RoomListDiff_Clear();
+      case 2:
+        return RoomListDiff_PushFront(
+          value: dco_decode_box_autoadd_room_summary(raw[1]),
+        );
+      case 3:
+        return RoomListDiff_PushBack(
+          value: dco_decode_box_autoadd_room_summary(raw[1]),
+        );
+      case 4:
+        return RoomListDiff_PopFront();
+      case 5:
+        return RoomListDiff_PopBack();
+      case 6:
+        return RoomListDiff_Insert(
+          index: dco_decode_usize(raw[1]),
+          value: dco_decode_box_autoadd_room_summary(raw[2]),
+        );
+      case 7:
+        return RoomListDiff_Set(
+          index: dco_decode_usize(raw[1]),
+          value: dco_decode_box_autoadd_room_summary(raw[2]),
+        );
+      case 8:
+        return RoomListDiff_Remove(index: dco_decode_usize(raw[1]));
+      case 9:
+        return RoomListDiff_Truncate(length: dco_decode_usize(raw[1]));
+      case 10:
+        return RoomListDiff_Reset(values: dco_decode_list_room_summary(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  RoomSummary dco_decode_room_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return RoomSummary(
+      roomId: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      membership: dco_decode_membership(arr[2]),
+      lastMessage: dco_decode_opt_String(arr[3]),
+      lastActivityMs: dco_decode_opt_box_autoadd_u_64(arr[4]),
+      unreadCount: dco_decode_u_64(arr[5]),
+      isDm: dco_decode_bool(arr[6]),
+      isEncrypted: dco_decode_bool(arr[7]),
+    );
+  }
+
+  @protected
+  SendState dco_decode_send_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SendState.values[raw as int];
+  }
+
+  @protected
+  SessionChange dco_decode_session_change(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return SessionChange_UnknownToken(softLogout: dco_decode_bool(raw[1]));
+      case 1:
+        return SessionChange_TokensRefreshed();
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  SessionData dco_decode_session_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SessionData(
+      homeserverUrl: dco_decode_String(arr[0]),
+      userId: dco_decode_String(arr[1]),
+      deviceId: dco_decode_String(arr[2]),
+      accessToken: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  SyncState dco_decode_sync_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return SyncState_Idle();
+      case 1:
+        return SyncState_Running();
+      case 2:
+        return SyncState_Terminated();
+      case 3:
+        return SyncState_Error(
+          error: dco_decode_box_autoadd_core_error(raw[1]),
+        );
+      case 4:
+        return SyncState_Offline();
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  TimelineDiff dco_decode_timeline_diff(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return TimelineDiff_Append(
+          values: dco_decode_list_timeline_item(raw[1]),
+        );
+      case 1:
+        return TimelineDiff_Clear();
+      case 2:
+        return TimelineDiff_PushFront(
+          value: dco_decode_box_autoadd_timeline_item(raw[1]),
+        );
+      case 3:
+        return TimelineDiff_PushBack(
+          value: dco_decode_box_autoadd_timeline_item(raw[1]),
+        );
+      case 4:
+        return TimelineDiff_PopFront();
+      case 5:
+        return TimelineDiff_PopBack();
+      case 6:
+        return TimelineDiff_Insert(
+          index: dco_decode_usize(raw[1]),
+          value: dco_decode_box_autoadd_timeline_item(raw[2]),
+        );
+      case 7:
+        return TimelineDiff_Set(
+          index: dco_decode_usize(raw[1]),
+          value: dco_decode_box_autoadd_timeline_item(raw[2]),
+        );
+      case 8:
+        return TimelineDiff_Remove(index: dco_decode_usize(raw[1]));
+      case 9:
+        return TimelineDiff_Truncate(length: dco_decode_usize(raw[1]));
+      case 10:
+        return TimelineDiff_Reset(
+          values: dco_decode_list_timeline_item(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  TimelineItem dco_decode_timeline_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return TimelineItem(
+      id: dco_decode_String(arr[0]),
+      content: dco_decode_timeline_item_content(arr[1]),
+    );
+  }
+
+  @protected
+  TimelineItemContent dco_decode_timeline_item_content(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return TimelineItemContent_Message(
+          event: dco_decode_box_autoadd_event_info(raw[1]),
+          body: dco_decode_String(raw[2]),
+        );
+      case 1:
+        return TimelineItemContent_UnableToDecrypt(
+          event: dco_decode_box_autoadd_event_info(raw[1]),
+        );
+      case 2:
+        return TimelineItemContent_OtherEvent(
+          event: dco_decode_box_autoadd_event_info(raw[1]),
+        );
+      case 3:
+        return TimelineItemContent_DateDivider(
+          timestampMs: dco_decode_u_64(raw[1]),
+        );
+      case 4:
+        return TimelineItemContent_ReadMarker();
+      case 5:
+        return TimelineItemContent_TimelineStart();
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  int dco_decode_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
   }
 
   @protected
@@ -168,6 +1260,121 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt dco_decode_usize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
+  }
+
+  @protected
+  Session
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SessionImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  Timeline
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return TimelineImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  Session
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SessionImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  Timeline
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return TimelineImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  Session
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SessionImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  Timeline
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return TimelineImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  RustStreamSink<List<RoomListDiff>>
+  sse_decode_StreamSink_list_room_list_diff_Sse(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<List<TimelineDiff>>
+  sse_decode_StreamSink_list_timeline_diff_Sse(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<SessionChange> sse_decode_StreamSink_session_change_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<SyncState> sse_decode_StreamSink_sync_state_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -175,10 +1382,418 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  CoreError sse_decode_box_autoadd_core_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_core_error(deserializer));
+  }
+
+  @protected
+  EventInfo sse_decode_box_autoadd_event_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_event_info(deserializer));
+  }
+
+  @protected
+  RoomSummary sse_decode_box_autoadd_room_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_room_summary(deserializer));
+  }
+
+  @protected
+  SessionData sse_decode_box_autoadd_session_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_session_data(deserializer));
+  }
+
+  @protected
+  TimelineItem sse_decode_box_autoadd_timeline_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_timeline_item(deserializer));
+  }
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
+  CoreError sse_decode_core_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_message = sse_decode_String(deserializer);
+        return CoreError_InvalidHomeserver(message: var_message);
+      case 1:
+        var var_message = sse_decode_String(deserializer);
+        return CoreError_Network(message: var_message);
+      case 2:
+        var var_message = sse_decode_String(deserializer);
+        return CoreError_Forbidden(message: var_message);
+      case 3:
+        return CoreError_SessionExpired();
+      case 4:
+        return CoreError_WrongStorePassphrase();
+      case 5:
+        var var_id = sse_decode_String(deserializer);
+        return CoreError_InvalidId(id: var_id);
+      case 6:
+        var var_roomId = sse_decode_String(deserializer);
+        return CoreError_RoomNotFound(roomId: var_roomId);
+      case 7:
+        var var_message = sse_decode_String(deserializer);
+        return CoreError_Internal(message: var_message);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  EventInfo sse_decode_event_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_opt_String(deserializer);
+    var var_sender = sse_decode_String(deserializer);
+    var var_senderName = sse_decode_opt_String(deserializer);
+    var var_timestampMs = sse_decode_u_64(deserializer);
+    var var_isOwn = sse_decode_bool(deserializer);
+    var var_sendState = sse_decode_send_state(deserializer);
+    return EventInfo(
+      eventId: var_eventId,
+      sender: var_sender,
+      senderName: var_senderName,
+      timestampMs: var_timestampMs,
+      isOwn: var_isOwn,
+      sendState: var_sendState,
+    );
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<RoomListDiff> sse_decode_list_room_list_diff(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RoomListDiff>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_room_list_diff(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<RoomSummary> sse_decode_list_room_summary(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RoomSummary>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_room_summary(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<TimelineDiff> sse_decode_list_timeline_diff(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <TimelineDiff>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_timeline_diff(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<TimelineItem> sse_decode_list_timeline_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <TimelineItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_timeline_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  Membership sse_decode_membership(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Membership.values[inner];
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  RoomListDiff sse_decode_room_list_diff(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_values = sse_decode_list_room_summary(deserializer);
+        return RoomListDiff_Append(values: var_values);
+      case 1:
+        return RoomListDiff_Clear();
+      case 2:
+        var var_value = sse_decode_box_autoadd_room_summary(deserializer);
+        return RoomListDiff_PushFront(value: var_value);
+      case 3:
+        var var_value = sse_decode_box_autoadd_room_summary(deserializer);
+        return RoomListDiff_PushBack(value: var_value);
+      case 4:
+        return RoomListDiff_PopFront();
+      case 5:
+        return RoomListDiff_PopBack();
+      case 6:
+        var var_index = sse_decode_usize(deserializer);
+        var var_value = sse_decode_box_autoadd_room_summary(deserializer);
+        return RoomListDiff_Insert(index: var_index, value: var_value);
+      case 7:
+        var var_index = sse_decode_usize(deserializer);
+        var var_value = sse_decode_box_autoadd_room_summary(deserializer);
+        return RoomListDiff_Set(index: var_index, value: var_value);
+      case 8:
+        var var_index = sse_decode_usize(deserializer);
+        return RoomListDiff_Remove(index: var_index);
+      case 9:
+        var var_length = sse_decode_usize(deserializer);
+        return RoomListDiff_Truncate(length: var_length);
+      case 10:
+        var var_values = sse_decode_list_room_summary(deserializer);
+        return RoomListDiff_Reset(values: var_values);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  RoomSummary sse_decode_room_summary(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_roomId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_membership = sse_decode_membership(deserializer);
+    var var_lastMessage = sse_decode_opt_String(deserializer);
+    var var_lastActivityMs = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_unreadCount = sse_decode_u_64(deserializer);
+    var var_isDm = sse_decode_bool(deserializer);
+    var var_isEncrypted = sse_decode_bool(deserializer);
+    return RoomSummary(
+      roomId: var_roomId,
+      name: var_name,
+      membership: var_membership,
+      lastMessage: var_lastMessage,
+      lastActivityMs: var_lastActivityMs,
+      unreadCount: var_unreadCount,
+      isDm: var_isDm,
+      isEncrypted: var_isEncrypted,
+    );
+  }
+
+  @protected
+  SendState sse_decode_send_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SendState.values[inner];
+  }
+
+  @protected
+  SessionChange sse_decode_session_change(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_softLogout = sse_decode_bool(deserializer);
+        return SessionChange_UnknownToken(softLogout: var_softLogout);
+      case 1:
+        return SessionChange_TokensRefreshed();
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  SessionData sse_decode_session_data(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_homeserverUrl = sse_decode_String(deserializer);
+    var var_userId = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_accessToken = sse_decode_String(deserializer);
+    return SessionData(
+      homeserverUrl: var_homeserverUrl,
+      userId: var_userId,
+      deviceId: var_deviceId,
+      accessToken: var_accessToken,
+    );
+  }
+
+  @protected
+  SyncState sse_decode_sync_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return SyncState_Idle();
+      case 1:
+        return SyncState_Running();
+      case 2:
+        return SyncState_Terminated();
+      case 3:
+        var var_error = sse_decode_box_autoadd_core_error(deserializer);
+        return SyncState_Error(error: var_error);
+      case 4:
+        return SyncState_Offline();
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  TimelineDiff sse_decode_timeline_diff(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_values = sse_decode_list_timeline_item(deserializer);
+        return TimelineDiff_Append(values: var_values);
+      case 1:
+        return TimelineDiff_Clear();
+      case 2:
+        var var_value = sse_decode_box_autoadd_timeline_item(deserializer);
+        return TimelineDiff_PushFront(value: var_value);
+      case 3:
+        var var_value = sse_decode_box_autoadd_timeline_item(deserializer);
+        return TimelineDiff_PushBack(value: var_value);
+      case 4:
+        return TimelineDiff_PopFront();
+      case 5:
+        return TimelineDiff_PopBack();
+      case 6:
+        var var_index = sse_decode_usize(deserializer);
+        var var_value = sse_decode_box_autoadd_timeline_item(deserializer);
+        return TimelineDiff_Insert(index: var_index, value: var_value);
+      case 7:
+        var var_index = sse_decode_usize(deserializer);
+        var var_value = sse_decode_box_autoadd_timeline_item(deserializer);
+        return TimelineDiff_Set(index: var_index, value: var_value);
+      case 8:
+        var var_index = sse_decode_usize(deserializer);
+        return TimelineDiff_Remove(index: var_index);
+      case 9:
+        var var_length = sse_decode_usize(deserializer);
+        return TimelineDiff_Truncate(length: var_length);
+      case 10:
+        var var_values = sse_decode_list_timeline_item(deserializer);
+        return TimelineDiff_Reset(values: var_values);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  TimelineItem sse_decode_timeline_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_content = sse_decode_timeline_item_content(deserializer);
+    return TimelineItem(id: var_id, content: var_content);
+  }
+
+  @protected
+  TimelineItemContent sse_decode_timeline_item_content(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_event = sse_decode_box_autoadd_event_info(deserializer);
+        var var_body = sse_decode_String(deserializer);
+        return TimelineItemContent_Message(event: var_event, body: var_body);
+      case 1:
+        var var_event = sse_decode_box_autoadd_event_info(deserializer);
+        return TimelineItemContent_UnableToDecrypt(event: var_event);
+      case 2:
+        var var_event = sse_decode_box_autoadd_event_info(deserializer);
+        return TimelineItemContent_OtherEvent(event: var_event);
+      case 3:
+        var var_timestampMs = sse_decode_u_64(deserializer);
+        return TimelineItemContent_DateDivider(timestampMs: var_timestampMs);
+      case 4:
+        return TimelineItemContent_ReadMarker();
+      case 5:
+        return TimelineItemContent_TimelineStart();
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint16();
+  }
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
   }
 
   @protected
@@ -193,21 +1808,273 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
+  BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
+    return deserializer.buffer.getBigUint64();
   }
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    Session self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SessionImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    Timeline self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as TimelineImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    Session self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SessionImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    Timeline self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as TimelineImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+    Session self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SessionImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    Timeline self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as TimelineImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_list_room_list_diff_Sse(
+    RustStreamSink<List<RoomListDiff>> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_room_list_diff,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_list_timeline_diff_Sse(
+    RustStreamSink<List<TimelineDiff>> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_timeline_diff,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_session_change_Sse(
+    RustStreamSink<SessionChange> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_session_change,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_sync_state_Sse(
+    RustStreamSink<SyncState> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sync_state,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_core_error(
+    CoreError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_core_error(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_event_info(
+    EventInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_event_info(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_room_summary(
+    RoomSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_room_summary(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_session_data(
+    SessionData self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_session_data(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_timeline_item(
+    TimelineItem self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_timeline_item(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_core_error(CoreError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case CoreError_InvalidHomeserver(message: final message):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(message, serializer);
+      case CoreError_Network(message: final message):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(message, serializer);
+      case CoreError_Forbidden(message: final message):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(message, serializer);
+      case CoreError_SessionExpired():
+        sse_encode_i_32(3, serializer);
+      case CoreError_WrongStorePassphrase():
+        sse_encode_i_32(4, serializer);
+      case CoreError_InvalidId(id: final id):
+        sse_encode_i_32(5, serializer);
+        sse_encode_String(id, serializer);
+      case CoreError_RoomNotFound(roomId: final roomId):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(roomId, serializer);
+      case CoreError_Internal(message: final message):
+        sse_encode_i_32(7, serializer);
+        sse_encode_String(message, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_event_info(EventInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.eventId, serializer);
+    sse_encode_String(self.sender, serializer);
+    sse_encode_opt_String(self.senderName, serializer);
+    sse_encode_u_64(self.timestampMs, serializer);
+    sse_encode_bool(self.isOwn, serializer);
+    sse_encode_send_state(self.sendState, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
   }
 
   @protected
@@ -218,6 +2085,262 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_room_list_diff(
+    List<RoomListDiff> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_room_list_diff(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_room_summary(
+    List<RoomSummary> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_room_summary(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_timeline_diff(
+    List<TimelineDiff> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_timeline_diff(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_timeline_item(
+    List<TimelineItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_timeline_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_membership(Membership self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_room_list_diff(RoomListDiff self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case RoomListDiff_Append(values: final values):
+        sse_encode_i_32(0, serializer);
+        sse_encode_list_room_summary(values, serializer);
+      case RoomListDiff_Clear():
+        sse_encode_i_32(1, serializer);
+      case RoomListDiff_PushFront(value: final value):
+        sse_encode_i_32(2, serializer);
+        sse_encode_box_autoadd_room_summary(value, serializer);
+      case RoomListDiff_PushBack(value: final value):
+        sse_encode_i_32(3, serializer);
+        sse_encode_box_autoadd_room_summary(value, serializer);
+      case RoomListDiff_PopFront():
+        sse_encode_i_32(4, serializer);
+      case RoomListDiff_PopBack():
+        sse_encode_i_32(5, serializer);
+      case RoomListDiff_Insert(index: final index, value: final value):
+        sse_encode_i_32(6, serializer);
+        sse_encode_usize(index, serializer);
+        sse_encode_box_autoadd_room_summary(value, serializer);
+      case RoomListDiff_Set(index: final index, value: final value):
+        sse_encode_i_32(7, serializer);
+        sse_encode_usize(index, serializer);
+        sse_encode_box_autoadd_room_summary(value, serializer);
+      case RoomListDiff_Remove(index: final index):
+        sse_encode_i_32(8, serializer);
+        sse_encode_usize(index, serializer);
+      case RoomListDiff_Truncate(length: final length):
+        sse_encode_i_32(9, serializer);
+        sse_encode_usize(length, serializer);
+      case RoomListDiff_Reset(values: final values):
+        sse_encode_i_32(10, serializer);
+        sse_encode_list_room_summary(values, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_room_summary(RoomSummary self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.roomId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_membership(self.membership, serializer);
+    sse_encode_opt_String(self.lastMessage, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.lastActivityMs, serializer);
+    sse_encode_u_64(self.unreadCount, serializer);
+    sse_encode_bool(self.isDm, serializer);
+    sse_encode_bool(self.isEncrypted, serializer);
+  }
+
+  @protected
+  void sse_encode_send_state(SendState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_session_change(SessionChange self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case SessionChange_UnknownToken(softLogout: final softLogout):
+        sse_encode_i_32(0, serializer);
+        sse_encode_bool(softLogout, serializer);
+      case SessionChange_TokensRefreshed():
+        sse_encode_i_32(1, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_session_data(SessionData self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.homeserverUrl, serializer);
+    sse_encode_String(self.userId, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.accessToken, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_state(SyncState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case SyncState_Idle():
+        sse_encode_i_32(0, serializer);
+      case SyncState_Running():
+        sse_encode_i_32(1, serializer);
+      case SyncState_Terminated():
+        sse_encode_i_32(2, serializer);
+      case SyncState_Error(error: final error):
+        sse_encode_i_32(3, serializer);
+        sse_encode_box_autoadd_core_error(error, serializer);
+      case SyncState_Offline():
+        sse_encode_i_32(4, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_timeline_diff(TimelineDiff self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case TimelineDiff_Append(values: final values):
+        sse_encode_i_32(0, serializer);
+        sse_encode_list_timeline_item(values, serializer);
+      case TimelineDiff_Clear():
+        sse_encode_i_32(1, serializer);
+      case TimelineDiff_PushFront(value: final value):
+        sse_encode_i_32(2, serializer);
+        sse_encode_box_autoadd_timeline_item(value, serializer);
+      case TimelineDiff_PushBack(value: final value):
+        sse_encode_i_32(3, serializer);
+        sse_encode_box_autoadd_timeline_item(value, serializer);
+      case TimelineDiff_PopFront():
+        sse_encode_i_32(4, serializer);
+      case TimelineDiff_PopBack():
+        sse_encode_i_32(5, serializer);
+      case TimelineDiff_Insert(index: final index, value: final value):
+        sse_encode_i_32(6, serializer);
+        sse_encode_usize(index, serializer);
+        sse_encode_box_autoadd_timeline_item(value, serializer);
+      case TimelineDiff_Set(index: final index, value: final value):
+        sse_encode_i_32(7, serializer);
+        sse_encode_usize(index, serializer);
+        sse_encode_box_autoadd_timeline_item(value, serializer);
+      case TimelineDiff_Remove(index: final index):
+        sse_encode_i_32(8, serializer);
+        sse_encode_usize(index, serializer);
+      case TimelineDiff_Truncate(length: final length):
+        sse_encode_i_32(9, serializer);
+        sse_encode_usize(length, serializer);
+      case TimelineDiff_Reset(values: final values):
+        sse_encode_i_32(10, serializer);
+        sse_encode_list_timeline_item(values, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_timeline_item(TimelineItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_timeline_item_content(self.content, serializer);
+  }
+
+  @protected
+  void sse_encode_timeline_item_content(
+    TimelineItemContent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case TimelineItemContent_Message(event: final event, body: final body):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_event_info(event, serializer);
+        sse_encode_String(body, serializer);
+      case TimelineItemContent_UnableToDecrypt(event: final event):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_event_info(event, serializer);
+      case TimelineItemContent_OtherEvent(event: final event):
+        sse_encode_i_32(2, serializer);
+        sse_encode_box_autoadd_event_info(event, serializer);
+      case TimelineItemContent_DateDivider(timestampMs: final timestampMs):
+        sse_encode_i_32(3, serializer);
+        sse_encode_u_64(timestampMs, serializer);
+      case TimelineItemContent_ReadMarker():
+        sse_encode_i_32(4, serializer);
+      case TimelineItemContent_TimelineStart():
+        sse_encode_i_32(5, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint16(self);
+  }
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
   }
 
   @protected
@@ -232,14 +2355,132 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
+  void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
+    serializer.buffer.putBigUint64(self);
   }
+}
 
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
-  }
+@sealed
+class SessionImpl extends RustOpaque implements Session {
+  // Not to be used by end users
+  SessionImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  SessionImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_Session,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_Session,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_SessionPtr,
+  );
+
+  /// Creates an encrypted direct chat with `user_id` and invites them. Returns the room ID.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed user ID, otherwise as the server answers.
+  Future<String> createDm({required String userId}) => RustLib.instance.api
+      .crateApiSessionSessionCreateDm(that: this, userId: userId);
+
+  /// Joins a room, typically one the user was invited to.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed room ID, otherwise as the server answers.
+  Future<void> join({required String roomId}) => RustLib.instance.api
+      .crateApiSessionSessionJoin(that: this, roomId: roomId);
+
+  /// What the app stores to [`restore`] this session later.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::SessionExpired`] if the session has been logged out.
+  SessionData sessionData() =>
+      RustLib.instance.api.crateApiSessionSessionSessionData(that: this);
+
+  /// Starts syncing. Calling it while syncing is harmless; while offline it retries at once.
+  Future<void> startSync() =>
+      RustLib.instance.api.crateApiSessionSessionStartSync(that: this);
+
+  /// Stops syncing, e.g. when the app goes to the background.
+  Future<void> stopSync() =>
+      RustLib.instance.api.crateApiSessionSessionStopSync(that: this);
+
+  /// Sends the room list as batches of diffs. The first batch is a `Reset` with the whole
+  /// list.
+  ///
+  /// # Errors
+  ///
+  /// If the SDK's room list can't be set up.
+  Stream<List<RoomListDiff>> subscribeRooms() =>
+      RustLib.instance.api.crateApiSessionSessionSubscribeRooms(that: this);
+
+  /// Sends every [`SessionChange`].
+  Stream<SessionChange> subscribeSessionChanges() => RustLib.instance.api
+      .crateApiSessionSessionSubscribeSessionChanges(that: this);
+
+  /// Sends the current [`SyncState`], then every change.
+  Stream<SyncState> subscribeSyncState() =>
+      RustLib.instance.api.crateApiSessionSessionSubscribeSyncState(that: this);
+
+  /// Opens the timeline of a room the user is in.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], or [`CoreError::RoomNotFound`] for a room the session doesn't
+  /// know.
+  Future<Timeline> timeline({required String roomId}) => RustLib.instance.api
+      .crateApiSessionSessionTimeline(that: this, roomId: roomId);
+
+  /// The logged-in user's Matrix ID.
+  String userId() =>
+      RustLib.instance.api.crateApiSessionSessionUserId(that: this);
+}
+
+@sealed
+class TimelineImpl extends RustOpaque implements Timeline {
+  // Not to be used by end users
+  TimelineImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  TimelineImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_Timeline,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_Timeline,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_TimelinePtr,
+  );
+
+  /// Loads up to `count` older events. Returns `true` once the start of the room is reached.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<bool> paginateBack({required int count}) => RustLib.instance.api
+      .crateApiTimelineTimelinePaginateBack(that: this, count: count);
+
+  /// Queues a plain-text message. It shows at once as a local echo in [`SendState::Sending`];
+  /// the room is encrypted transparently if it is an encrypted room.
+  ///
+  /// # Errors
+  ///
+  /// Only if the message can't be queued; a failed send shows as [`SendState::Failed`].
+  Future<void> sendText({required String body}) => RustLib.instance.api
+      .crateApiTimelineTimelineSendText(that: this, body: body);
+
+  /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
+  /// loaded so far.
+  Stream<List<TimelineDiff>> subscribeItems() =>
+      RustLib.instance.api.crateApiTimelineTimelineSubscribeItems(that: this);
 }

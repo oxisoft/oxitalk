@@ -2,6 +2,13 @@
 
 use flutter_rust_bridge::frb;
 
+pub mod error;
+pub mod room_list;
+pub mod rooms;
+pub mod session;
+pub mod sync;
+pub mod timeline;
+
 /// Sets up the bridge's default logging and panic handling and installs ring as the TLS
 /// provider. Called once by `RustLib.init()`.
 #[frb(init)]
@@ -24,6 +31,6 @@ mod tests {
 
     #[test]
     fn core_version_is_the_crate_version() {
-        assert_eq!(core_version(), "0.1.4");
+        assert_eq!(core_version(), "0.1.5");
     }
 }

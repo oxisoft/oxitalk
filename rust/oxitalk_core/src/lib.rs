@@ -3,6 +3,9 @@
 //! Everything the Flutter app may call lives in [`api`]; `flutter_rust_bridge` generates the
 //! Dart side from it.
 
+// The futures of matrix-sdk-ui (the timeline in particular) are deeply nested.
+#![recursion_limit = "256"]
+
 pub mod api;
 
 #[allow(
