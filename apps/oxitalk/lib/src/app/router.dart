@@ -19,33 +19,57 @@ abstract final class Routes {
   static const starting = '/starting';
   static const login = '/login';
   static const verify = '/verify';
+  static const addAccount = '/add-account';
   static const chats = '/';
 
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
 }
 
+/// The active account's verification status, which decides whether it sees its chats.
+@Riverpod(keepAlive: true)
+VerificationStatus activeVerification(Ref ref) =>
+    switch (ref.watch(activeAccountProvider)) {
+      final account? =>
+        ref.watch(verificationStatusProvider(account)).value ??
+            VerificationStatus.unknown,
+      null => VerificationStatus.unknown,
+    };
+
 @Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
-  final authChanged = ValueNotifier(0);
+  final refresh = ValueNotifier(0);
+  // Each account's open chat, so switching back to it returns there.
+  final openRooms = <String, String?>{};
+  late final GoRouter router;
   ref
-    ..listen(authProvider, (_, _) => authChanged.value++)
-    ..listen(verificationStatusProvider, (_, _) => authChanged.value++)
-    ..onDispose(authChanged.dispose);
-  return GoRouter(
+    ..listen(accountsProvider, (_, _) => refresh.value++)
+    ..listen(activeVerificationProvider, (_, _) => refresh.value++)
+    ..listen(activeAccountProvider, (previous, next) {
+      if (previous == next) return;
+      if (previous != null) {
+        openRooms[previous] = router.state.pathParameters['roomId'];
+      }
+      final room = next == null ? null : openRooms[next];
+      router.go(room == null ? Routes.chats : Routes.room(room));
+    })
+    ..onDispose(refresh.dispose);
+  return router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: Routes.chats,
-    refreshListenable: authChanged,
+    refreshListenable: refresh,
     redirect: (context, state) {
-      final auth = ref.read(authProvider);
+      final accounts = ref.read(accountsProvider);
       final location = state.matchedLocation;
-      if (auth.isLoading && !auth.hasValue) return Routes.starting;
-      final loggedIn = auth.value != null;
-      if (!loggedIn) return location == Routes.login ? null : Routes.login;
-      // An unverified device sees nothing else until it is verified (or logged out).
-      final unverified =
-          ref.read(verificationStatusProvider).value ==
-          VerificationStatus.unverified;
-      if (unverified) return location == Routes.verify ? null : Routes.verify;
+      if (accounts.isLoading && !accounts.hasValue) return Routes.starting;
+      if (accounts.value?.sessions.isEmpty ?? true) {
+        return location == Routes.login ? null : Routes.login;
+      }
+      if (location == Routes.addAccount) return null;
+      // An unverified account sees nothing else until it is verified (or logged out).
+      if (ref.read(activeVerificationProvider) ==
+          VerificationStatus.unverified) {
+        return location == Routes.verify ? null : Routes.verify;
+      }
       if (location == Routes.login ||
           location == Routes.starting ||
           location == Routes.verify) {
@@ -60,6 +84,10 @@ GoRouter router(Ref ref) {
             const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: Routes.addAccount,
+        builder: (_, _) => const LoginScreen(adding: true),
+      ),
       GoRoute(path: Routes.verify, builder: (_, _) => const VerifyScreen()),
       GoRoute(
         path: Routes.chats,

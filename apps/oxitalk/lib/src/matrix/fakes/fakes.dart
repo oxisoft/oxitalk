@@ -21,14 +21,18 @@ final class MemorySecretStore implements SecretStore {
 
 final class FakeMatrixClientFactory implements MatrixClientFactory {
   FakeMatrixClientFactory({
-    this.saved,
+    List<FakeSession> saved = const [],
+    this.active,
     this.password = 'secret',
     this.rooms = const [],
     this.loginVerification = VerificationStatus.verified,
-  });
+  }) : saved = [...saved];
 
-  /// What [restoreSaved] returns.
-  FakeSession? saved;
+  /// What [restoreAll] returns; [login] adds to it.
+  final List<FakeSession> saved;
+
+  /// The account [readActive] returns; [writeActive] sets it.
+  String? active;
 
   /// The only password [login] accepts.
   final String password;
@@ -50,12 +54,24 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
     if (password != this.password) {
       throw const MatrixFailure(FailureKind.forbidden, 'Invalid password');
     }
-    return lastLogin = FakeSession(userId: '@$username:$server', rooms: rooms)
+    final userId = '@$username:$server';
+    if (saved.any((session) => session.userId == userId)) {
+      throw MatrixFailure(FailureKind.alreadyLoggedIn, userId);
+    }
+    final session = FakeSession(userId: userId, rooms: rooms)
       ..verification.value = loginVerification;
+    saved.add(session);
+    return lastLogin = session;
   }
 
   @override
-  Future<MatrixSession?> restoreSaved() async => saved;
+  Future<List<MatrixSession>> restoreAll() async => [...saved];
+
+  @override
+  Future<String?> readActive() async => active;
+
+  @override
+  Future<void> writeActive(String userId) async => active = userId;
 }
 
 final class FakeSession implements MatrixSession {

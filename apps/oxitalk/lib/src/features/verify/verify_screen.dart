@@ -32,7 +32,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     super.dispose();
   }
 
-  MatrixSession? get _session => ref.read(authProvider).value;
+  MatrixSession? get _session => ref.read(accountsProvider).value?.active;
 
   Future<void> _useOtherDevice() async {
     final session = _session;
@@ -117,6 +117,14 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       const SizedBox(height: 8),
+      if (ref.watch(activeAccountProvider) case final account?) ...[
+        Text(
+          account,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 8),
+      ],
       Text(
         'Verify this device to read your encrypted messages and to show '
         'others it’s really you.',
@@ -148,7 +156,13 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       ),
       const SizedBox(height: 24),
       TextButton(
-        onPressed: () => unawaited(ref.read(authProvider.notifier).logout()),
+        onPressed: () {
+          if (_session case final session?) {
+            unawaited(
+              ref.read(accountsProvider.notifier).logout(session.userId),
+            );
+          }
+        },
         child: const Text('Log out'),
       ),
     ],

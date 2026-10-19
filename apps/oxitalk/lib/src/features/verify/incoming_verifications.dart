@@ -6,7 +6,8 @@ import '../../app/router.dart';
 import '../../matrix/api/matrix.dart';
 import 'verify_screen.dart';
 
-/// Shows a request from another of the user's devices as a dialog, wherever the user is.
+/// Shows a request from another device of any of the accounts as a dialog, wherever the user
+/// is.
 class IncomingVerifications extends ConsumerWidget {
   const IncomingVerifications({required this.child, super.key});
 
@@ -14,17 +15,20 @@ class IncomingVerifications extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen(verificationRequestsProvider, (_, next) {
-      final request = next.value;
-      final session = ref.read(authProvider).value;
-      final context = rootNavigatorKey.currentContext;
-      if (request == null || session == null || context == null) return;
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _IncomingDialog(session: session, request: request),
-      ).ignore();
-    });
+    final sessions =
+        ref.watch(accountsProvider).value?.sessions ?? const <MatrixSession>[];
+    for (final session in sessions) {
+      ref.listen(verificationRequestsProvider(session.userId), (_, next) {
+        final request = next.value;
+        final context = rootNavigatorKey.currentContext;
+        if (request == null || context == null) return;
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _IncomingDialog(session: session, request: request),
+        ).ignore();
+      });
+    }
     return child;
   }
 }
@@ -62,8 +66,12 @@ class _IncomingDialogState extends State<_IncomingDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  widget.request.deviceName ?? widget.request.deviceId,
+                  widget.session.userId,
                   style: Theme.of(context).textTheme.labelLarge,
+                ),
+                Text(
+                  widget.request.deviceName ?? widget.request.deviceId,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 16),
                 VerificationFlow(

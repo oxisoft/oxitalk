@@ -60,7 +60,7 @@ void main() {
 
   group('chat list', () {
     testWidgets('a saved session skips the login', (tester) async {
-      await pumpApp(tester, FakeMatrixClientFactory(saved: _session()));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [_session()]));
       expect(find.text('Sign in'), findsNothing);
       expect(find.text('Team'), findsOneWidget);
       expect(find.text('Standup at 10'), findsOneWidget);
@@ -70,7 +70,7 @@ void main() {
 
     testWidgets('the title shows the connection', (tester) async {
       final session = _session()..status.value = SyncStatus.offline;
-      await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
       expect(find.text('Waiting for network…'), findsOneWidget);
 
       session.status.value = SyncStatus.connecting;
@@ -88,7 +88,7 @@ void main() {
 
     testWidgets('tapping an invite joins and opens the chat', (tester) async {
       final session = _session();
-      await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
       await tester.tap(find.text('Carol'));
       await tester.pumpAndSettle();
@@ -104,7 +104,7 @@ void main() {
 
     testWidgets('a new chat starts a DM by user ID', (tester) async {
       final session = _session();
-      await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
       await tester.tap(find.byTooltip('New chat'));
       await tester.pumpAndSettle();
@@ -129,7 +129,7 @@ void main() {
       tester,
     ) async {
       final session = _session();
-      await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
       await tester.tap(find.byTooltip('Menu'));
       await tester.pumpAndSettle();
@@ -142,7 +142,7 @@ void main() {
 
     testWidgets('a rejected session returns to the login', (tester) async {
       final session = _session();
-      await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
       session.expire();
       await tester.pumpAndSettle();
@@ -180,7 +180,7 @@ void main() {
       );
       await pumpApp(
         tester,
-        FakeMatrixClientFactory(saved: session),
+        FakeMatrixClientFactory(saved: [session]),
         size: size,
       );
       await tester.tap(find.text('Bob'));
@@ -252,7 +252,7 @@ void main() {
     ) async {
       await pumpApp(
         tester,
-        FakeMatrixClientFactory(saved: _session()),
+        FakeMatrixClientFactory(saved: [_session()]),
         size: const Size(1200, 800),
       );
       expect(find.text('Select a chat to start messaging'), findsOneWidget);

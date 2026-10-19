@@ -152,48 +152,49 @@ final class DefaultServerProvider
 
 String _$defaultServerHash() => r'87c06ddbf7a0996cbee9c7cdafaf646fde203c47';
 
-/// The logged-in session, or `null` when logged out. Starts by restoring a saved session.
+/// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 
-@ProviderFor(Auth)
-final authProvider = AuthProvider._();
+@ProviderFor(Accounts)
+final accountsProvider = AccountsProvider._();
 
-/// The logged-in session, or `null` when logged out. Starts by restoring a saved session.
-final class AuthProvider extends $AsyncNotifierProvider<Auth, MatrixSession?> {
-  /// The logged-in session, or `null` when logged out. Starts by restoring a saved session.
-  AuthProvider._()
+/// The accounts. Starts by restoring the saved ones; all of them sync all the time.
+final class AccountsProvider
+    extends $AsyncNotifierProvider<Accounts, AccountsState> {
+  /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
+  AccountsProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'authProvider',
+        name: r'accountsProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$authHash();
+  String debugGetCreateSourceHash() => _$accountsHash();
 
   @$internal
   @override
-  Auth create() => Auth();
+  Accounts create() => Accounts();
 }
 
-String _$authHash() => r'95eedfd341dd36f158ed2e1bdb090dc13fc886d6';
+String _$accountsHash() => r'88e7bc18e8f3b110f2097d4dd7a2a3eb56fdb4a9';
 
-/// The logged-in session, or `null` when logged out. Starts by restoring a saved session.
+/// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 
-abstract class _$Auth extends $AsyncNotifier<MatrixSession?> {
-  FutureOr<MatrixSession?> build();
+abstract class _$Accounts extends $AsyncNotifier<AccountsState> {
+  FutureOr<AccountsState> build();
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<MatrixSession?>, MatrixSession?>;
+    final ref = this.ref as $Ref<AsyncValue<AccountsState>, AccountsState>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<MatrixSession?>, MatrixSession?>,
-              AsyncValue<MatrixSession?>,
+              AnyNotifier<AsyncValue<AccountsState>, AccountsState>,
+              AsyncValue<AccountsState>,
               Object?,
               Object?
             >;
@@ -201,8 +202,54 @@ abstract class _$Auth extends $AsyncNotifier<MatrixSession?> {
   }
 }
 
+/// The user ID of the account in front, or `null` when there are none.
+
+@ProviderFor(activeAccount)
+final activeAccountProvider = ActiveAccountProvider._();
+
+/// The user ID of the account in front, or `null` when there are none.
+
+final class ActiveAccountProvider
+    extends $FunctionalProvider<String?, String?, String?>
+    with $Provider<String?> {
+  /// The user ID of the account in front, or `null` when there are none.
+  ActiveAccountProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'activeAccountProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$activeAccountHash();
+
+  @$internal
+  @override
+  $ProviderElement<String?> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  String? create(Ref ref) {
+    return activeAccount(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String?>(value),
+    );
+  }
+}
+
+String _$activeAccountHash() => r'6e1641153bbe8c536d7a9a8bf88892b9add5de52';
+
 @ProviderFor(syncStatus)
-final syncStatusProvider = SyncStatusProvider._();
+final syncStatusProvider = SyncStatusFamily._();
 
 final class SyncStatusProvider
     extends
@@ -212,19 +259,26 @@ final class SyncStatusProvider
           Stream<SyncStatus>
         >
     with $FutureModifier<SyncStatus>, $StreamProvider<SyncStatus> {
-  SyncStatusProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'syncStatusProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  SyncStatusProvider._({
+    required SyncStatusFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'syncStatusProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$syncStatusHash();
+
+  @override
+  String toString() {
+    return r'syncStatusProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -233,18 +287,47 @@ final class SyncStatusProvider
 
   @override
   Stream<SyncStatus> create(Ref ref) {
-    return syncStatus(ref);
+    final argument = this.argument as String;
+    return syncStatus(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SyncStatusProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
   }
 }
 
-String _$syncStatusHash() => r'68729a0c736199ae1176dca42681965bae9795a3';
+String _$syncStatusHash() => r'987fdbdba3f33203be123d96e148e4e68e12a7fd';
 
-/// This device's verification status; [VerificationStatus.unknown] while logged out.
+final class SyncStatusFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<SyncStatus>, String> {
+  SyncStatusFamily._()
+    : super(
+        retry: null,
+        name: r'syncStatusProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  SyncStatusProvider call(String account) =>
+      SyncStatusProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'syncStatusProvider';
+}
+
+/// The account's verification status; [VerificationStatus.unknown] once it is gone.
 
 @ProviderFor(verificationStatus)
-final verificationStatusProvider = VerificationStatusProvider._();
+final verificationStatusProvider = VerificationStatusFamily._();
 
-/// This device's verification status; [VerificationStatus.unknown] while logged out.
+/// The account's verification status; [VerificationStatus.unknown] once it is gone.
 
 final class VerificationStatusProvider
     extends
@@ -256,20 +339,27 @@ final class VerificationStatusProvider
     with
         $FutureModifier<VerificationStatus>,
         $StreamProvider<VerificationStatus> {
-  /// This device's verification status; [VerificationStatus.unknown] while logged out.
-  VerificationStatusProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'verificationStatusProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  /// The account's verification status; [VerificationStatus.unknown] once it is gone.
+  VerificationStatusProvider._({
+    required VerificationStatusFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'verificationStatusProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$verificationStatusHash();
+
+  @override
+  String toString() {
+    return r'verificationStatusProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -279,15 +369,48 @@ final class VerificationStatusProvider
 
   @override
   Stream<VerificationStatus> create(Ref ref) {
-    return verificationStatus(ref);
+    final argument = this.argument as String;
+    return verificationStatus(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is VerificationStatusProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
   }
 }
 
 String _$verificationStatusHash() =>
-    r'6c4d4db979323984e4fcd85d6a5359700dc9a7f0';
+    r'8dbe39669d1f5f03329730a604c1143114ee8b42';
+
+/// The account's verification status; [VerificationStatus.unknown] once it is gone.
+
+final class VerificationStatusFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<VerificationStatus>, String> {
+  VerificationStatusFamily._()
+    : super(
+        retry: null,
+        name: r'verificationStatusProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The account's verification status; [VerificationStatus.unknown] once it is gone.
+
+  VerificationStatusProvider call(String account) =>
+      VerificationStatusProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'verificationStatusProvider';
+}
 
 @ProviderFor(verificationRequests)
-final verificationRequestsProvider = VerificationRequestsProvider._();
+final verificationRequestsProvider = VerificationRequestsFamily._();
 
 final class VerificationRequestsProvider
     extends
@@ -299,19 +422,26 @@ final class VerificationRequestsProvider
     with
         $FutureModifier<VerificationRequest>,
         $StreamProvider<VerificationRequest> {
-  VerificationRequestsProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'verificationRequestsProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  VerificationRequestsProvider._({
+    required VerificationRequestsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'verificationRequestsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$verificationRequestsHash();
+
+  @override
+  String toString() {
+    return r'verificationRequestsProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -321,17 +451,46 @@ final class VerificationRequestsProvider
 
   @override
   Stream<VerificationRequest> create(Ref ref) {
-    return verificationRequests(ref);
+    final argument = this.argument as String;
+    return verificationRequests(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is VerificationRequestsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
   }
 }
 
 String _$verificationRequestsHash() =>
-    r'0c6cc48cfe941fd3c419e7f433d03c61de8e8014';
+    r'267a100b872cf1f50537d3675b2b3d1ebf4fd9b5';
+
+final class VerificationRequestsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<VerificationRequest>, String> {
+  VerificationRequestsFamily._()
+    : super(
+        retry: null,
+        name: r'verificationRequestsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  VerificationRequestsProvider call(String account) =>
+      VerificationRequestsProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'verificationRequestsProvider';
+}
 
 /// `null` until the first room list has arrived.
 
 @ProviderFor(rooms)
-final roomsProvider = RoomsProvider._();
+final roomsProvider = RoomsFamily._();
 
 /// `null` until the first room list has arrived.
 
@@ -344,19 +503,26 @@ final class RoomsProvider
         >
     with $FutureModifier<List<Room>?>, $StreamProvider<List<Room>?> {
   /// `null` until the first room list has arrived.
-  RoomsProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'roomsProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  RoomsProvider._({
+    required RoomsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'roomsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$roomsHash();
+
+  @override
+  String toString() {
+    return r'roomsProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -366,11 +532,129 @@ final class RoomsProvider
 
   @override
   Stream<List<Room>?> create(Ref ref) {
-    return rooms(ref);
+    final argument = this.argument as String;
+    return rooms(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
   }
 }
 
-String _$roomsHash() => r'48867a01740bdf5d0a6761e6169052bf0e00408d';
+String _$roomsHash() => r'479c67cde191bbbd4c6eaa4512f17ca53ddf0471';
+
+/// `null` until the first room list has arrived.
+
+final class RoomsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<List<Room>?>, String> {
+  RoomsFamily._()
+    : super(
+        retry: null,
+        name: r'roomsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// `null` until the first room list has arrived.
+
+  RoomsProvider call(String account) =>
+      RoomsProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'roomsProvider';
+}
+
+/// What the account switcher shows: unread messages plus invites.
+
+@ProviderFor(unreadCount)
+final unreadCountProvider = UnreadCountFamily._();
+
+/// What the account switcher shows: unread messages plus invites.
+
+final class UnreadCountProvider extends $FunctionalProvider<int, int, int>
+    with $Provider<int> {
+  /// What the account switcher shows: unread messages plus invites.
+  UnreadCountProvider._({
+    required UnreadCountFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'unreadCountProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$unreadCountHash();
+
+  @override
+  String toString() {
+    return r'unreadCountProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $ProviderElement<int> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  int create(Ref ref) {
+    final argument = this.argument as String;
+    return unreadCount(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is UnreadCountProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$unreadCountHash() => r'cd69ef890e31b24c72de8cf1dbe614c5a74b865e';
+
+/// What the account switcher shows: unread messages plus invites.
+
+final class UnreadCountFamily extends $Family
+    with $FunctionalFamilyOverride<int, String> {
+  UnreadCountFamily._()
+    : super(
+        retry: null,
+        name: r'unreadCountProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// What the account switcher shows: unread messages plus invites.
+
+  UnreadCountProvider call(String account) =>
+      UnreadCountProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'unreadCountProvider';
+}
 
 @ProviderFor(roomTimeline)
 final roomTimelineProvider = RoomTimelineFamily._();
@@ -385,7 +669,7 @@ final class RoomTimelineProvider
     with $FutureModifier<RoomTimeline>, $FutureProvider<RoomTimeline> {
   RoomTimelineProvider._({
     required RoomTimelineFamily super.from,
-    required String super.argument,
+    required (String, String) super.argument,
   }) : super(
          retry: null,
          name: r'roomTimelineProvider',
@@ -401,7 +685,7 @@ final class RoomTimelineProvider
   String toString() {
     return r'roomTimelineProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -412,8 +696,8 @@ final class RoomTimelineProvider
 
   @override
   FutureOr<RoomTimeline> create(Ref ref) {
-    final argument = this.argument as String;
-    return roomTimeline(ref, argument);
+    final argument = this.argument as (String, String);
+    return roomTimeline(ref, argument.$1, argument.$2);
   }
 
   @override
@@ -427,10 +711,10 @@ final class RoomTimelineProvider
   }
 }
 
-String _$roomTimelineHash() => r'1102e04b5d312e12fc10cc28d1b36e12d1ae755a';
+String _$roomTimelineHash() => r'4a7425da15aba5d756162c8189ecd6edf2b1d9ed';
 
 final class RoomTimelineFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<RoomTimeline>, String> {
+    with $FunctionalFamilyOverride<FutureOr<RoomTimeline>, (String, String)> {
   RoomTimelineFamily._()
     : super(
         retry: null,
@@ -440,8 +724,8 @@ final class RoomTimelineFamily extends $Family
         isAutoDispose: true,
       );
 
-  RoomTimelineProvider call(String roomId) =>
-      RoomTimelineProvider._(argument: roomId, from: this);
+  RoomTimelineProvider call(String account, String roomId) =>
+      RoomTimelineProvider._(argument: (account, roomId), from: this);
 
   @override
   String toString() => r'roomTimelineProvider';
@@ -470,7 +754,7 @@ final class TimelineEntriesProvider
   /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
   TimelineEntriesProvider._({
     required TimelineEntriesFamily super.from,
-    required String super.argument,
+    required (String, String) super.argument,
   }) : super(
          retry: null,
          name: r'timelineEntriesProvider',
@@ -486,7 +770,7 @@ final class TimelineEntriesProvider
   String toString() {
     return r'timelineEntriesProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -497,8 +781,8 @@ final class TimelineEntriesProvider
 
   @override
   Stream<List<TimelineEntry>> create(Ref ref) {
-    final argument = this.argument as String;
-    return timelineEntries(ref, argument);
+    final argument = this.argument as (String, String);
+    return timelineEntries(ref, argument.$1, argument.$2);
   }
 
   @override
@@ -512,13 +796,17 @@ final class TimelineEntriesProvider
   }
 }
 
-String _$timelineEntriesHash() => r'9a6acb081525cdedbff53521af8e3495ad62d347';
+String _$timelineEntriesHash() => r'0e3e705846fbf510e05fdc3450105e0924e33af3';
 
 /// Follows the timeline's state rather than awaiting its `future`: a logout disposes both
 /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
 
 final class TimelineEntriesFamily extends $Family
-    with $FunctionalFamilyOverride<Stream<List<TimelineEntry>>, String> {
+    with
+        $FunctionalFamilyOverride<
+          Stream<List<TimelineEntry>>,
+          (String, String)
+        > {
   TimelineEntriesFamily._()
     : super(
         retry: null,
@@ -531,8 +819,8 @@ final class TimelineEntriesFamily extends $Family
   /// Follows the timeline's state rather than awaiting its `future`: a logout disposes both
   /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
 
-  TimelineEntriesProvider call(String roomId) =>
-      TimelineEntriesProvider._(argument: roomId, from: this);
+  TimelineEntriesProvider call(String account, String roomId) =>
+      TimelineEntriesProvider._(argument: (account, roomId), from: this);
 
   @override
   String toString() => r'timelineEntriesProvider';

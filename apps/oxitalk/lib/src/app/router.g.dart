@@ -8,6 +8,58 @@ part of 'router.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// The active account's verification status, which decides whether it sees its chats.
+
+@ProviderFor(activeVerification)
+final activeVerificationProvider = ActiveVerificationProvider._();
+
+/// The active account's verification status, which decides whether it sees its chats.
+
+final class ActiveVerificationProvider
+    extends
+        $FunctionalProvider<
+          VerificationStatus,
+          VerificationStatus,
+          VerificationStatus
+        >
+    with $Provider<VerificationStatus> {
+  /// The active account's verification status, which decides whether it sees its chats.
+  ActiveVerificationProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'activeVerificationProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$activeVerificationHash();
+
+  @$internal
+  @override
+  $ProviderElement<VerificationStatus> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  VerificationStatus create(Ref ref) {
+    return activeVerification(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(VerificationStatus value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<VerificationStatus>(value),
+    );
+  }
+}
+
+String _$activeVerificationHash() =>
+    r'fb90bcb01c4fec320b60b101719c12143933adc9';
 
 @ProviderFor(router)
 final routerProvider = RouterProvider._();
@@ -48,4 +100,4 @@ final class RouterProvider
   }
 }
 
-String _$routerHash() => r'a8c1d5c43e6fcc8db205eeabaf85eb0365d60091';
+String _$routerHash() => r'8f4d1bd2ce164613e158493618e3d1bbb0677943';

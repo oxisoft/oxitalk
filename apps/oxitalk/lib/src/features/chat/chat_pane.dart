@@ -12,27 +12,42 @@ import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 
-/// A chat as a page of its own (narrow windows).
-class ChatScreen extends StatelessWidget {
+/// A chat of the active account as a page of its own (narrow windows).
+class ChatScreen extends ConsumerWidget {
   const ChatScreen({required this.roomId, super.key});
 
   final String roomId;
 
   @override
-  Widget build(BuildContext context) =>
-      ChatPane(roomId: roomId, showBack: true);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final account = ref.watch(activeAccountProvider);
+    if (account == null) return const SizedBox.shrink();
+    return ChatPane(
+      key: ValueKey((account, roomId)),
+      account: account,
+      roomId: roomId,
+      showBack: true,
+    );
+  }
 }
 
 class ChatPane extends ConsumerWidget {
-  const ChatPane({required this.roomId, required this.showBack, super.key});
+  const ChatPane({
+    required this.account,
+    required this.roomId,
+    required this.showBack,
+    super.key,
+  });
 
+  /// The user ID of the account the chat belongs to.
+  final String account;
   final String roomId;
   final bool showBack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final room = ref
-        .watch(roomsProvider)
+        .watch(roomsProvider(account))
         .value
         ?.where((room) => room.id == roomId)
         .firstOrNull;
@@ -72,11 +87,12 @@ class ChatPane extends ConsumerWidget {
           children: [
             Expanded(
               child: TimelineView(
+                account: account,
                 roomId: roomId,
                 showSenders: !(room?.isDm ?? false),
               ),
             ),
-            Composer(roomId: roomId),
+            Composer(account: account, roomId: roomId),
           ],
         ),
       ),
@@ -86,11 +102,13 @@ class ChatPane extends ConsumerWidget {
 
 class TimelineView extends ConsumerStatefulWidget {
   const TimelineView({
+    required this.account,
     required this.roomId,
     required this.showSenders,
     super.key,
   });
 
+  final String account;
   final String roomId;
 
   /// Names above other people's messages; off in direct chats.
@@ -107,7 +125,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   /// Loads older messages when the list is short or scrolled near its top.
   Future<void> _loadOlder() async {
     if (_loadingOlder || _reachedStart) return;
-    final timeline = ref.read(roomTimelineProvider(widget.roomId)).value;
+    final timeline = ref
+        .read(roomTimelineProvider(widget.account, widget.roomId))
+        .value;
     if (timeline == null) return;
     _loadingOlder = true;
     try {
@@ -127,7 +147,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(timelineEntriesProvider(widget.roomId));
+    final entries = ref.watch(
+      timelineEntriesProvider(widget.account, widget.roomId),
+    );
     return switch (entries) {
       AsyncData(value: final entries) => _list(entries),
       AsyncError(:final error) => Center(
@@ -337,8 +359,9 @@ class _SendStateIcon extends StatelessWidget {
 }
 
 class Composer extends ConsumerStatefulWidget {
-  const Composer({required this.roomId, super.key});
+  const Composer({required this.account, required this.roomId, super.key});
 
+  final String account;
   final String roomId;
 
   @override
@@ -358,7 +381,9 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _send() async {
     final text = _text.text.trim();
-    final timeline = ref.read(roomTimelineProvider(widget.roomId)).value;
+    final timeline = ref
+        .read(roomTimelineProvider(widget.account, widget.roomId))
+        .value;
     if (text.isEmpty || timeline == null) return;
     _text.clear();
     _focus.requestFocus();

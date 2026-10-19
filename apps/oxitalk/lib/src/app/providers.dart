@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show ProviderListenableSelect;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -25,17 +27,41 @@ MatrixClientFactory clientFactory(Ref ref) => RustMatrixClientFactory(
 @Riverpod(keepAlive: true)
 String defaultServer(Ref ref) => 'matrix.org';
 
-/// The logged-in session, or `null` when logged out. Starts by restoring a saved session.
+/// The logged-in accounts, in the order they were added, and which one is in front.
+final class AccountsState {
+  const AccountsState(this.sessions, this.activeId);
+
+  final List<MatrixSession> sessions;
+
+  /// The user ID of the account in front; `null` only when there are no accounts.
+  final String? activeId;
+
+  MatrixSession? get active =>
+      sessions.where((session) => session.userId == activeId).firstOrNull;
+
+  MatrixSession? byId(String userId) =>
+      sessions.where((session) => session.userId == userId).firstOrNull;
+}
+
+/// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 @Riverpod(keepAlive: true)
-class Auth extends _$Auth {
+class Accounts extends _$Accounts {
   @override
-  Future<MatrixSession?> build() async {
-    final session = await ref.watch(clientFactoryProvider).restoreSaved();
-    _watchExpiry(session);
-    return session;
+  Future<AccountsState> build() async {
+    final factory = ref.watch(clientFactoryProvider);
+    final sessions = await factory.restoreAll();
+    sessions.forEach(_watchExpiry);
+    final saved = await factory.readActive();
+    final active = sessions.any((session) => session.userId == saved)
+        ? saved
+        : sessions.firstOrNull?.userId;
+    return AccountsState(sessions, active);
   }
 
-  /// Throws [MatrixFailure]; the login form shows it.
+  AccountsState get _current => state.value ?? const AccountsState([], null);
+
+  /// Logs in to one more account and brings it to the front. Throws [MatrixFailure]; the
+  /// login form shows it.
   Future<void> login({
     required String server,
     required String username,
@@ -53,48 +79,91 @@ class Auth extends _$Auth {
           const Duration(seconds: 15),
           onTimeout: () => VerificationStatus.unknown,
         );
-    state = AsyncData(session);
-  }
-
-  Future<void> logout() async {
-    final session = state.value;
-    state = const AsyncData(null);
-    await session?.logout();
-  }
-
-  void _watchExpiry(MatrixSession? session) {
-    unawaited(
-      session?.expired.then((_) {
-        if (state.value == session) state = const AsyncData(null);
-      }),
+    state = AsyncData(
+      AccountsState([..._current.sessions, session], session.userId),
     );
+    _saveActive(session.userId);
   }
+
+  /// Brings the account with [userId] to the front.
+  void activate(String userId) {
+    final current = _current;
+    if (current.activeId == userId || current.byId(userId) == null) return;
+    state = AsyncData(AccountsState(current.sessions, userId));
+    _saveActive(userId);
+  }
+
+  /// Logs out of the account with [userId]; the next one comes to the front.
+  Future<void> logout(String userId) async {
+    final session = _current.byId(userId);
+    if (session == null) return;
+    _remove(session);
+    await session.logout();
+  }
+
+  void _remove(MatrixSession session) {
+    final current = _current;
+    final index = current.sessions.indexOf(session);
+    if (index < 0) return;
+    final sessions = [...current.sessions]..removeAt(index);
+    final active = current.activeId != session.userId
+        ? current.activeId
+        : sessions.isEmpty
+        ? null
+        : sessions[index.clamp(0, sessions.length - 1)].userId;
+    state = AsyncData(AccountsState(sessions, active));
+    if (active != null) _saveActive(active);
+  }
+
+  void _saveActive(String userId) =>
+      unawaited(ref.read(clientFactoryProvider).writeActive(userId));
+
+  void _watchExpiry(MatrixSession session) =>
+      unawaited(session.expired.then((_) => _remove(session)));
 }
 
-MatrixSession? _session(Ref ref) => ref.watch(authProvider).value;
+/// The user ID of the account in front, or `null` when there are none.
+@Riverpod(keepAlive: true)
+String? activeAccount(Ref ref) =>
+    ref.watch(accountsProvider.select((accounts) => accounts.value?.activeId));
+
+MatrixSession? _session(Ref ref, String account) => ref.watch(
+  accountsProvider.select((accounts) => accounts.value?.byId(account)),
+);
 
 @riverpod
-Stream<SyncStatus> syncStatus(Ref ref) =>
-    _session(ref)?.syncStatus ?? Stream.value(SyncStatus.connecting);
+Stream<SyncStatus> syncStatus(Ref ref, String account) =>
+    _session(ref, account)?.syncStatus ?? Stream.value(SyncStatus.connecting);
 
-/// This device's verification status; [VerificationStatus.unknown] while logged out.
+/// The account's verification status; [VerificationStatus.unknown] once it is gone.
 @riverpod
-Stream<VerificationStatus> verificationStatus(Ref ref) =>
-    _session(ref)?.verificationStatus ??
+Stream<VerificationStatus> verificationStatus(Ref ref, String account) =>
+    _session(ref, account)?.verificationStatus ??
     Stream.value(VerificationStatus.unknown);
 
 @riverpod
-Stream<VerificationRequest> verificationRequests(Ref ref) =>
-    _session(ref)?.verificationRequests ?? const Stream.empty();
+Stream<VerificationRequest> verificationRequests(Ref ref, String account) =>
+    _session(ref, account)?.verificationRequests ?? const Stream.empty();
 
 /// `null` until the first room list has arrived.
 @riverpod
-Stream<List<Room>?> rooms(Ref ref) =>
-    _session(ref)?.rooms ?? Stream.value(null);
+Stream<List<Room>?> rooms(Ref ref, String account) =>
+    _session(ref, account)?.rooms ?? Stream.value(null);
+
+/// What the account switcher shows: unread messages plus invites.
+@riverpod
+int unreadCount(Ref ref, String account) => [
+  for (final room in ref.watch(roomsProvider(account)).value ?? const <Room>[])
+    room.membership == Membership.invited ? 1 : room.unreadCount,
+].fold(0, (sum, count) => sum + count);
 
 @riverpod
-Future<RoomTimeline> roomTimeline(Ref ref, String roomId) async {
-  final session = _session(ref);
+Future<RoomTimeline> roomTimeline(
+  Ref ref,
+  String account,
+  String roomId,
+) async {
+  final session = _session(ref, account);
   if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
   RoomTimeline? timeline;
   var disposed = false;
@@ -110,12 +179,15 @@ Future<RoomTimeline> roomTimeline(Ref ref, String roomId) async {
 /// Follows the timeline's state rather than awaiting its `future`: a logout disposes both
 /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
 @riverpod
-Stream<List<TimelineEntry>> timelineEntries(Ref ref, String roomId) =>
-    switch (ref.watch(roomTimelineProvider(roomId))) {
-      AsyncData(:final value) => value.entries,
-      AsyncError(:final error, :final stackTrace) => Stream.error(
-        error,
-        stackTrace,
-      ),
-      _ => const Stream.empty(),
-    };
+Stream<List<TimelineEntry>> timelineEntries(
+  Ref ref,
+  String account,
+  String roomId,
+) => switch (ref.watch(roomTimelineProvider(account, roomId))) {
+  AsyncData(:final value) => value.entries,
+  AsyncError(:final error, :final stackTrace) => Stream.error(
+    error,
+    stackTrace,
+  ),
+  _ => const Stream.empty(),
+};

@@ -16,7 +16,7 @@ void main() {
     tester,
   ) async {
     final session = _unverified();
-    await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+    await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
     expect(find.text('Confirm it’s you'), findsOneWidget);
     expect(find.text('Team'), findsNothing);
 
@@ -44,7 +44,7 @@ void main() {
   });
 
   testWidgets('the recovery key verifies; a wrong one says so', (tester) async {
-    await pumpApp(tester, FakeMatrixClientFactory(saved: _unverified()));
+    await pumpApp(tester, FakeMatrixClientFactory(saved: [_unverified()]));
     await tester.tap(find.byKey(const Key('verify.recoveryKey')));
     await tester.pumpAndSettle();
 
@@ -66,7 +66,7 @@ void main() {
     tester,
   ) async {
     final session = _unverified()..recoveryKey = null;
-    await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+    await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
     await tester.tap(find.byKey(const Key('verify.recoveryKey')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('verify.key')), 'anything');
@@ -80,7 +80,7 @@ void main() {
       WidgetTester tester,
       FakeSession session,
     ) async {
-      await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+      await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
       await tester.tap(find.byKey(const Key('verify.otherDevice')));
       // The waiting step spins, so the frames never settle.
       await tester.pump();
@@ -122,7 +122,7 @@ void main() {
     tester,
   ) async {
     final session = FakeSession(rooms: _rooms);
-    await pumpApp(tester, FakeMatrixClientFactory(saved: session));
+    await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
     session.receiveVerificationRequest(
       const VerificationRequest(

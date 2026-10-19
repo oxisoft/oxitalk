@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -125,16 +126,48 @@ void main() {
         )
         .timeout(_timeout);
 
-    // Logging out stops the session and returns to the login.
-    await tester.tap(find.byTooltip('Menu'));
-    await _pumpUntil(tester, find.text('Log out'));
-    await _pumpFor(
-      tester,
-      const Duration(milliseconds: 500),
-    ); // the menu opening
-    await tester.tap(find.text('Log out'));
+    // A second account, for another customer: added from the rail, both stay online.
+    final carol = await _registerUser();
+    await tester.tap(find.byKey(const Key('account.add')));
+    await _pumpUntil(tester, find.text('Add another Matrix account'));
+    await tester.enterText(find.byKey(const Key('login.username')), carol.name);
+    await tester.enterText(
+      find.byKey(const Key('login.password')),
+      carol.password,
+    );
+    await tester.tap(find.byKey(const Key('login.submit')));
+    await _pumpUntil(tester, find.text('No chats yet'));
+    final carolId = '@${carol.name}:localhost';
+    expect(find.byKey(Key('account.$carolId')), findsOneWidget);
+
+    // Ctrl+1 is Alice again, with her chat still open; a message that came meanwhile is there.
+    await bobTimeline.send('While you were away');
+    await _hotkey(tester, LogicalKeyboardKey.digit1);
+    await _pumpUntil(tester, find.text('While you were away'));
+    await _hotkey(tester, LogicalKeyboardKey.digit2);
+    await _pumpUntil(tester, find.text('No chats yet'));
+
+    // Logging out of Carol leaves Alice; logging out of Alice returns to the login.
+    await _logOut(tester);
+    await _pumpUntil(tester, find.text('While you were away'));
+    expect(find.byKey(Key('account.$carolId')), findsNothing);
+    await _logOut(tester);
     await _pumpUntil(tester, find.text('Sign in'));
   });
+}
+
+Future<void> _logOut(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Menu'));
+  await _pumpUntil(tester, find.text('Log out'));
+  await _pumpFor(tester, const Duration(milliseconds: 500)); // the menu opening
+  await tester.tap(find.text('Log out'));
+}
+
+/// Ctrl+[key], as the user presses it.
+Future<void> _hotkey(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 }
 
 /// Runs a teardown [body], failing instead of hanging if it never completes.

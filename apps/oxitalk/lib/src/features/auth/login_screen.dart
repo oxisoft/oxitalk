@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../app/providers.dart';
+import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({this.adding = false, super.key});
+
+  /// Adding one more account: the form can be cancelled.
+  final bool adding;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -37,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       await ref
-          .read(authProvider.notifier)
+          .read(accountsProvider.notifier)
           .login(
             server: _server.text.trim(),
             username: _username.text.trim(),
@@ -52,6 +58,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    appBar: widget.adding
+        ? AppBar(
+            leading: CloseButton(
+              key: const Key('login.cancel'),
+              onPressed: () => context.go(Routes.chats),
+            ),
+          )
+        : null,
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -74,7 +88,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sign in with your Matrix account',
+                  widget.adding
+                      ? 'Add another Matrix account'
+                      : 'Sign in with your Matrix account',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -145,6 +161,7 @@ String loginError(MatrixFailure failure) => switch (failure.kind) {
   FailureKind.forbidden => 'Wrong username or password.',
   FailureKind.invalidServer => 'This server can’t be used. Check the address.',
   FailureKind.network => 'Can’t reach the server. Check your connection.',
+  FailureKind.alreadyLoggedIn => '${failure.message} is already signed in.',
   _ =>
     'Sign-in failed: ${failure.message.isEmpty ? failure.kind.name : failure.message}',
 };

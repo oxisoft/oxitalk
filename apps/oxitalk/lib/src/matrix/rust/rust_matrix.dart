@@ -14,15 +14,22 @@ import 'diffs.dart';
 import 'mapping.dart';
 import 'sync_supervisor.dart';
 
-/// The Matrix layer on the Rust core. One account: its session data and store passphrase are
-/// kept in [secrets], its store under `<dataDir>/accounts/<random id>/`.
+/// The Matrix layer on the Rust core. The accounts' session data and store passphrases are
+/// kept in [secrets], each account's store under `<dataDir>/accounts/<random id>/`.
 final class RustMatrixClientFactory implements MatrixClientFactory {
   RustMatrixClientFactory({required this._secrets, required this._dataDir});
 
-  static const _savedSessionKey = 'oxitalk.session';
+  static const _accountsKey = 'oxitalk.accounts';
+  static const _activeKey = 'oxitalk.activeAccount';
+
+  /// Where v0.1.7 and earlier kept their only session; moved into the list on first start.
+  static const _legacyKey = 'oxitalk.session';
 
   final SecretStore _secrets;
   final Future<Directory> Function() _dataDir;
+
+  /// Serializes the read-modify-write of the account list.
+  Future<void> _lock = Future.value();
 
   @override
   Future<MatrixSession> login({
@@ -49,7 +56,17 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
         storeDir.path,
         passphrase,
       );
-      await _secrets.write(_savedSessionKey, jsonEncode(saved.toJson()));
+      var duplicate = false;
+      await _update((accounts) {
+        duplicate = accounts.any((a) => a.data.userId == saved.data.userId);
+        return duplicate ? accounts : [...accounts, saved];
+      });
+      if (duplicate) {
+        // The login made a new device on the server; take it away again.
+        await session.logout().catchError((Object _) {});
+        session.dispose();
+        throw MatrixFailure(FailureKind.alreadyLoggedIn, saved.data.userId);
+      }
       return RustMatrixSession._(session, () => _forget(saved.storeDir));
     } catch (_) {
       await _deleteDir(storeDir.path);
@@ -58,33 +75,84 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
   }
 
   @override
-  Future<MatrixSession?> restoreSaved() async {
-    final json = await _secrets.read(_savedSessionKey);
-    if (json == null) return null;
-    final _SavedSession saved;
-    try {
-      saved = _SavedSession.fromJson(jsonDecode(json) as Map<String, Object?>);
-    } on Object {
-      await _secrets.delete(_savedSessionKey);
-      return null;
+  Future<List<MatrixSession>> restoreAll() async {
+    await _migrateLegacy();
+    final sessions = <MatrixSession>[];
+    for (final saved in await _read()) {
+      try {
+        final session = await rust.restore(
+          data: saved.data,
+          storeDir: saved.storeDir,
+          storePassphrase: saved.passphrase,
+        );
+        sessions.add(
+          RustMatrixSession._(session, () => _forget(saved.storeDir)),
+        );
+      } on Object {
+        // Restoring works offline, so a failure means the store can't be used any more.
+        await _forget(saved.storeDir);
+      }
     }
+    return sessions;
+  }
+
+  @override
+  Future<String?> readActive() => _secrets.read(_activeKey);
+
+  @override
+  Future<void> writeActive(String userId) => _secrets.write(_activeKey, userId);
+
+  Future<void> _forget(String storeDir) async {
+    await _update(
+      (accounts) => [
+        for (final account in accounts)
+          if (account.storeDir != storeDir) account,
+      ],
+    );
+    await _deleteDir(storeDir);
+  }
+
+  Future<List<_SavedSession>> _read() async {
+    final json = await _secrets.read(_accountsKey);
+    if (json == null) return [];
     try {
-      final session = await rust.restore(
-        data: saved.data,
-        storeDir: saved.storeDir,
-        storePassphrase: saved.passphrase,
-      );
-      return RustMatrixSession._(session, () => _forget(saved.storeDir));
+      return [
+        for (final account in jsonDecode(json) as List<Object?>)
+          _SavedSession.fromJson(account! as Map<String, Object?>),
+      ];
     } on Object {
-      // Restoring works offline, so a failure means the store can't be used any more.
-      await _forget(saved.storeDir);
-      return null;
+      await _secrets.delete(_accountsKey);
+      return [];
     }
   }
 
-  Future<void> _forget(String storeDir) async {
-    await _secrets.delete(_savedSessionKey);
-    await _deleteDir(storeDir);
+  /// Applies [change] to the saved account list, one change at a time.
+  Future<void> _update(
+    List<_SavedSession> Function(List<_SavedSession>) change,
+  ) {
+    final done = _lock.then((_) async {
+      final accounts = change(await _read());
+      await _secrets.write(
+        _accountsKey,
+        jsonEncode([for (final account in accounts) account.toJson()]),
+      );
+    });
+    _lock = done.catchError((Object _) {});
+    return done;
+  }
+
+  Future<void> _migrateLegacy() async {
+    final json = await _secrets.read(_legacyKey);
+    if (json == null) return;
+    try {
+      final saved = _SavedSession.fromJson(
+        jsonDecode(json) as Map<String, Object?>,
+      );
+      await _update((accounts) => [...accounts, saved]);
+    } on Object {
+      // Unreadable; dropped below.
+    }
+    await _secrets.delete(_legacyKey);
   }
 
   static Future<void> _deleteDir(String path) async {

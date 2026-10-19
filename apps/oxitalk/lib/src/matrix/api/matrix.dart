@@ -11,6 +11,9 @@ enum FailureKind {
   invalidId,
   roomNotFound,
   wrongRecoveryKey,
+
+  /// Logging in to an account that is already in the app.
+  alreadyLoggedIn,
   recoveryNotSetUp,
   internal,
 }
@@ -27,18 +30,25 @@ final class MatrixFailure implements Exception {
       'MatrixFailure(${kind.name}${message.isEmpty ? '' : ': $message'})';
 }
 
-/// Logs in, or brings back the session saved by an earlier login.
+/// The user's accounts: logs in to more of them, and brings back the saved ones.
 abstract interface class MatrixClientFactory {
-  /// [server] is a server name (`matrix.org`) or a homeserver URL. The session is saved, so
-  /// [restoreSaved] brings it back on the next start.
+  /// Logs in and saves the session as one more account. [server] is a server name
+  /// (`matrix.org`) or a homeserver URL. Throws [MatrixFailure] with
+  /// [FailureKind.alreadyLoggedIn] if the user is already one of the accounts.
   Future<MatrixSession> login({
     required String server,
     required String username,
     required String password,
   });
 
-  /// The saved session, or `null` if there is none (or it can't be opened any more).
-  Future<MatrixSession?> restoreSaved();
+  /// Every saved account, in the order they were added. One that can't be opened any more is
+  /// dropped.
+  Future<List<MatrixSession>> restoreAll();
+
+  /// The user ID of the account that was in front last time, if any.
+  Future<String?> readActive();
+
+  Future<void> writeActive(String userId);
 }
 
 /// A logged-in account. It syncs from creation until [logout] or [close].
@@ -78,7 +88,8 @@ abstract interface class MatrixSession {
 
   Future<RoomTimeline> openTimeline(String roomId);
 
-  /// Logs out on the server and deletes everything stored for this account.
+  /// Logs out on the server and deletes everything stored for this account; the other
+  /// accounts stay.
   Future<void> logout();
 
   /// Stops syncing and frees the session, keeping it saved.

@@ -11,39 +11,55 @@ import '../../matrix/api/matrix.dart';
 import '../../rust/api.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
+import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
 
-/// The chats: on a wide window the list and the open chat side by side, otherwise the list.
-class ChatsScreen extends StatelessWidget {
+/// The active account's chats: on a wide window the account rail, the list and the open chat
+/// side by side, otherwise the list with the account switcher in its header.
+class ChatsScreen extends ConsumerWidget {
   const ChatsScreen({this.roomId, super.key});
 
   /// The open chat, if any.
   final String? roomId;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      if (constraints.maxWidth < wideLayoutBreakpoint) {
-        return ChatListPane(selectedRoomId: roomId);
-      }
-      return Row(
-        children: [
-          SizedBox(width: 360, child: ChatListPane(selectedRoomId: roomId)),
-          const VerticalDivider(width: 1),
-          Expanded(
-            child: switch (roomId) {
-              final id? => ChatPane(
-                key: ValueKey(id),
-                roomId: id,
-                showBack: false,
-              ),
-              null => const _NoChatSelected(),
-            },
-          ),
-        ],
-      );
-    },
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final account = ref.watch(activeAccountProvider);
+    if (account == null) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < wideLayoutBreakpoint) {
+          return ChatListPane(
+            account: account,
+            selectedRoomId: roomId,
+            showSwitcher: true,
+          );
+        }
+        return Row(
+          children: [
+            const AccountRail(),
+            const VerticalDivider(width: 1),
+            SizedBox(
+              width: 360,
+              child: ChatListPane(account: account, selectedRoomId: roomId),
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: switch (roomId) {
+                final id? => ChatPane(
+                  key: ValueKey((account, id)),
+                  account: account,
+                  roomId: id,
+                  showBack: false,
+                ),
+                null => const _NoChatSelected(),
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _NoChatSelected extends StatelessWidget {
@@ -71,19 +87,30 @@ class _NoChatSelected extends StatelessWidget {
 }
 
 class ChatListPane extends ConsumerWidget {
-  const ChatListPane({this.selectedRoomId, super.key});
+  const ChatListPane({
+    required this.account,
+    this.selectedRoomId,
+    this.showSwitcher = false,
+    super.key,
+  });
 
+  /// The user ID of the account whose chats these are.
+  final String account;
   final String? selectedRoomId;
+
+  /// The account switcher in the header, where there is no rail.
+  final bool showSwitcher;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rooms = ref.watch(roomsProvider).value;
+    final rooms = ref.watch(roomsProvider(account)).value;
     return Scaffold(
       appBar: AppBar(
         // On a wide window the open chat is a route above the list; no back arrow there.
         automaticallyImplyLeading: false,
-        title: SyncTitle(roomsLoaded: rooms != null),
-        actions: const [_AccountMenu()],
+        leading: showSwitcher ? AccountSwitcherButton(account: account) : null,
+        title: SyncTitle(account: account, roomsLoaded: rooms != null),
+        actions: [_AccountMenu(account: account)],
       ),
       body: switch (rooms) {
         null => const Center(child: CircularProgressIndicator()),
@@ -91,6 +118,7 @@ class ChatListPane extends ConsumerWidget {
         final rooms => ListView.builder(
           itemCount: rooms.length,
           itemBuilder: (context, index) => RoomTile(
+            account: account,
             room: rooms[index],
             selected: rooms[index].id == selectedRoomId,
           ),
@@ -109,7 +137,7 @@ class ChatListPane extends ConsumerWidget {
       context: context,
       builder: (_) => const _NewChatDialog(),
     );
-    final session = ref.read(authProvider).value;
+    final session = ref.read(accountsProvider).value?.byId(account);
     if (userId == null || session == null || !context.mounted) return;
     try {
       final roomId = await session.createDm(userId);
@@ -124,13 +152,19 @@ class ChatListPane extends ConsumerWidget {
 
 /// The app bar title: the app name, or what the connection is doing (as Telegram does).
 class SyncTitle extends ConsumerWidget {
-  const SyncTitle({required this.roomsLoaded, super.key});
+  const SyncTitle({
+    required this.account,
+    required this.roomsLoaded,
+    super.key,
+  });
 
+  final String account;
   final bool roomsLoaded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(syncStatusProvider).value ?? SyncStatus.connecting;
+    final status =
+        ref.watch(syncStatusProvider(account)).value ?? SyncStatus.connecting;
     return Text(switch (status) {
       SyncStatus.offline => 'Waiting for network…',
       SyncStatus.connecting => 'Connecting…',
@@ -141,36 +175,43 @@ class SyncTitle extends ConsumerWidget {
 }
 
 class _AccountMenu extends ConsumerWidget {
-  const _AccountMenu();
+  const _AccountMenu({required this.account});
+
+  final String account;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final userId = ref.watch(authProvider).value?.userId ?? '';
-    return PopupMenuButton<VoidCallback>(
-      tooltip: 'Menu',
-      onSelected: (action) => action(),
-      itemBuilder: (context) => [
-        PopupMenuItem(enabled: false, child: Text(userId)),
-        PopupMenuItem(
-          value: () => showAboutDialog(
-            context: context,
-            applicationName: 'OxiTalk',
-            applicationLegalese: 'Rust core ${coreVersion()}',
+  Widget build(BuildContext context, WidgetRef ref) =>
+      PopupMenuButton<VoidCallback>(
+        tooltip: 'Menu',
+        onSelected: (action) => action(),
+        itemBuilder: (context) => [
+          PopupMenuItem(enabled: false, child: Text(account)),
+          PopupMenuItem(
+            value: () => showAboutDialog(
+              context: context,
+              applicationName: 'OxiTalk',
+              applicationLegalese: 'Rust core ${coreVersion()}',
+            ),
+            child: const Text('About'),
           ),
-          child: const Text('About'),
-        ),
-        PopupMenuItem(
-          value: () => unawaited(ref.read(authProvider.notifier).logout()),
-          child: const Text('Log out'),
-        ),
-      ],
-    );
-  }
+          PopupMenuItem(
+            value: () =>
+                unawaited(ref.read(accountsProvider.notifier).logout(account)),
+            child: const Text('Log out'),
+          ),
+        ],
+      );
 }
 
 class RoomTile extends ConsumerWidget {
-  const RoomTile({required this.room, this.selected = false, super.key});
+  const RoomTile({
+    required this.account,
+    required this.room,
+    this.selected = false,
+    super.key,
+  });
 
+  final String account;
   final Room room;
   final bool selected;
 
@@ -225,7 +266,7 @@ class RoomTile extends ConsumerWidget {
   Future<void> _open(BuildContext context, WidgetRef ref) async {
     if (room.membership == Membership.invited) {
       try {
-        await ref.read(authProvider).value?.join(room.id);
+        await ref.read(accountsProvider).value?.byId(account)?.join(room.id);
       } on MatrixFailure catch (failure) {
         if (context.mounted) showFailure(context, 'Can’t join', failure);
         return;
