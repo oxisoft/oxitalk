@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'src/app/account_pictures.dart';
 import 'src/app/app.dart';
 import 'src/app/diagnostics.dart';
 import 'src/app/providers.dart';
@@ -13,9 +14,8 @@ import 'src/util/log.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
-  final diagnostics = await RustDiagnostics.start(
-    await getApplicationSupportDirectory(),
-  );
+  final dataDir = await getApplicationSupportDirectory();
+  final diagnostics = await RustDiagnostics.start(dataDir);
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     appLog(LogLevel.error, 'flutter', details.toString());
@@ -26,7 +26,10 @@ Future<void> main() async {
   };
   runApp(
     ProviderScope(
-      overrides: [diagnosticsProvider.overrideWithValue(diagnostics)],
+      overrides: [
+        diagnosticsProvider.overrideWithValue(diagnostics),
+        accountPicturesProvider.overrideWithValue(FileAccountPictures(dataDir)),
+      ],
       child: const OxiTalkApp(),
     ),
   );

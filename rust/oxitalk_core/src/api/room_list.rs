@@ -21,6 +21,9 @@ pub struct RoomSummary {
     pub room_id: String,
     /// The display name, computed by the SDK from the room's name, alias or members.
     pub name: String,
+    /// An `mxc://` URI: the room's avatar or, in a direct chat without one, the other
+    /// person's.
+    pub avatar_url: Option<String>,
     pub membership: Membership,
     /// The body of the latest message, if the latest event is a text message.
     pub last_message: Option<String>,
@@ -159,11 +162,22 @@ async fn summary(room: RoomListItem) -> RoomSummary {
         LatestEventValue::RemoteInvite { timestamp, .. } => (None, Some(timestamp.0.into())),
         LatestEventValue::None => (None, None),
     };
+    // A store read error only loses the DM marker; the room still shows.
+    let is_dm = room.is_direct().await.unwrap_or(false);
+    let avatar_url = match room.avatar_url() {
+        Some(url) => Some(url),
+        None if is_dm => match room.heroes().await.as_slice() {
+            [other] => other.avatar_url.clone(),
+            _ => None,
+        },
+        None => None,
+    };
     RoomSummary {
         room_id: room.room_id().to_string(),
         name: room
             .cached_display_name()
             .map_or_else(|| room.room_id().to_string(), |name| name.to_string()),
+        avatar_url: avatar_url.map(|url| url.to_string()),
         membership: match room.state() {
             RoomState::Joined => Membership::Joined,
             RoomState::Invited => Membership::Invited,
@@ -174,8 +188,7 @@ async fn summary(room: RoomListItem) -> RoomSummary {
         last_message,
         last_activity_ms,
         unread_count: u32::try_from(room.num_unread_messages()).unwrap_or(u32::MAX),
-        // A store read error only loses the DM marker; the room still shows.
-        is_dm: room.is_direct().await.unwrap_or(false),
+        is_dm,
         is_encrypted: room.encryption_state().is_encrypted(),
     }
 }

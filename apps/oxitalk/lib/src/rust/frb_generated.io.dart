@@ -6,6 +6,7 @@
 import 'api.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
+import 'api/profile.dart';
 import 'api/room_list.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
@@ -165,6 +166,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -196,6 +200,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw);
+
+  @protected
+  Profile dco_decode_profile(dynamic raw);
 
   @protected
   RoomListDiff dco_decode_room_list_diff(dynamic raw);
@@ -384,6 +391,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -425,6 +435,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VerificationEmoji>? sse_decode_opt_list_verification_emoji(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Profile sse_decode_profile(SseDeserializer deserializer);
 
   @protected
   RoomListDiff sse_decode_room_list_diff(SseDeserializer deserializer);
@@ -660,6 +673,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -715,6 +731,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<VerificationEmoji>? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_profile(Profile self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_list_diff(RoomListDiff self, SseSerializer serializer);

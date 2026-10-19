@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/session.dart' as rust;
@@ -231,6 +232,15 @@ final class RustMatrixSession implements MatrixSession {
         ),
       )
       ..add(
+        // Fetched again whenever the connection comes back, since a fetch offline has only
+        // what the store remembers.
+        _supervisor.status.stream.listen((status) {
+          final online = status == SyncStatus.online;
+          if (online && !_online) unawaited(_refreshProfile());
+          _online = online;
+        }),
+      )
+      ..add(
         _session.subscribeSessionChanges().listen((change) {
           if (change is rust.SessionChange_UnknownToken) {
             unawaited(_onTokenRejected());
@@ -238,6 +248,7 @@ final class RustMatrixSession implements MatrixSession {
         }),
       );
     unawaited(_session.startSync());
+    unawaited(_refreshProfile());
   }
 
   final rust.Session _session;
@@ -246,10 +257,12 @@ final class RustMatrixSession implements MatrixSession {
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _summaries = <rust.RoomSummary>[];
   final _rooms = Latest<List<Room>?>(null);
+  final _profile = Latest(const Profile());
   final _verificationStatus = Latest(VerificationStatus.unknown);
   final _verificationRequests =
       StreamController<VerificationRequest>.broadcast();
   final _expired = Completer<void>();
+  var _online = false;
   var _closed = false;
 
   @override
@@ -288,6 +301,38 @@ final class RustMatrixSession implements MatrixSession {
         await guarded(() => _session.verification(flowId: flowId)),
         weAsked: false,
       );
+
+  @override
+  Stream<Profile> get profile => _profile.stream;
+
+  Future<void> _refreshProfile() async {
+    try {
+      final profile = await guarded(_session.ownProfile);
+      if (_closed) return;
+      _profile.value = Profile(
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+      );
+    } on MatrixFailure {
+      // Shown as it was; fetched again when the connection comes back.
+    }
+  }
+
+  @override
+  Future<void> setAvatar(Uint8List data, String mimeType) async {
+    await guarded(() => _session.setAvatar(data: data, mimeType: mimeType));
+    await _refreshProfile();
+  }
+
+  @override
+  Future<void> removeAvatar() async {
+    await guarded(_session.removeAvatar);
+    await _refreshProfile();
+  }
+
+  @override
+  Future<Uint8List> thumbnail(String mxcUrl, int size) =>
+      guarded(() => _session.thumbnail(mxcUri: mxcUrl, size: size));
 
   @override
   Future<String> createDm(String userId) =>
@@ -333,6 +378,7 @@ final class RustMatrixSession implements MatrixSession {
     // Not awaited either: closing a broadcast stream waits for every listener to take the
     // done event, which a paused listener never does.
     unawaited(_rooms.close());
+    unawaited(_profile.close());
     unawaited(_verificationStatus.close());
     unawaited(_verificationRequests.close());
     _session.dispose();

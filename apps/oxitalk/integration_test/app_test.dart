@@ -7,13 +7,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
+import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/providers.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 import 'package:oxitalk/src/matrix/rust/rust_matrix.dart';
 import 'package:oxitalk/src/rust/frb_generated.dart';
+import 'package:oxitalk/src/ui/avatar.dart';
+
+import '../test/support/png.dart';
 
 /// The Synapse test homeserver from `test-infra/`, which `scripts/ci.sh` starts.
 final _homeserver =
@@ -62,6 +67,10 @@ void main() {
           ),
           defaultServerProvider.overrideWithValue(_homeserver),
           diagnosticsProvider.overrideWithValue(MemoryDiagnostics()),
+          accountPicturesProvider.overrideWithValue(MemoryAccountPictures()),
+          pickImageProvider.overrideWithValue(
+            () async => PickedImage(png, 'image/png'),
+          ),
         ],
         child: const OxiTalkApp(),
       ),
@@ -102,6 +111,7 @@ void main() {
       dataDir: () async => Directory('${dataDir.path}/bob')..createSync(),
     ).login(server: _homeserver, username: bob.name, password: bob.password);
     addTearDown(() => _bounded(bobSession.close));
+    await bobSession.setAvatar(png, 'image/png');
     final roomId = await bobSession.createDm('@${alice.name}:localhost');
     final bobTimeline = await bobSession.openTimeline(roomId);
     addTearDown(() => _bounded(bobTimeline.close));
@@ -110,6 +120,8 @@ void main() {
     await _pumpUntil(tester, find.text('Invitation — tap to join'));
     await tester.tap(find.text('Invitation — tap to join'));
     await _pumpUntil(tester, find.byKey(const Key('composer.text')));
+    // Bob's profile picture, downloaded through the core, marks the chat.
+    await _pumpUntil(tester, find.byType(PictureAvatar));
     await bobTimeline.send('Hello from Bob');
     await _pumpUntil(tester, find.text('Hello from Bob'));
 
@@ -153,6 +165,26 @@ void main() {
     await _logOut(tester);
     await _pumpUntil(tester, find.text('While you were away'));
     expect(find.byKey(Key('account.$carolId')), findsNothing);
+
+    // Alice sets her profile picture; the rail shows it.
+    final aliceId = '@${alice.name}:localhost';
+    await tester.tap(find.byTooltip('Menu'));
+    await _pumpUntil(tester, find.text('Settings'));
+    // The menu opening.
+    await _pumpFor(tester, const Duration(milliseconds: 500));
+    await tester.tap(find.text('Settings'));
+    await _pumpUntil(tester, find.byKey(const Key('settings.setAvatar')));
+    await tester.tap(find.byKey(const Key('settings.setAvatar')));
+    await _pumpUntil(tester, find.byKey(const Key('settings.removeAvatar')));
+    await tester.tap(find.byType(BackButton));
+    await _pumpUntil(
+      tester,
+      find.descendant(
+        of: find.byKey(Key('account.$aliceId')),
+        matching: find.byType(PictureAvatar),
+      ),
+    );
+
     await _logOut(tester);
     await _pumpUntil(tester, find.text('Sign in'));
   });

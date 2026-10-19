@@ -59,6 +59,8 @@ pub struct EventInfo {
     pub event_id: Option<String>,
     pub sender: String,
     pub sender_name: Option<String>,
+    /// An `mxc://` URI.
+    pub sender_avatar_url: Option<String>,
     pub timestamp_ms: i64,
     pub is_own: bool,
     pub send_state: SendState,
@@ -243,6 +245,10 @@ fn event_content(event: &EventTimelineItem) -> TimelineItemContent {
         sender: event.sender().to_string(),
         sender_name: match event.sender_profile() {
             TimelineDetails::Ready(profile) => profile.display_name.clone(),
+            _ => None,
+        },
+        sender_avatar_url: match event.sender_profile() {
+            TimelineDetails::Ready(profile) => profile.avatar_url.as_ref().map(ToString::to_string),
             _ => None,
         },
         timestamp_ms: event.timestamp().0.into(),

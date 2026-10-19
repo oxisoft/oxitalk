@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import '../../util/latest.dart';
 import '../api/matrix.dart';
@@ -75,8 +76,12 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
 }
 
 final class FakeSession implements MatrixSession {
-  FakeSession({this.userId = '@me:example.org', List<Room>? rooms})
-    : _rooms = Latest(rooms);
+  FakeSession({
+    this.userId = '@me:example.org',
+    List<Room>? rooms,
+    Profile profile = const Profile(),
+  }) : _rooms = Latest(rooms),
+       ownProfile = Latest(profile);
 
   @override
   final String userId;
@@ -85,6 +90,12 @@ final class FakeSession implements MatrixSession {
   final timelines = <String, FakeTimeline>{};
   final _expired = Completer<void>();
   var loggedOut = false;
+
+  /// The user's profile; tests change it.
+  final Latest<Profile> ownProfile;
+
+  /// The pictures on the server, by `mxc://` URI; [thumbnail] serves them as they are.
+  final pictures = <String, Uint8List>{};
 
   /// This device's verification status; tests change it.
   final verification = Latest(VerificationStatus.verified);
@@ -143,6 +154,27 @@ final class FakeSession implements MatrixSession {
         this,
         step: const VerificationIncoming(),
       );
+
+  @override
+  Stream<Profile> get profile => ownProfile.stream;
+
+  @override
+  Future<void> setAvatar(Uint8List data, String mimeType) async {
+    final url = 'mxc://example.org/avatar${pictures.length}';
+    pictures[url] = data;
+    ownProfile.value = Profile(
+      displayName: ownProfile.value.displayName,
+      avatarUrl: url,
+    );
+  }
+
+  @override
+  Future<void> removeAvatar() async =>
+      ownProfile.value = Profile(displayName: ownProfile.value.displayName);
+
+  @override
+  Future<Uint8List> thumbnail(String mxcUrl, int size) async =>
+      pictures[mxcUrl] ?? (throw MatrixFailure(FailureKind.network, mxcUrl));
 
   @override
   Future<String> createDm(String userId) async {

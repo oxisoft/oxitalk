@@ -61,7 +61,13 @@ class ChatPane extends ConsumerWidget {
         titleSpacing: showBack ? 0 : null,
         title: Row(
           children: [
-            InitialsAvatar(name: name, seed: roomId, radius: 18),
+            MatrixAvatar(
+              account: account,
+              url: room?.avatarUrl,
+              name: name,
+              seed: roomId,
+              radius: 18,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -175,6 +181,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           final position = entries.length - 1 - index;
           final entry = entries[position];
           final previous = position > 0 ? entries[position - 1] : null;
+          final next = position < entries.length - 1
+              ? entries[position + 1]
+              : null;
           return switch (entry) {
             DayDivider(:final day) => _DayChip(label: dayLabel(day)),
             MessageEntry() => MessageBubble(
@@ -185,6 +194,14 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                 entry.senderName,
                 entry.isOwn,
                 previous,
+              ),
+              avatar: _senderAvatar(
+                entry.id,
+                entry.sender,
+                entry.senderName,
+                entry.senderAvatarUrl,
+                entry.isOwn,
+                next,
               ),
               time: entry.time,
               sendState: entry.sendState,
@@ -199,6 +216,14 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                 entry.isOwn,
                 previous,
               ),
+              avatar: _senderAvatar(
+                entry.id,
+                entry.sender,
+                entry.senderName,
+                entry.senderAvatarUrl,
+                entry.isOwn,
+                next,
+              ),
               time: entry.time,
               child: const Text(
                 'Waiting for this message…',
@@ -211,6 +236,40 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     );
   }
 
+  /// In group chats, the sender's picture beside the last of their consecutive messages and
+  /// an empty space of the same width beside the others; `null` in direct chats and for the
+  /// user's own messages.
+  Widget? _senderAvatar(
+    String id,
+    String sender,
+    String? name,
+    String? url,
+    bool isOwn,
+    TimelineEntry? next,
+  ) {
+    if (!widget.showSenders || isOwn) return null;
+    if (_sameSender(next, sender)) {
+      return const SizedBox(width: _senderAvatarRadius * 2);
+    }
+    return MatrixAvatar(
+      key: Key('senderAvatar.$id'),
+      account: widget.account,
+      url: url,
+      name: name ?? sender,
+      seed: sender,
+      radius: _senderAvatarRadius,
+    );
+  }
+
+  static const _senderAvatarRadius = 16.0;
+
+  static bool _sameSender(TimelineEntry? entry, String sender) =>
+      switch (entry) {
+        MessageEntry(sender: final s) ||
+        UndecryptableEntry(sender: final s) => s == sender,
+        _ => false,
+      };
+
   /// The sender's name above the first of their consecutive messages, in group chats.
   String? _senderLabel(
     String sender,
@@ -219,12 +278,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     TimelineEntry? previous,
   ) {
     if (!widget.showSenders || isOwn) return null;
-    final sameSender = switch (previous) {
-      MessageEntry(sender: final s) ||
-      UndecryptableEntry(sender: final s) => s == sender,
-      _ => false,
-    };
-    return sameSender ? null : name ?? sender;
+    return _sameSender(previous, sender) ? null : name ?? sender;
   }
 }
 
@@ -256,12 +310,16 @@ class MessageBubble extends StatelessWidget {
     required this.time,
     required this.child,
     this.sender,
+    this.avatar,
     this.sendState,
     super.key,
   });
 
   final bool isOwn;
   final String? sender;
+
+  /// Beside the bubble, on its left.
+  final Widget? avatar;
   final DateTime time;
   final SendState? sendState;
   final Widget child;
@@ -273,60 +331,74 @@ class MessageBubble extends StatelessWidget {
         ? (dark ? OxiColors.ownBubbleDark : OxiColors.ownBubbleLight)
         : (dark ? OxiColors.bubbleDark : OxiColors.bubbleLight);
     final meta = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
-    return Align(
-      alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+    final bubble = ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+      ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(14),
+            topRight: const Radius.circular(14),
+            bottomLeft: Radius.circular(isOwn ? 14 : 4),
+            bottomRight: Radius.circular(isOwn ? 4 : 14),
+          ),
         ),
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
-              bottomLeft: Radius.circular(isOwn ? 14 : 4),
-              bottomRight: Radius.circular(isOwn ? 4 : 14),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (sender case final sender?)
-                Text(
-                  sender,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color:
-                        OxiColors.avatars[sender.hashCode.abs() %
-                            OxiColors.avatars.length],
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (sender case final sender?)
+              Text(
+                sender,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color:
+                      OxiColors.avatars[sender.hashCode.abs() %
+                          OxiColors.avatars.length],
                 ),
-              Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.end,
-                spacing: 8,
-                children: [
-                  child,
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(clockTime(time), style: meta),
-                      if (isOwn && sendState != null) ...[
-                        const SizedBox(width: 3),
-                        _SendStateIcon(state: sendState!),
-                      ],
-                    ],
-                  ),
-                ],
               ),
-            ],
-          ),
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 8,
+              children: [
+                child,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(clockTime(time), style: meta),
+                    if (isOwn && sendState != null) ...[
+                      const SizedBox(width: 3),
+                      _SendStateIcon(state: sendState!),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
       ),
+    );
+    final avatar = this.avatar;
+    return Align(
+      alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
+      child: avatar == null
+          ? bubble
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2, right: 6),
+                  child: avatar,
+                ),
+                Flexible(child: bubble),
+              ],
+            ),
     );
   }
 }

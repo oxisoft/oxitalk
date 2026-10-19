@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderListenableSelect;
@@ -9,7 +10,9 @@ import '../matrix/api/matrix.dart';
 import '../matrix/api/secret_store.dart';
 import '../matrix/rust/rust_matrix.dart';
 import '../util/log.dart';
+import 'account_pictures.dart';
 import 'diagnostics.dart';
+import 'pick_image.dart';
 import 'secure_secret_store.dart';
 
 part 'providers.g.dart';
@@ -29,6 +32,15 @@ MatrixClientFactory clientFactory(Ref ref) => RustMatrixClientFactory(
 @Riverpod(keepAlive: true)
 Diagnostics diagnostics(Ref ref) =>
     throw UnimplementedError('diagnosticsProvider is overridden in main');
+
+/// Set by `main` (and by tests), next to the app's other data.
+@Riverpod(keepAlive: true)
+AccountPictures accountPictures(Ref ref) =>
+    throw UnimplementedError('accountPicturesProvider is overridden in main');
+
+/// Tests override this; there is no file dialog in a test.
+@Riverpod(keepAlive: true)
+PickImage pickImage(Ref ref) => pickImageFile;
 
 /// What the login form suggests.
 @Riverpod(keepAlive: true)
@@ -108,6 +120,7 @@ class Accounts extends _$Accounts {
     appLog(LogLevel.info, 'accounts', 'logging out $userId');
     _remove(session);
     await session.logout();
+    await ref.read(accountPicturesProvider).clearLocal(userId);
   }
 
   void _remove(MatrixSession session) {
@@ -157,6 +170,36 @@ Stream<VerificationStatus> verificationStatus(Ref ref, String account) =>
 @riverpod
 Stream<VerificationRequest> verificationRequests(Ref ref, String account) =>
     _session(ref, account)?.verificationRequests ?? const Stream.empty();
+
+@riverpod
+Stream<Profile> profile(Ref ref, String account) =>
+    _session(ref, account)?.profile ?? Stream.value(const Profile());
+
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
+/// loaded; a failed load is tried again the next time it is shown.
+@riverpod
+Future<Uint8List> picture(
+  Ref ref,
+  String account,
+  String mxcUrl,
+  int size,
+) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  final bytes = await session.thumbnail(mxcUrl, size);
+  ref.keepAlive();
+  return bytes;
+}
+
+/// The picture the user picked for [account] on this device, if any.
+@riverpod
+Future<Uint8List?> localPicture(Ref ref, String account) =>
+    ref.watch(accountPicturesProvider).local(account);
+
+/// The website icon of [server], if it has one.
+@Riverpod(keepAlive: true)
+Future<Uint8List?> serverIcon(Ref ref, String server) =>
+    ref.watch(accountPicturesProvider).serverIcon(server);
 
 /// `null` until the first room list has arrived.
 @riverpod

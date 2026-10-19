@@ -9,6 +9,7 @@ import 'error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 
+import 'profile.dart';
 import 'room_list.dart';
 import 'sync.dart';
 import 'timeline.dart';
@@ -81,6 +82,14 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> logout();
 
+  /// The user's profile as the server has it, or as last seen when the server can't be
+  /// reached.
+  ///
+  /// # Errors
+  ///
+  /// Only if the store can't be read.
+  Future<Profile> ownProfile();
+
   /// Verifies this device with the recovery key or the security phrase, and turns on the key
   /// backup with it.
   ///
@@ -89,6 +98,13 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::WrongRecoveryKey`], [`CoreError::RecoveryNotSetUp`] if the account has no
   /// recovery, or as the server answers.
   Future<void> recover({required String key});
+
+  /// Removes the user's avatar.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> removeAvatar();
 
   /// Asks the user's other devices to verify this one.
   ///
@@ -104,6 +120,15 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::SessionExpired`] if the session has been logged out.
   SessionData sessionData();
+
+  /// Uploads `data` and makes it the user's avatar. `mime_type` is its type, like
+  /// `image/png`.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] for a malformed `mime_type`, otherwise as the server answers
+  /// (it may refuse a file that is too large).
+  Future<void> setAvatar({required List<int> data, required String mimeType});
 
   /// Starts syncing. Calling it while syncing is harmless; while offline it retries at once.
   Future<void> startSync();
@@ -130,6 +155,14 @@ abstract class Session implements RustOpaqueInterface {
 
   /// Sends the current [`VerificationStatus`], then every change.
   Stream<VerificationStatus> subscribeVerificationStatus();
+
+  /// A square thumbnail of the picture at `mxc_uri`, about `size` pixels wide, as encoded
+  /// image bytes. Kept in the account's store, so it is downloaded once.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed `mxc://` URI, otherwise as the server answers.
+  Future<Uint8List> thumbnail({required String mxcUri, required int size});
 
   /// Opens the timeline of a room the user is in.
   ///

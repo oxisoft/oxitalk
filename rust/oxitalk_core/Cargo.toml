@@ -17,6 +17,7 @@ futures-util.workspace = true
 matrix-sdk.workspace = true
 matrix-sdk-sqlite.workspace = true
 matrix-sdk-ui.workspace = true
+mime.workspace = true
 rustls.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time"] }
 tracing.workspace = true

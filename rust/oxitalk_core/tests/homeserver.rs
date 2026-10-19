@@ -31,6 +31,9 @@ use tokio::sync::mpsc;
 
 const PASSPHRASE: &str = "store passphrase";
 
+/// A 64×64 PNG.
+const AVATAR_PNG: &[u8] = include_bytes!("support/avatar.png");
+
 /// `OXITALK_TEST_HOMESERVER`, or the port `test-infra/compose.yaml` publishes.
 fn homeserver_url() -> String {
     std::env::var("OXITALK_TEST_HOMESERVER").unwrap_or_else(|_| "http://localhost:8008".to_owned())
@@ -182,6 +185,70 @@ async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
 }
 
 /// A new device of an account is verified by an existing one, comparing emoji.
+/// A profile picture shows on the user's DM in the other side's room list and on their
+/// messages, and downloads as a thumbnail.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice = alice_user
+        .login(&alice_store.path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+
+    assert_eq!(alice.own_profile().await?.avatar_url, None);
+    alice
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let avatar = alice
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting one")?;
+    let thumbnail = bob.thumbnail(avatar.clone(), 64).await?;
+    assert!(thumbnail.starts_with(b"\x89PNG") || thumbnail.starts_with(b"\xff\xd8"));
+    assert!(matches!(
+        bob.thumbnail("not an mxc".to_owned(), 64).await,
+        Err(CoreError::InvalidId { .. })
+    ));
+
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    bob.join(room_id.clone()).await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms.iter().any(|r| {
+                r.room_id == room_id
+                    && r.membership == Membership::Joined
+                    && r.avatar_url.as_ref() == Some(&avatar)
+            })
+        })
+        .await?;
+
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    alice_timeline.send_text("look at me".to_owned()).await?;
+    let bob_timeline = bob.timeline(room_id).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_items
+        .wait_until(|items| {
+            items.iter().any(|item| {
+                matches!(&item.content, TimelineItemContent::Message { event, body }
+                    if body == "look at me" && event.sender_avatar_url.as_ref() == Some(&avatar))
+            })
+        })
+        .await?;
+
+    alice.remove_avatar().await?;
+    assert_eq!(alice.own_profile().await?.avatar_url, None);
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs the Synapse test homeserver (test-infra/)"]
 async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {

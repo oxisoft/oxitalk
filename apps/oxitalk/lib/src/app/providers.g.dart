@@ -152,6 +152,99 @@ final class DiagnosticsProvider
 
 String _$diagnosticsHash() => r'748c8d8e39bccb5f5a046f3816c861999580ef47';
 
+/// Set by `main` (and by tests), next to the app's other data.
+
+@ProviderFor(accountPictures)
+final accountPicturesProvider = AccountPicturesProvider._();
+
+/// Set by `main` (and by tests), next to the app's other data.
+
+final class AccountPicturesProvider
+    extends
+        $FunctionalProvider<AccountPictures, AccountPictures, AccountPictures>
+    with $Provider<AccountPictures> {
+  /// Set by `main` (and by tests), next to the app's other data.
+  AccountPicturesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'accountPicturesProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$accountPicturesHash();
+
+  @$internal
+  @override
+  $ProviderElement<AccountPictures> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  AccountPictures create(Ref ref) {
+    return accountPictures(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AccountPictures value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AccountPictures>(value),
+    );
+  }
+}
+
+String _$accountPicturesHash() => r'dabfd006d018417ea32ec566486eb4b70dec098e';
+
+/// Tests override this; there is no file dialog in a test.
+
+@ProviderFor(pickImage)
+final pickImageProvider = PickImageProvider._();
+
+/// Tests override this; there is no file dialog in a test.
+
+final class PickImageProvider
+    extends $FunctionalProvider<PickImage, PickImage, PickImage>
+    with $Provider<PickImage> {
+  /// Tests override this; there is no file dialog in a test.
+  PickImageProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'pickImageProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$pickImageHash();
+
+  @$internal
+  @override
+  $ProviderElement<PickImage> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  PickImage create(Ref ref) {
+    return pickImage(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PickImage value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PickImage>(value),
+    );
+  }
+}
+
+String _$pickImageHash() => r'd8c8d529428e93da90f3903ecdcc1306cc3492fe';
+
 /// What the login form suggests.
 
 @ProviderFor(defaultServer)
@@ -226,7 +319,7 @@ final class AccountsProvider
   Accounts create() => Accounts();
 }
 
-String _$accountsHash() => r'79b6e5b0d77a0a3d484ed3462614a7689e653fba';
+String _$accountsHash() => r'a9570f2fed4dfb8dc4030f02e83284cca3a5bc1f';
 
 /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 
@@ -531,6 +624,329 @@ final class VerificationRequestsFamily extends $Family
 
   @override
   String toString() => r'verificationRequestsProvider';
+}
+
+@ProviderFor(profile)
+final profileProvider = ProfileFamily._();
+
+final class ProfileProvider
+    extends $FunctionalProvider<AsyncValue<Profile>, Profile, Stream<Profile>>
+    with $FutureModifier<Profile>, $StreamProvider<Profile> {
+  ProfileProvider._({
+    required ProfileFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'profileProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$profileHash();
+
+  @override
+  String toString() {
+    return r'profileProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<Profile> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<Profile> create(Ref ref) {
+    final argument = this.argument as String;
+    return profile(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ProfileProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$profileHash() => r'3103e9a1c0d9000b8338136774ca4f6c7c5c7600';
+
+final class ProfileFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<Profile>, String> {
+  ProfileFamily._()
+    : super(
+        retry: null,
+        name: r'profileProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  ProfileProvider call(String account) =>
+      ProfileProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'profileProvider';
+}
+
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
+/// loaded; a failed load is tried again the next time it is shown.
+
+@ProviderFor(picture)
+final pictureProvider = PictureFamily._();
+
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
+/// loaded; a failed load is tried again the next time it is shown.
+
+final class PictureProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Uint8List>,
+          Uint8List,
+          FutureOr<Uint8List>
+        >
+    with $FutureModifier<Uint8List>, $FutureProvider<Uint8List> {
+  /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
+  /// loaded; a failed load is tried again the next time it is shown.
+  PictureProvider._({
+    required PictureFamily super.from,
+    required (String, String, int) super.argument,
+  }) : super(
+         retry: null,
+         name: r'pictureProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$pictureHash();
+
+  @override
+  String toString() {
+    return r'pictureProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Uint8List> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Uint8List> create(Ref ref) {
+    final argument = this.argument as (String, String, int);
+    return picture(ref, argument.$1, argument.$2, argument.$3);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is PictureProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$pictureHash() => r'47d597f712858f678c0fa90437dae8a09a138e54';
+
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
+/// loaded; a failed load is tried again the next time it is shown.
+
+final class PictureFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Uint8List>, (String, String, int)> {
+  PictureFamily._()
+    : super(
+        retry: null,
+        name: r'pictureProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
+  /// loaded; a failed load is tried again the next time it is shown.
+
+  PictureProvider call(String account, String mxcUrl, int size) =>
+      PictureProvider._(argument: (account, mxcUrl, size), from: this);
+
+  @override
+  String toString() => r'pictureProvider';
+}
+
+/// The picture the user picked for [account] on this device, if any.
+
+@ProviderFor(localPicture)
+final localPictureProvider = LocalPictureFamily._();
+
+/// The picture the user picked for [account] on this device, if any.
+
+final class LocalPictureProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Uint8List?>,
+          Uint8List?,
+          FutureOr<Uint8List?>
+        >
+    with $FutureModifier<Uint8List?>, $FutureProvider<Uint8List?> {
+  /// The picture the user picked for [account] on this device, if any.
+  LocalPictureProvider._({
+    required LocalPictureFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'localPictureProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$localPictureHash();
+
+  @override
+  String toString() {
+    return r'localPictureProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Uint8List?> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Uint8List?> create(Ref ref) {
+    final argument = this.argument as String;
+    return localPicture(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is LocalPictureProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$localPictureHash() => r'c4b9aaf0551ec5958739e4a8d9f478cec284942b';
+
+/// The picture the user picked for [account] on this device, if any.
+
+final class LocalPictureFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Uint8List?>, String> {
+  LocalPictureFamily._()
+    : super(
+        retry: null,
+        name: r'localPictureProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The picture the user picked for [account] on this device, if any.
+
+  LocalPictureProvider call(String account) =>
+      LocalPictureProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'localPictureProvider';
+}
+
+/// The website icon of [server], if it has one.
+
+@ProviderFor(serverIcon)
+final serverIconProvider = ServerIconFamily._();
+
+/// The website icon of [server], if it has one.
+
+final class ServerIconProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Uint8List?>,
+          Uint8List?,
+          FutureOr<Uint8List?>
+        >
+    with $FutureModifier<Uint8List?>, $FutureProvider<Uint8List?> {
+  /// The website icon of [server], if it has one.
+  ServerIconProvider._({
+    required ServerIconFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'serverIconProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$serverIconHash();
+
+  @override
+  String toString() {
+    return r'serverIconProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Uint8List?> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Uint8List?> create(Ref ref) {
+    final argument = this.argument as String;
+    return serverIcon(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ServerIconProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$serverIconHash() => r'f788efeed269d86f2d6d64b07092f8d7667466af';
+
+/// The website icon of [server], if it has one.
+
+final class ServerIconFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Uint8List?>, String> {
+  ServerIconFamily._()
+    : super(
+        retry: null,
+        name: r'serverIconProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// The website icon of [server], if it has one.
+
+  ServerIconProvider call(String server) =>
+      ServerIconProvider._(argument: server, from: this);
+
+  @override
+  String toString() => r'serverIconProvider';
 }
 
 /// `null` until the first room list has arrived.

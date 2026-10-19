@@ -226,7 +226,12 @@ class RoomTile extends ConsumerWidget {
     return ListTile(
       selected: selected,
       selectedTileColor: theme.colorScheme.primaryContainer,
-      leading: InitialsAvatar(name: room.name, seed: room.id),
+      leading: MatrixAvatar(
+        account: account,
+        url: room.avatarUrl,
+        name: room.name,
+        seed: room.id,
+      ),
       title: Row(
         children: [
           if (room.isEncrypted) ...[

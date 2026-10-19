@@ -2597,13 +2597,14 @@ dependencies = [
 
 [[package]]
 name = "oxitalk_core"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "flutter_rust_bridge",
  "futures-util",
  "matrix-sdk",
  "matrix-sdk-sqlite",
  "matrix-sdk-ui",
+ "mime",
  "rustls",
  "serde_json",
  "tempfile",

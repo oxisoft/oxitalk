@@ -17,6 +17,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
+    // Below the account on a phone.
+    await tester.scrollUntilVisible(find.text(diagnostics.logDir), 200);
     expect(find.text('Collect logs'), findsOneWidget);
     expect(find.text(diagnostics.logDir), findsOneWidget);
 

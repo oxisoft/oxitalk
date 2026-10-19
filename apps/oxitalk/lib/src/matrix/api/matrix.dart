@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'models.dart';
 
 export 'models.dart';
@@ -80,6 +82,18 @@ abstract interface class MatrixSession {
 
   /// Opens a request from [verificationRequests].
   Future<DeviceVerification> openVerification(String flowId);
+
+  /// The user's profile (empty until it is fetched), then every change made here.
+  Stream<Profile> get profile;
+
+  /// Makes [data], an image of type [mimeType] (`image/png`), the user's avatar.
+  Future<void> setAvatar(Uint8List data, String mimeType);
+
+  Future<void> removeAvatar();
+
+  /// A square thumbnail of the picture at [mxcUrl], about [size] pixels wide, as encoded
+  /// image bytes.
+  Future<Uint8List> thumbnail(String mxcUrl, int size);
 
   /// Creates an encrypted direct chat and invites [userId]. Returns the room ID.
   Future<String> createDm(String userId);

@@ -48,6 +48,10 @@ class RoomSummary {
 
   /// The display name, computed by the SDK from the room's name, alias or members.
   final String name;
+
+  /// An `mxc://` URI: the room's avatar or, in a direct chat without one, the other
+  /// person's.
+  final String? avatarUrl;
   final Membership membership;
 
   /// The body of the latest message, if the latest event is a text message.
@@ -62,6 +66,7 @@ class RoomSummary {
   const RoomSummary({
     required this.roomId,
     required this.name,
+    this.avatarUrl,
     required this.membership,
     this.lastMessage,
     this.lastActivityMs,
@@ -74,6 +79,7 @@ class RoomSummary {
   int get hashCode =>
       roomId.hashCode ^
       name.hashCode ^
+      avatarUrl.hashCode ^
       membership.hashCode ^
       lastMessage.hashCode ^
       lastActivityMs.hashCode ^
@@ -88,6 +94,7 @@ class RoomSummary {
           runtimeType == other.runtimeType &&
           roomId == other.roomId &&
           name == other.name &&
+          avatarUrl == other.avatarUrl &&
           membership == other.membership &&
           lastMessage == other.lastMessage &&
           lastActivityMs == other.lastActivityMs &&

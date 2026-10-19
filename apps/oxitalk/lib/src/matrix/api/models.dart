@@ -7,6 +7,7 @@ final class Room {
   const Room({
     required this.id,
     required this.name,
+    this.avatarUrl,
     this.membership = Membership.joined,
     this.lastMessage,
     this.lastActivity,
@@ -17,6 +18,9 @@ final class Room {
 
   final String id;
   final String name;
+
+  /// An `mxc://` URI: the room's avatar or, in a direct chat without one, the other person's.
+  final String? avatarUrl;
   final Membership membership;
 
   /// The latest text message, if the latest event is one.
@@ -33,6 +37,7 @@ final class Room {
   }) => Room(
     id: id,
     name: name,
+    avatarUrl: avatarUrl,
     membership: membership ?? this.membership,
     lastMessage: lastMessage ?? this.lastMessage,
     lastActivity: lastActivity,
@@ -59,12 +64,16 @@ final class MessageEntry extends TimelineEntry {
     required this.time,
     required this.body,
     this.senderName,
+    this.senderAvatarUrl,
     this.isOwn = false,
     this.sendState = SendState.sent,
   }) : super(id);
 
   final String sender;
   final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
   final DateTime time;
   final String body;
   final bool isOwn;
@@ -78,11 +87,15 @@ final class UndecryptableEntry extends TimelineEntry {
     required this.sender,
     required this.time,
     this.senderName,
+    this.senderAvatarUrl,
     this.isOwn = false,
   }) : super(id);
 
   final String sender;
   final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
   final DateTime time;
   final bool isOwn;
 }
@@ -91,6 +104,16 @@ final class DayDivider extends TimelineEntry {
   const DayDivider({required String id, required this.day}) : super(id);
 
   final DateTime day;
+}
+
+/// The user's own profile.
+final class Profile {
+  const Profile({this.displayName, this.avatarUrl});
+
+  final String? displayName;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
 }
 
 /// The connection as the user sees it.

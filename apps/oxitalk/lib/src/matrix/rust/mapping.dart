@@ -52,6 +52,7 @@ Future<T> guarded<T>(Future<T> Function() call) async {
 Room roomOf(rust.RoomSummary summary) => Room(
   id: summary.roomId,
   name: summary.name,
+  avatarUrl: summary.avatarUrl,
   membership: switch (summary.membership) {
     rust.Membership.joined => Membership.joined,
     rust.Membership.invited => Membership.invited,
@@ -79,6 +80,7 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     id: item.id,
     sender: event.sender,
     senderName: event.senderName,
+    senderAvatarUrl: event.senderAvatarUrl,
     time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
     body: body,
     isOwn: event.isOwn,
@@ -92,6 +94,7 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     id: item.id,
     sender: event.sender,
     senderName: event.senderName,
+    senderAvatarUrl: event.senderAvatarUrl,
     time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
     isOwn: event.isOwn,
   ),

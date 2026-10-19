@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/account_pictures.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
@@ -112,9 +113,93 @@ class AccountAvatar extends ConsumerWidget {
             ? '99+'
             : '$unread',
       ),
-      child: InitialsAvatar(name: account, seed: account, radius: radius),
+      child: AccountPicture(account: account, radius: radius),
     );
   }
+}
+
+/// How an account shows: the picture picked for it on this device, else the user's Matrix
+/// avatar, with the website icon of its server in the corner.
+class AccountPicture extends ConsumerWidget {
+  const AccountPicture({required this.account, this.radius = 22, super.key});
+
+  final String account;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider(account)).value;
+    final local = ref.watch(localPictureProvider(account)).value;
+    final fallback = InitialsAvatar(
+      name: profile?.displayName ?? account,
+      seed: account,
+      radius: radius,
+    );
+    final server = serverOf(account);
+    final icon = ref.watch(serverIconProvider(server)).value;
+    final iconRadius = radius * 0.42;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (local != null)
+          PictureAvatar(
+            key: Key('localPicture.$account'),
+            bytes: local,
+            radius: radius,
+            fallback: fallback,
+          )
+        else
+          MatrixAvatar(
+            account: account,
+            url: profile?.avatarUrl,
+            name: profile?.displayName ?? account,
+            seed: account,
+            radius: radius,
+          ),
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            key: Key('serverIcon.$server'),
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              shape: BoxShape.circle,
+            ),
+            child: icon != null
+                ? PictureAvatar(
+                    bytes: icon,
+                    radius: iconRadius,
+                    fallback: _ServerLetter(server: server, radius: iconRadius),
+                  )
+                : _ServerLetter(server: server, radius: iconRadius),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A server without a website icon: its first letter.
+class _ServerLetter extends StatelessWidget {
+  const _ServerLetter({required this.server, required this.radius});
+
+  final String server;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) => CircleAvatar(
+    radius: radius,
+    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+    child: Text(
+      server.isEmpty ? '?' : server[0].toUpperCase(),
+      style: TextStyle(
+        fontSize: radius * 1.1,
+        fontWeight: FontWeight.w700,
+        color: Theme.of(context).colorScheme.onSecondaryContainer,
+      ),
+    ),
+  );
 }
 
 /// The active account's avatar in the chat list header, where there is no rail; opens the
@@ -142,7 +227,7 @@ class AccountSwitcherButton extends ConsumerWidget {
         isLabelVisible: othersUnread,
         smallSize: 10,
         backgroundColor: OxiColors.accent,
-        child: InitialsAvatar(name: account, seed: account, radius: 16),
+        child: AccountPicture(account: account, radius: 16),
       ),
     );
   }

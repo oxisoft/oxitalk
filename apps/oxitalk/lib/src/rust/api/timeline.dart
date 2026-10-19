@@ -41,6 +41,9 @@ class EventInfo {
   final String? eventId;
   final String sender;
   final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
   final PlatformInt64 timestampMs;
   final bool isOwn;
   final SendState sendState;
@@ -49,6 +52,7 @@ class EventInfo {
     this.eventId,
     required this.sender,
     this.senderName,
+    this.senderAvatarUrl,
     required this.timestampMs,
     required this.isOwn,
     required this.sendState,
@@ -59,6 +63,7 @@ class EventInfo {
       eventId.hashCode ^
       sender.hashCode ^
       senderName.hashCode ^
+      senderAvatarUrl.hashCode ^
       timestampMs.hashCode ^
       isOwn.hashCode ^
       sendState.hashCode;
@@ -71,6 +76,7 @@ class EventInfo {
           eventId == other.eventId &&
           sender == other.sender &&
           senderName == other.senderName &&
+          senderAvatarUrl == other.senderAvatarUrl &&
           timestampMs == other.timestampMs &&
           isOwn == other.isOwn &&
           sendState == other.sendState;
