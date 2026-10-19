@@ -153,9 +153,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byTooltip('Menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.byKey(const Key('rail.settings')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings.resetLocalPicture')));
     await tester.pumpAndSettle();
@@ -191,9 +189,7 @@ void main() {
       pictures: pictures,
       pickImage: () async => PickedImage(png, 'image/png'),
     );
-    await tester.tap(find.byTooltip('Menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.byKey(const Key('rail.settings')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('settings.removeAvatar')), findsNothing);
     expect(find.byKey(const Key('settings.resetLocalPicture')), findsNothing);

@@ -9,12 +9,14 @@ import 'src/app/app.dart';
 import 'src/app/collapsed_sections.dart';
 import 'src/app/diagnostics.dart';
 import 'src/app/providers.dart';
+import 'src/app/window_controls.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/util/log.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
+  final window = await DrawnWindowControls.start();
   final dataDir = await getApplicationSupportDirectory();
   final diagnostics = await RustDiagnostics.start(dataDir);
   FlutterError.onError = (details) {
@@ -29,6 +31,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         diagnosticsProvider.overrideWithValue(diagnostics),
+        windowControlsProvider.overrideWithValue(window),
         accountPicturesProvider.overrideWithValue(FileAccountPictures(dataDir)),
         collapsedSectionsStoreProvider.overrideWithValue(
           FileCollapsedSections(dataDir),

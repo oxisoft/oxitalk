@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
+import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -59,6 +60,7 @@ class ChatPane extends ConsumerWidget {
             ? BackButton(onPressed: () => context.go(Routes.chats))
             : null,
         titleSpacing: showBack ? 0 : null,
+        actions: const [WindowButtonsSpace()],
         title: Row(
           children: [
             MatrixAvatar(
@@ -130,6 +132,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
 
   /// Whether the newest message is in view; the list is reversed, so its start is the bottom.
   var _atBottom = true;
+
+  /// The message bubbles, to find the one a context menu was opened on.
+  final _bubbleKeys = <String, GlobalKey>{};
 
   /// The newest entry when the room was last marked read.
   String? _readUpTo;
@@ -224,6 +229,49 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         (_) => unawaited(_loadOlder()),
       );
     }
+    _bubbleKeys.removeWhere((id, _) => !entries.any((entry) => entry.id == id));
+    // Message text can be selected, across messages too, and copied; the context menu also
+    // copies the whole message it was opened on.
+    return SelectionArea(
+      contextMenuBuilder: (context, region) {
+        final message = _messageAt(
+          region.contextMenuAnchors.primaryAnchor,
+          entries,
+        );
+        return AdaptiveTextSelectionToolbar.buttonItems(
+          anchors: region.contextMenuAnchors,
+          buttonItems: [
+            ...region.contextMenuButtonItems,
+            if (message != null)
+              ContextMenuButtonItem(
+                label: 'Copy message',
+                onPressed: () {
+                  region.hideToolbar();
+                  unawaited(Clipboard.setData(ClipboardData(text: message)));
+                },
+              ),
+          ],
+        );
+      },
+      child: _scrollable(entries),
+    );
+  }
+
+  /// The text of the message whose bubble is at [position] on screen.
+  String? _messageAt(Offset position, List<TimelineEntry> entries) {
+    for (final entry in entries) {
+      if (entry is! MessageEntry) continue;
+      final box = _bubbleKeys[entry.id]?.currentContext?.findRenderObject();
+      if (box is RenderBox &&
+          box.attached &&
+          (box.localToGlobal(Offset.zero) & box.size).contains(position)) {
+        return entry.body;
+      }
+    }
+    return null;
+  }
+
+  Widget _scrollable(List<TimelineEntry> entries) {
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ListView.builder(
@@ -238,9 +286,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
               ? entries[position + 1]
               : null;
           return switch (entry) {
-            DayDivider(:final day) => _DayChip(label: dayLabel(day)),
+            DayDivider(:final day) => SelectionContainer.disabled(
+              child: _DayChip(label: dayLabel(day)),
+            ),
             MessageEntry() => MessageBubble(
-              key: ValueKey(entry.id),
+              key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
               isOwn: entry.isOwn,
               sender: _senderLabel(
                 entry.sender,
@@ -405,13 +455,15 @@ class MessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (sender case final sender?)
-              Text(
-                sender,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color:
-                      OxiColors.avatars[sender.hashCode.abs() %
-                          OxiColors.avatars.length],
+              SelectionContainer.disabled(
+                child: Text(
+                  sender,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color:
+                        OxiColors.avatars[sender.hashCode.abs() %
+                            OxiColors.avatars.length],
+                  ),
                 ),
               ),
             Wrap(
@@ -420,15 +472,17 @@ class MessageBubble extends StatelessWidget {
               spacing: 8,
               children: [
                 child,
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(clockTime(time), style: meta),
-                    if (isOwn && sendState != null) ...[
-                      const SizedBox(width: 3),
-                      _SendStateIcon(state: sendState!),
+                SelectionContainer.disabled(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(clockTime(time), style: meta),
+                      if (isOwn && sendState != null) ...[
+                        const SizedBox(width: 3),
+                        _SendStateIcon(state: sendState!),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ],
             ),

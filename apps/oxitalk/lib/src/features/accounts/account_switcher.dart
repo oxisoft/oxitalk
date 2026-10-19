@@ -11,6 +11,7 @@ import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
+import '../../rust/api.dart';
 import '../../ui/avatar.dart';
 
 /// Ctrl on Linux and Windows, Cmd on Apple platforms.
@@ -39,54 +40,83 @@ class AccountRail extends ConsumerWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: SizedBox(
         width: 72,
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
           children: [
-            for (final (index, id) in ids.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Tooltip(
-                  message: '$id  ${_shortcut(index)}'.trim(),
-                  child: InkWell(
-                    key: Key('account.$id'),
-                    customBorder: const CircleBorder(),
-                    onTap: () =>
-                        ref.read(accountsProvider.notifier).activate(id),
-                    child: Row(
-                      children: [
-                        // Marks the account in front, as Slack and Discord do.
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 4,
-                          height: id == active ? 36 : 0,
-                          decoration: const BoxDecoration(
-                            color: OxiColors.accent,
-                            borderRadius: BorderRadius.horizontal(
-                              right: Radius.circular(4),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        AccountAvatar(account: id),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            Center(
-              child: IconButton.filledTonal(
-                key: const Key('account.add'),
-                tooltip: 'Add account',
-                onPressed: () => context.go(Routes.addAccount),
-                icon: const Icon(Icons.add_rounded),
-              ),
+            Expanded(child: _accounts(context, ref, ids, active)),
+            IconButton(
+              key: const Key('rail.settings'),
+              tooltip: 'Settings',
+              onPressed: () => context.go(Routes.settings),
+              icon: const Icon(Icons.settings_outlined),
             ),
+            IconButton(
+              key: const Key('rail.about'),
+              tooltip: 'About',
+              onPressed: () => showOxiTalkAbout(context),
+              icon: const Icon(Icons.info_outline_rounded),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
     );
   }
+
+  Widget _accounts(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> ids,
+    String? active,
+  ) => ListView(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    children: [
+      for (final (index, id) in ids.indexed)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Tooltip(
+            message: '$id  ${_shortcut(index)}'.trim(),
+            child: InkWell(
+              key: Key('account.$id'),
+              customBorder: const CircleBorder(),
+              onTap: () => ref.read(accountsProvider.notifier).activate(id),
+              child: Row(
+                children: [
+                  // Marks the account in front, as Slack and Discord do.
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 4,
+                    height: id == active ? 36 : 0,
+                    decoration: const BoxDecoration(
+                      color: OxiColors.accent,
+                      borderRadius: BorderRadius.horizontal(
+                        right: Radius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AccountAvatar(account: id),
+                ],
+              ),
+            ),
+          ),
+        ),
+      Center(
+        child: IconButton.filledTonal(
+          key: const Key('account.add'),
+          tooltip: 'Add account',
+          onPressed: () => context.go(Routes.addAccount),
+          icon: const Icon(Icons.add_rounded),
+        ),
+      ),
+    ],
+  );
 }
+
+void showOxiTalkAbout(BuildContext context) => showAboutDialog(
+  context: context,
+  applicationName: 'OxiTalk',
+  applicationLegalese: 'Rust core ${coreVersion()}',
+);
 
 /// An account's avatar with its unread count, and a warning while it is unverified.
 class AccountAvatar extends ConsumerWidget {

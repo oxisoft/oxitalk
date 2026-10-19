@@ -7,8 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
+import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
-import '../../rust/api.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
@@ -112,7 +112,10 @@ class ChatListPane extends ConsumerWidget {
         automaticallyImplyLeading: false,
         leading: showSwitcher ? AccountSwitcherButton(account: account) : null,
         title: SyncTitle(account: account, roomsLoaded: rooms != null),
-        actions: [_AccountMenu(account: account)],
+        actions: [
+          _AccountMenu(account: account, withAppItems: showSwitcher),
+          if (showSwitcher) const WindowButtonsSpace(),
+        ],
       ),
       body: switch (rooms) {
         null => const Center(child: CircularProgressIndicator()),
@@ -174,9 +177,12 @@ class SyncTitle extends ConsumerWidget {
 }
 
 class _AccountMenu extends ConsumerWidget {
-  const _AccountMenu({required this.account});
+  const _AccountMenu({required this.account, required this.withAppItems});
 
   final String account;
+
+  /// Settings and About, which are at the bottom of the rail where there is one.
+  final bool withAppItems;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
@@ -185,18 +191,16 @@ class _AccountMenu extends ConsumerWidget {
         onSelected: (action) => action(),
         itemBuilder: (context) => [
           PopupMenuItem(enabled: false, child: Text(account)),
-          PopupMenuItem(
-            value: () => context.go(Routes.settings),
-            child: const Text('Settings'),
-          ),
-          PopupMenuItem(
-            value: () => showAboutDialog(
-              context: context,
-              applicationName: 'OxiTalk',
-              applicationLegalese: 'Rust core ${coreVersion()}',
+          if (withAppItems) ...[
+            PopupMenuItem(
+              value: () => context.go(Routes.settings),
+              child: const Text('Settings'),
             ),
-            child: const Text('About'),
-          ),
+            PopupMenuItem(
+              value: () => showOxiTalkAbout(context),
+              child: const Text('About'),
+            ),
+          ],
           PopupMenuItem(
             value: () =>
                 unawaited(ref.read(accountsProvider.notifier).logout(account)),

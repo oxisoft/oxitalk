@@ -298,6 +298,52 @@ final class PickImageProvider
 
 String _$pickImageHash() => r'd8c8d529428e93da90f3903ecdcc1306cc3492fe';
 
+/// `main` sets the real window; tests and phones have none of the app's own.
+
+@ProviderFor(windowControls)
+final windowControlsProvider = WindowControlsProvider._();
+
+/// `main` sets the real window; tests and phones have none of the app's own.
+
+final class WindowControlsProvider
+    extends $FunctionalProvider<WindowControls, WindowControls, WindowControls>
+    with $Provider<WindowControls> {
+  /// `main` sets the real window; tests and phones have none of the app's own.
+  WindowControlsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'windowControlsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$windowControlsHash();
+
+  @$internal
+  @override
+  $ProviderElement<WindowControls> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  WindowControls create(Ref ref) {
+    return windowControls(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WindowControls value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WindowControls>(value),
+    );
+  }
+}
+
+String _$windowControlsHash() => r'246db448059665fbaf7cde179475521ceecc96bb';
+
 /// What the login form suggests.
 
 @ProviderFor(defaultServer)

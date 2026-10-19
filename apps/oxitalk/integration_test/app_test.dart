@@ -209,11 +209,7 @@ void main() {
 
     // Alice sets her profile picture; the rail shows it.
     final aliceId = '@${alice.name}:localhost';
-    await tester.tap(find.byTooltip('Menu'));
-    await _pumpUntil(tester, find.text('Settings'));
-    // The menu opening.
-    await _pumpFor(tester, const Duration(milliseconds: 500));
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.byKey(const Key('rail.settings')));
     await _pumpUntil(tester, find.byKey(const Key('settings.setAvatar')));
     await tester.tap(find.byKey(const Key('settings.setAvatar')));
     await _pumpUntil(tester, find.byKey(const Key('settings.removeAvatar')));

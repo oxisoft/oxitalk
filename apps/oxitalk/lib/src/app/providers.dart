@@ -14,6 +14,7 @@ import 'account_pictures.dart';
 import 'collapsed_sections.dart';
 import 'diagnostics.dart';
 import 'pick_image.dart';
+import 'window_controls.dart';
 import 'secure_secret_store.dart';
 
 part 'providers.g.dart';
@@ -48,6 +49,10 @@ CollapsedSections collapsedSectionsStore(Ref ref) => throw UnimplementedError(
 /// Tests override this; there is no file dialog in a test.
 @Riverpod(keepAlive: true)
 PickImage pickImage(Ref ref) => pickImageFile;
+
+/// `main` sets the real window; tests and phones have none of the app's own.
+@Riverpod(keepAlive: true)
+WindowControls windowControls(Ref ref) => const PlatformWindowControls();
 
 /// What the login form suggests.
 @Riverpod(keepAlive: true)
