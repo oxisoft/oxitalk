@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
+import 'package:oxitalk/src/app/collapsed_sections.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/providers.dart';
@@ -16,6 +17,7 @@ Future<void> pumpApp(
   MemoryDiagnostics? diagnostics,
   MemoryAccountPictures? pictures,
   PickImage? pickImage,
+  MemoryCollapsedSections? collapsed,
 }) async {
   tester.view
     ..physicalSize = size
@@ -33,6 +35,9 @@ Future<void> pumpApp(
           pictures ?? MemoryAccountPictures(),
         ),
         pickImageProvider.overrideWithValue(pickImage ?? () async => null),
+        collapsedSectionsStoreProvider.overrideWithValue(
+          collapsed ?? MemoryCollapsedSections(),
+        ),
       ],
       child: const OxiTalkApp(),
     ),

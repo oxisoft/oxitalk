@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../../rust/api/room_list.dart' as rust;
+import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/session.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
@@ -216,6 +217,12 @@ final class RustMatrixSession implements MatrixSession {
         }),
       )
       ..add(
+        _session.subscribeSections().listen(
+          (update) =>
+              _sections.value = applySectionsUpdate(_sections.value, update),
+        ),
+      )
+      ..add(
         _session.subscribeVerificationStatus().listen(
           (status) => _verificationStatus.value = verificationStatusOf(status),
         ),
@@ -258,6 +265,7 @@ final class RustMatrixSession implements MatrixSession {
   final _summaries = <rust.RoomSummary>[];
   final _rooms = Latest<List<Room>?>(null);
   final _profile = Latest(const Profile());
+  final _sections = Latest(const Sections());
   final _verificationStatus = Latest(VerificationStatus.unknown);
   final _verificationRequests =
       StreamController<VerificationRequest>.broadcast();
@@ -335,6 +343,27 @@ final class RustMatrixSession implements MatrixSession {
       guarded(() => _session.thumbnail(mxcUri: mxcUrl, size: size));
 
   @override
+  Stream<Sections> get sections => _sections.stream;
+
+  @override
+  Future<void> setRoomSection(String roomId, String? tag) =>
+      guarded(() => _session.setRoomSection(roomId: roomId, tag: tag));
+
+  @override
+  Future<void> saveSections(List<CustomSection> custom, List<String> order) =>
+      guarded(
+        () => _session.saveSectionSettings(
+          settings: rust.SectionSettings(
+            sections: [
+              for (final section in custom)
+                rust.CustomSection(tag: section.tag, name: section.name),
+            ],
+            order: order,
+          ),
+        ),
+      );
+
+  @override
   Future<String> createDm(String userId) =>
       guarded(() => _session.createDm(userId: userId));
 
@@ -379,6 +408,7 @@ final class RustMatrixSession implements MatrixSession {
     // done event, which a paused listener never does.
     unawaited(_rooms.close());
     unawaited(_profile.close());
+    unawaited(_sections.close());
     unawaited(_verificationStatus.close());
     unawaited(_verificationRequests.close());
     _session.dispose();

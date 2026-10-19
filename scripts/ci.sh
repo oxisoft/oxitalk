@@ -74,8 +74,10 @@ flutter build apk --debug
 
 # A hung test must fail the run, not stall it.
 step "integration test (linux)"
-if [ -n "${CI:-}" ]; then
-  timeout 600 xvfb-run -a flutter test integration_test -d linux
+# In a virtual display when there is one, so no window opens on a developer's desktop. GTK
+# would still pick a Wayland session's display, so it is kept to X11.
+if [ -n "${CI:-}" ] || command -v xvfb-run >/dev/null; then
+  timeout 600 env -u WAYLAND_DISPLAY GDK_BACKEND=x11 xvfb-run -a flutter test integration_test -d linux
 else
   timeout 600 flutter test integration_test -d linux
 fi

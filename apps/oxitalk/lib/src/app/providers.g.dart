@@ -199,6 +199,59 @@ final class AccountPicturesProvider
 
 String _$accountPicturesHash() => r'dabfd006d018417ea32ec566486eb4b70dec098e';
 
+/// Set by `main` (and by tests), next to the app's other data.
+
+@ProviderFor(collapsedSectionsStore)
+final collapsedSectionsStoreProvider = CollapsedSectionsStoreProvider._();
+
+/// Set by `main` (and by tests), next to the app's other data.
+
+final class CollapsedSectionsStoreProvider
+    extends
+        $FunctionalProvider<
+          CollapsedSections,
+          CollapsedSections,
+          CollapsedSections
+        >
+    with $Provider<CollapsedSections> {
+  /// Set by `main` (and by tests), next to the app's other data.
+  CollapsedSectionsStoreProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'collapsedSectionsStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$collapsedSectionsStoreHash();
+
+  @$internal
+  @override
+  $ProviderElement<CollapsedSections> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CollapsedSections create(Ref ref) {
+    return collapsedSectionsStore(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CollapsedSections value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CollapsedSections>(value),
+    );
+  }
+}
+
+String _$collapsedSectionsStoreHash() =>
+    r'0dfdf980ba74e5b8a7587e9092e8d69bc6a05120';
+
 /// Tests override this; there is no file dialog in a test.
 
 @ProviderFor(pickImage)
@@ -947,6 +1000,176 @@ final class ServerIconFamily extends $Family
 
   @override
   String toString() => r'serverIconProvider';
+}
+
+@ProviderFor(sections)
+final sectionsProvider = SectionsFamily._();
+
+final class SectionsProvider
+    extends
+        $FunctionalProvider<AsyncValue<Sections>, Sections, Stream<Sections>>
+    with $FutureModifier<Sections>, $StreamProvider<Sections> {
+  SectionsProvider._({
+    required SectionsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'sectionsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$sectionsHash();
+
+  @override
+  String toString() {
+    return r'sectionsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<Sections> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<Sections> create(Ref ref) {
+    final argument = this.argument as String;
+    return sections(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SectionsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$sectionsHash() => r'9fbcef995ac8f1bd167874ec1d216904218e3aaf';
+
+final class SectionsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<Sections>, String> {
+  SectionsFamily._()
+    : super(
+        retry: null,
+        name: r'sectionsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  SectionsProvider call(String account) =>
+      SectionsProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'sectionsProvider';
+}
+
+/// The sections of [account]'s room list that the user folded.
+
+@ProviderFor(CollapsedSectionTags)
+final collapsedSectionTagsProvider = CollapsedSectionTagsFamily._();
+
+/// The sections of [account]'s room list that the user folded.
+final class CollapsedSectionTagsProvider
+    extends $AsyncNotifierProvider<CollapsedSectionTags, Set<String>> {
+  /// The sections of [account]'s room list that the user folded.
+  CollapsedSectionTagsProvider._({
+    required CollapsedSectionTagsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'collapsedSectionTagsProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$collapsedSectionTagsHash();
+
+  @override
+  String toString() {
+    return r'collapsedSectionTagsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  CollapsedSectionTags create() => CollapsedSectionTags();
+
+  @override
+  bool operator ==(Object other) {
+    return other is CollapsedSectionTagsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$collapsedSectionTagsHash() =>
+    r'0b98b18d84c068fdfde1aea95a3d0023a3aa797d';
+
+/// The sections of [account]'s room list that the user folded.
+
+final class CollapsedSectionTagsFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          CollapsedSectionTags,
+          AsyncValue<Set<String>>,
+          Set<String>,
+          FutureOr<Set<String>>,
+          String
+        > {
+  CollapsedSectionTagsFamily._()
+    : super(
+        retry: null,
+        name: r'collapsedSectionTagsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// The sections of [account]'s room list that the user folded.
+
+  CollapsedSectionTagsProvider call(String account) =>
+      CollapsedSectionTagsProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'collapsedSectionTagsProvider';
+}
+
+/// The sections of [account]'s room list that the user folded.
+
+abstract class _$CollapsedSectionTags extends $AsyncNotifier<Set<String>> {
+  late final _$args = ref.$arg as String;
+  String get account => _$args;
+
+  FutureOr<Set<String>> build(String account);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<Set<String>>, Set<String>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<Set<String>>, Set<String>>,
+              AsyncValue<Set<String>>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
 }
 
 /// `null` until the first room list has arrived.

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
+import 'package:oxitalk/src/app/collapsed_sections.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/providers.dart';
@@ -68,6 +70,9 @@ void main() {
           defaultServerProvider.overrideWithValue(_homeserver),
           diagnosticsProvider.overrideWithValue(MemoryDiagnostics()),
           accountPicturesProvider.overrideWithValue(MemoryAccountPictures()),
+          collapsedSectionsStoreProvider.overrideWithValue(
+            MemoryCollapsedSections(),
+          ),
           pickImageProvider.overrideWithValue(
             () async => PickedImage(png, 'image/png'),
           ),
@@ -76,8 +81,9 @@ void main() {
       ),
     );
     await _pumpUntil(tester, find.text('Sign in'));
-    await tester.enterText(find.byKey(const Key('login.username')), alice.name);
-    await tester.enterText(
+    await _type(tester, find.byKey(const Key('login.username')), alice.name);
+    await _type(
+      tester,
       find.byKey(const Key('login.password')),
       alice.password,
     );
@@ -126,7 +132,7 @@ void main() {
     await _pumpUntil(tester, find.text('Hello from Bob'));
 
     // Alice answers through the composer; Bob gets it decrypted.
-    await tester.enterText(find.byKey(const Key('composer.text')), 'Hi Bob!');
+    await _type(tester, find.byKey(const Key('composer.text')), 'Hi Bob!');
     await tester.tap(find.byKey(const Key('composer.send')));
     await _pumpUntil(tester, find.text('Hi Bob!'));
     await bobTimeline.entries
@@ -140,12 +146,38 @@ void main() {
         )
         .timeout(_timeout);
 
+    // Bob's chat goes to Favorites, then to a new section; the tags round-trip the server.
+    final bobTile = find.widgetWithText(ListTile, bob.name);
+    await tester.tap(bobTile, buttons: kSecondaryMouseButton);
+    await _pumpUntil(tester, find.text('Add to favorites'));
+    await _pumpFor(
+      tester,
+      const Duration(milliseconds: 500),
+    ); // the menu opening
+    await tester.tap(find.text('Add to favorites'));
+    await _pumpUntil(tester, find.byKey(const Key('section.m.favourite')));
+    await tester.tap(bobTile, buttons: kSecondaryMouseButton);
+    await _pumpUntil(tester, find.text('New section…'));
+    await _pumpFor(tester, const Duration(milliseconds: 500));
+    await tester.tap(find.text('New section…'));
+    await _pumpUntil(tester, find.byKey(const Key('section.name')));
+    await _type(tester, find.byKey(const Key('section.name')), 'Customers');
+    await tester.tap(find.byKey(const Key('section.save')));
+    await _pumpUntil(tester, find.text('Customers'));
+    // A room is in one section at a time: Favorites is empty now, so it's gone.
+    await _pumpUntil(
+      tester,
+      find.byKey(const Key('section.m.favourite')),
+      gone: true,
+    );
+
     // A second account, for another customer: added from the rail, both stay online.
     final carol = await _registerUser();
     await tester.tap(find.byKey(const Key('account.add')));
     await _pumpUntil(tester, find.text('Add another Matrix account'));
-    await tester.enterText(find.byKey(const Key('login.username')), carol.name);
-    await tester.enterText(
+    await _type(tester, find.byKey(const Key('login.username')), carol.name);
+    await _type(
+      tester,
       find.byKey(const Key('login.password')),
       carol.password,
     );
@@ -202,6 +234,23 @@ Future<void> _hotkey(WidgetTester tester, LogicalKeyboardKey key) async {
   await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
   await tester.sendKeyEvent(key);
   await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+}
+
+/// Types [text] into the text field [field], checking that it took. A desktop app gives up
+/// keyboard focus while its window isn't the active one, which a compositor may refuse while
+/// the user works in another window; the test then says the app is in front.
+Future<void> _type(WidgetTester tester, Finder field, String text) async {
+  final editable = find.descendant(
+    of: field,
+    matching: find.byType(EditableText),
+  );
+  for (var attempt = 0; attempt < 5; attempt++) {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.enterText(field, text);
+    await _pumpFor(tester, const Duration(milliseconds: 200));
+    if (tester.widget<EditableText>(editable).controller.text == text) return;
+  }
+  throw TestFailure('Could not type “$text” into $field');
 }
 
 /// Runs a teardown [body], failing instead of hanging if it never completes.
@@ -268,12 +317,17 @@ Future<void> _pumpFor(WidgetTester tester, Duration duration) async {
   }
 }
 
-/// Pumps frames, letting real time pass, until [finder] finds something.
-Future<void> _pumpUntil(WidgetTester tester, Finder finder) async {
+/// Pumps frames, letting real time pass, until [finder] finds something (or, with [gone],
+/// nothing).
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  Finder finder, {
+  bool gone = false,
+}) async {
   final deadline = DateTime.now().add(_timeout);
   while (DateTime.now().isBefore(deadline)) {
     await tester.pump(const Duration(milliseconds: 100));
-    if (finder.evaluate().isNotEmpty) return;
+    if (finder.evaluate().isNotEmpty != gone) return;
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );

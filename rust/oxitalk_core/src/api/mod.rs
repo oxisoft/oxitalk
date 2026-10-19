@@ -8,6 +8,7 @@ pub mod media;
 pub mod profile;
 pub mod room_list;
 pub mod rooms;
+pub mod sections;
 pub mod session;
 pub mod sync;
 pub mod timeline;
@@ -35,6 +36,6 @@ mod tests {
 
     #[test]
     fn core_version_is_the_crate_version() {
-        assert_eq!(core_version(), "0.1.11");
+        assert_eq!(core_version(), "0.1.12");
     }
 }

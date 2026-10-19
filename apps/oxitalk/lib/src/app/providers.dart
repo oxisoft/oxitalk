@@ -11,6 +11,7 @@ import '../matrix/api/secret_store.dart';
 import '../matrix/rust/rust_matrix.dart';
 import '../util/log.dart';
 import 'account_pictures.dart';
+import 'collapsed_sections.dart';
 import 'diagnostics.dart';
 import 'pick_image.dart';
 import 'secure_secret_store.dart';
@@ -37,6 +38,12 @@ Diagnostics diagnostics(Ref ref) =>
 @Riverpod(keepAlive: true)
 AccountPictures accountPictures(Ref ref) =>
     throw UnimplementedError('accountPicturesProvider is overridden in main');
+
+/// Set by `main` (and by tests), next to the app's other data.
+@Riverpod(keepAlive: true)
+CollapsedSections collapsedSectionsStore(Ref ref) => throw UnimplementedError(
+  'collapsedSectionsStoreProvider is overridden in main',
+);
 
 /// Tests override this; there is no file dialog in a test.
 @Riverpod(keepAlive: true)
@@ -200,6 +207,25 @@ Future<Uint8List?> localPicture(Ref ref, String account) =>
 @Riverpod(keepAlive: true)
 Future<Uint8List?> serverIcon(Ref ref, String server) =>
     ref.watch(accountPicturesProvider).serverIcon(server);
+
+@riverpod
+Stream<Sections> sections(Ref ref, String account) =>
+    _session(ref, account)?.sections ?? Stream.value(const Sections());
+
+/// The sections of [account]'s room list that the user folded.
+@Riverpod(keepAlive: true)
+class CollapsedSectionTags extends _$CollapsedSectionTags {
+  @override
+  Future<Set<String>> build(String account) =>
+      ref.watch(collapsedSectionsStoreProvider).read(account);
+
+  void toggle(String tag) {
+    final tags = {...?state.value};
+    if (!tags.remove(tag)) tags.add(tag);
+    state = AsyncData(tags);
+    unawaited(ref.read(collapsedSectionsStoreProvider).write(account, tags));
+  }
+}
 
 /// `null` until the first room list has arrived.
 @riverpod

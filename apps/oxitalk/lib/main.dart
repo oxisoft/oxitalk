@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'src/app/account_pictures.dart';
 import 'src/app/app.dart';
+import 'src/app/collapsed_sections.dart';
 import 'src/app/diagnostics.dart';
 import 'src/app/providers.dart';
 import 'src/rust/frb_generated.dart';
@@ -29,6 +30,9 @@ Future<void> main() async {
       overrides: [
         diagnosticsProvider.overrideWithValue(diagnostics),
         accountPicturesProvider.overrideWithValue(FileAccountPictures(dataDir)),
+        collapsedSectionsStoreProvider.overrideWithValue(
+          FileCollapsedSections(dataDir),
+        ),
       ],
       child: const OxiTalkApp(),
     ),

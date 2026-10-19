@@ -106,6 +106,50 @@ final class DayDivider extends TimelineEntry {
   final DateTime day;
 }
 
+/// The room list sections, as Element keeps them: a room is in a section by a room tag, and
+/// the sections the user made and the order of the movable ones are account settings.
+final class Sections {
+  const Sections({
+    this.custom = const [],
+    this.order = const [],
+    this.roomTags = const {},
+  });
+
+  /// The sections the user made.
+  final List<CustomSection> custom;
+
+  /// The order of the movable sections as stored: custom section tags, [SectionTags.people]
+  /// and [SectionTags.rooms]. May name sections that are gone, or miss some.
+  final List<String> order;
+
+  /// Each room's tags, by room ID.
+  final Map<String, List<String>> roomTags;
+}
+
+final class CustomSection {
+  const CustomSection(this.tag, this.name);
+
+  /// `element.io.section.<id>`.
+  final String tag;
+  final String name;
+}
+
+/// Element's names for the sections.
+abstract final class SectionTags {
+  static const invites = 'im.vector.fake.invite';
+  static const favourites = 'm.favourite';
+  static const people = 'im.vector.fake.direct';
+  static const rooms = 'chats';
+  static const lowPriority = 'm.lowpriority';
+  static const customPrefix = 'element.io.section.';
+
+  static bool isCustom(String tag) => tag.startsWith(customPrefix);
+
+  /// A tag that puts a room in a section.
+  static bool isSection(String tag) =>
+      tag == favourites || tag == lowPriority || isCustom(tag);
+}
+
 /// The user's own profile.
 final class Profile {
   const Profile({this.displayName, this.avatarUrl});

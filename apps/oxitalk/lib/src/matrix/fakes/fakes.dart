@@ -80,8 +80,10 @@ final class FakeSession implements MatrixSession {
     this.userId = '@me:example.org',
     List<Room>? rooms,
     Profile profile = const Profile(),
+    Sections sections = const Sections(),
   }) : _rooms = Latest(rooms),
-       ownProfile = Latest(profile);
+       ownProfile = Latest(profile),
+       sectionState = Latest(sections);
 
   @override
   final String userId;
@@ -93,6 +95,9 @@ final class FakeSession implements MatrixSession {
 
   /// The user's profile; tests change it.
   final Latest<Profile> ownProfile;
+
+  /// The room list sections; tests change them.
+  final Latest<Sections> sectionState;
 
   /// The pictures on the server, by `mxc://` URI; [thumbnail] serves them as they are.
   final pictures = <String, Uint8List>{};
@@ -177,6 +182,36 @@ final class FakeSession implements MatrixSession {
       pictures[mxcUrl] ?? (throw MatrixFailure(FailureKind.network, mxcUrl));
 
   @override
+  Stream<Sections> get sections => sectionState.stream;
+
+  @override
+  Future<void> setRoomSection(String roomId, String? tag) async {
+    final current = sectionState.value;
+    sectionState.value = Sections(
+      custom: current.custom,
+      order: current.order,
+      roomTags: {
+        ...current.roomTags,
+        roomId: [
+          for (final old in current.roomTags[roomId] ?? const <String>[])
+            if (!SectionTags.isSection(old)) old,
+          ?tag,
+        ],
+      },
+    );
+  }
+
+  @override
+  Future<void> saveSections(
+    List<CustomSection> custom,
+    List<String> order,
+  ) async => sectionState.value = Sections(
+    custom: custom,
+    order: order,
+    roomTags: sectionState.value.roomTags,
+  );
+
+  @override
   Future<String> createDm(String userId) async {
     if (!userId.startsWith('@') || !userId.contains(':')) {
       throw MatrixFailure(FailureKind.invalidId, userId);
@@ -189,12 +224,14 @@ final class FakeSession implements MatrixSession {
     return id;
   }
 
+  /// Like the server's answer, it arrives after the room list has changed.
   @override
   Future<void> join(String roomId) async {
     roomList = [
       for (final room in roomList)
         room.id == roomId ? room.copyWith(membership: Membership.joined) : room,
     ];
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
 
   @override

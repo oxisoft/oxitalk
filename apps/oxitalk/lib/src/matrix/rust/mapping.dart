@@ -1,5 +1,6 @@
 import '../../rust/api/error.dart';
 import '../../rust/api/room_list.dart' as rust;
+import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
 import '../../util/log.dart';
@@ -131,3 +132,23 @@ VerificationStep stepOf(rust.VerificationFlowState state) => switch (state) {
   rust.VerificationFlowState_Cancelled(:final reason, :final byUs) =>
     VerificationCancelled(reason, byUs: byUs),
 };
+
+Sections applySectionsUpdate(Sections sections, rust.SectionsUpdate update) =>
+    switch (update) {
+      rust.SectionsUpdate_Settings(:final settings) => Sections(
+        custom: [
+          for (final section in settings.sections)
+            CustomSection(section.tag, section.name),
+        ],
+        order: settings.order,
+        roomTags: sections.roomTags,
+      ),
+      rust.SectionsUpdate_Rooms(:final rooms) => Sections(
+        custom: sections.custom,
+        order: sections.order,
+        roomTags: {
+          ...sections.roomTags,
+          for (final room in rooms) room.roomId: room.tags,
+        },
+      ),
+    };

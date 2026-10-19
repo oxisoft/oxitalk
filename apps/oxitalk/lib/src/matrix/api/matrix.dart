@@ -95,6 +95,17 @@ abstract interface class MatrixSession {
   /// image bytes.
   Future<Uint8List> thumbnail(String mxcUrl, int size);
 
+  /// The room list sections (empty until they are read), then every change.
+  Stream<Sections> get sections;
+
+  /// Puts the room in the section with [tag] ([SectionTags.favourites],
+  /// [SectionTags.lowPriority] or a custom one), or with `null` in its default one. A room is
+  /// in one section at a time.
+  Future<void> setRoomSection(String roomId, String? tag);
+
+  /// Saves the user's sections and the order of the movable ones.
+  Future<void> saveSections(List<CustomSection> custom, List<String> order);
+
   /// Creates an encrypted direct chat and invites [userId]. Returns the room ID.
   Future<String> createDm(String userId);
 

@@ -11,6 +11,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 
 import 'profile.dart';
 import 'room_list.dart';
+import 'sections.dart';
 import 'sync.dart';
 import 'timeline.dart';
 import 'verification.dart';
@@ -114,6 +115,15 @@ abstract class Session implements RustOpaqueInterface {
   /// server answers.
   Future<Verification> requestSelfVerification();
 
+  /// Saves the user's sections and their order, keeping every other Element setting and
+  /// whatever else Element stores with a section.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a section tag without the `element.io.section.` prefix,
+  /// otherwise as the server answers.
+  Future<void> saveSectionSettings({required SectionSettings settings});
+
   /// What the app stores to [`restore`] this session later.
   ///
   /// # Errors
@@ -130,6 +140,16 @@ abstract class Session implements RustOpaqueInterface {
   /// (it may refuse a file that is too large).
   Future<void> setAvatar({required List<int> data, required String mimeType});
 
+  /// Puts a room in the section with `tag` (`m.favourite`, `m.lowpriority` or a section the
+  /// user made), or with `None` in its default section (People or Rooms). A room is in one
+  /// section at a time; the one it was in is left.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed room ID or a tag that isn't a section's,
+  /// [`CoreError::RoomNotFound`], otherwise as the server answers.
+  Future<void> setRoomSection({required String roomId, String? tag});
+
   /// Starts syncing. Calling it while syncing is harmless; while offline it retries at once.
   Future<void> startSync();
 
@@ -143,6 +163,9 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// If the SDK's room list can't be set up.
   Stream<List<RoomListDiff>> subscribeRooms();
+
+  /// Sends the section settings and the tags of every room, then every change to either.
+  Stream<SectionsUpdate> subscribeSections();
 
   /// Sends every [`SessionChange`].
   Stream<SessionChange> subscribeSessionChanges();

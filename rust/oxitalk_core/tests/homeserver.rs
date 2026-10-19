@@ -12,20 +12,25 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 
 use matrix_sdk::{
     Client,
-    ruma::api::client::{account::register::v3::Request as RegistrationRequest, uiaa},
+    ruma::{
+        api::client::{account::register::v3::Request as RegistrationRequest, uiaa},
+        serde::Raw,
+    },
 };
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
     room_list::Membership,
+    sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
     session::{Session, login, restore},
     timeline::{SendState, TimelineItemContent},
     verification::{Verification, VerificationFlowState, VerificationStatus},
 };
+use serde_json::json;
 use support::{TIMEOUT, TestResult, messages, watch_rooms, watch_timeline};
 use tokio::sync::mpsc;
 
@@ -249,6 +254,115 @@ async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
     Ok(())
 }
 
+/// Sections as Element keeps them: a room moves between sections by its tags, one at a time,
+/// and the user's sections are saved in Element's settings without losing the rest of them.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn rooms_move_between_sections_as_in_element() -> TestResult {
+    const ACME: &str = "element.io.section.acme";
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice = alice_user
+        .login(&alice_store.path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+
+    // Element's settings already hold other things, and a section with more than a name.
+    alice
+        .sdk()
+        .account()
+        .set_account_data_raw(
+            "im.vector.web.settings".into(),
+            Raw::from_json_string(
+                json!({
+                    "someOtherSetting": true,
+                    "RoomList.CustomSectionData": {
+                        ACME: { "tag": ACME, "name": "Acme", "spaceId": "home-space" },
+                    },
+                })
+                .to_string(),
+            )?,
+        )
+        .await?;
+    alice.start_sync().await;
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut sections = alice.sections_updates().await;
+    let tags_of = |rooms: &[RoomTags]| {
+        rooms
+            .iter()
+            .find(|room| room.room_id == room_id)
+            .map(|room| room.tags.clone())
+    };
+
+    wait_for_sections(&mut sections, |update| {
+        matches!(update, SectionsUpdate::Settings { settings }
+            if settings.sections.iter().any(|s| s.tag == ACME && s.name == "Acme"))
+    })
+    .await?;
+
+    alice
+        .set_room_section(room_id.clone(), Some("m.favourite".to_owned()))
+        .await?;
+    wait_for_sections(&mut sections, |update| {
+        matches!(update, SectionsUpdate::Rooms { rooms }
+            if tags_of(rooms) == Some(vec!["m.favourite".to_owned()]))
+    })
+    .await?;
+    alice
+        .set_room_section(room_id.clone(), Some(ACME.to_owned()))
+        .await?;
+    wait_for_sections(&mut sections, |update| {
+        matches!(update, SectionsUpdate::Rooms { rooms }
+            if tags_of(rooms) == Some(vec![ACME.to_owned()]))
+    })
+    .await?;
+    alice.set_room_section(room_id.clone(), None).await?;
+    wait_for_sections(&mut sections, |update| {
+        matches!(update, SectionsUpdate::Rooms { rooms } if tags_of(rooms) == Some(vec![]))
+    })
+    .await?;
+    assert!(matches!(
+        alice
+            .set_room_section(room_id.clone(), Some("u.work".to_owned()))
+            .await,
+        Err(CoreError::InvalidId { .. })
+    ));
+
+    // Renamed, with a new order; the rest of Element's settings stays.
+    let order = vec![
+        ACME.to_owned(),
+        "im.vector.fake.direct".to_owned(),
+        "chats".to_owned(),
+    ];
+    alice
+        .save_section_settings(SectionSettings {
+            sections: vec![CustomSection {
+                tag: ACME.to_owned(),
+                name: "Acme Corp".to_owned(),
+            }],
+            order: order.clone(),
+        })
+        .await?;
+    wait_for_sections(&mut sections, |update| {
+        matches!(update, SectionsUpdate::Settings { settings }
+            if settings.order == order && settings.sections[0].name == "Acme Corp")
+    })
+    .await?;
+    let stored = alice
+        .sdk()
+        .account()
+        .account_data_raw("im.vector.web.settings".into())
+        .await?
+        .ok_or("no settings")?;
+    let stored: serde_json::Value = serde_json::from_str(stored.json().get())?;
+    assert_eq!(stored["someOtherSetting"], json!(true));
+    assert_eq!(
+        stored["RoomList.CustomSectionData"][ACME]["spaceId"],
+        json!("home-space")
+    );
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs the Synapse test homeserver (test-infra/)"]
 async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {
@@ -400,6 +514,23 @@ async fn the_recovery_key_verifies_and_restores_history() -> TestResult {
         .wait_until(|items| messages(items).contains(&("before the new device", true)))
         .await?;
     Ok(())
+}
+
+/// Takes section updates until one satisfies `done`.
+async fn wait_for_sections(
+    updates: &mut (impl Stream<Item = SectionsUpdate> + Unpin),
+    done: impl Fn(&SectionsUpdate) -> bool,
+) -> TestResult {
+    tokio::time::timeout(TIMEOUT, async {
+        while let Some(update) = updates.next().await {
+            if done(&update) {
+                return Ok(());
+            }
+        }
+        Err("the stream ended".into())
+    })
+    .await
+    .map_err(|_| "timed out waiting for sections")?
 }
 
 async fn wait_for_status(session: &Session, wanted: VerificationStatus) -> TestResult {

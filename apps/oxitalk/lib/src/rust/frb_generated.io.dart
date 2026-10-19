@@ -8,6 +8,7 @@ import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/profile.dart';
 import 'api/room_list.dart';
+import 'api/sections.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
 import 'api/timeline.dart';
@@ -107,6 +108,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_list_timeline_diff_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<SectionsUpdate> dco_decode_StreamSink_sections_update_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<SessionChange> dco_decode_StreamSink_session_change_Sse(
     dynamic raw,
   );
@@ -145,6 +151,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomSummary dco_decode_box_autoadd_room_summary(dynamic raw);
 
   @protected
+  SectionSettings dco_decode_box_autoadd_section_settings(dynamic raw);
+
+  @protected
   SessionData dco_decode_box_autoadd_session_data(dynamic raw);
 
   @protected
@@ -154,6 +163,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError dco_decode_core_error(dynamic raw);
 
   @protected
+  CustomSection dco_decode_custom_section(dynamic raw);
+
+  @protected
   EventInfo dco_decode_event_info(dynamic raw);
 
   @protected
@@ -161,6 +173,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<CustomSection> dco_decode_list_custom_section(dynamic raw);
 
   @protected
   Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
@@ -176,6 +194,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<RoomSummary> dco_decode_list_room_summary(dynamic raw);
+
+  @protected
+  List<RoomTags> dco_decode_list_room_tags(dynamic raw);
 
   @protected
   List<TimelineDiff> dco_decode_list_timeline_diff(dynamic raw);
@@ -209,6 +230,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomSummary dco_decode_room_summary(dynamic raw);
+
+  @protected
+  RoomTags dco_decode_room_tags(dynamic raw);
+
+  @protected
+  SectionSettings dco_decode_section_settings(dynamic raw);
+
+  @protected
+  SectionsUpdate dco_decode_sections_update(dynamic raw);
 
   @protected
   SendState dco_decode_send_state(dynamic raw);
@@ -324,6 +354,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_StreamSink_list_timeline_diff_Sse(SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<SectionsUpdate> sse_decode_StreamSink_sections_update_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<SessionChange> sse_decode_StreamSink_session_change_Sse(
     SseDeserializer deserializer,
   );
@@ -368,6 +403,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomSummary sse_decode_box_autoadd_room_summary(SseDeserializer deserializer);
 
   @protected
+  SectionSettings sse_decode_box_autoadd_section_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SessionData sse_decode_box_autoadd_session_data(SseDeserializer deserializer);
 
   @protected
@@ -379,6 +419,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError sse_decode_core_error(SseDeserializer deserializer);
 
   @protected
+  CustomSection sse_decode_custom_section(SseDeserializer deserializer);
+
+  @protected
   EventInfo sse_decode_event_info(SseDeserializer deserializer);
 
   @protected
@@ -386,6 +429,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<CustomSection> sse_decode_list_custom_section(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
@@ -403,6 +454,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<RoomSummary> sse_decode_list_room_summary(SseDeserializer deserializer);
+
+  @protected
+  List<RoomTags> sse_decode_list_room_tags(SseDeserializer deserializer);
 
   @protected
   List<TimelineDiff> sse_decode_list_timeline_diff(
@@ -444,6 +498,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomSummary sse_decode_room_summary(SseDeserializer deserializer);
+
+  @protected
+  RoomTags sse_decode_room_tags(SseDeserializer deserializer);
+
+  @protected
+  SectionSettings sse_decode_section_settings(SseDeserializer deserializer);
+
+  @protected
+  SectionsUpdate sse_decode_sections_update(SseDeserializer deserializer);
 
   @protected
   SendState sse_decode_send_state(SseDeserializer deserializer);
@@ -583,6 +646,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_sections_update_Sse(
+    RustStreamSink<SectionsUpdate> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_session_change_Sse(
     RustStreamSink<SessionChange> self,
     SseSerializer serializer,
@@ -643,6 +712,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_section_settings(
+    SectionSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_session_data(
     SessionData self,
     SseSerializer serializer,
@@ -658,6 +733,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_core_error(CoreError self, SseSerializer serializer);
 
   @protected
+  void sse_encode_custom_section(CustomSection self, SseSerializer serializer);
+
+  @protected
   void sse_encode_event_info(EventInfo self, SseSerializer serializer);
 
   @protected
@@ -665,6 +743,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_custom_section(
+    List<CustomSection> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_16_strict(
@@ -692,6 +779,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<RoomSummary> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_room_tags(List<RoomTags> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_timeline_diff(
@@ -740,6 +830,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_summary(RoomSummary self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_tags(RoomTags self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_section_settings(
+    SectionSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sections_update(
+    SectionsUpdate self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_send_state(SendState self, SseSerializer serializer);

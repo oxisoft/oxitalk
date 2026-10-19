@@ -13,6 +13,8 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
+import 'room_groups.dart';
+import 'section_actions.dart';
 
 /// The active account's chats: on a wide window the account rail, the list and the open chat
 /// side by side, otherwise the list with the account switcher in its header.
@@ -115,13 +117,10 @@ class ChatListPane extends ConsumerWidget {
       body: switch (rooms) {
         null => const Center(child: CircularProgressIndicator()),
         [] => const Center(child: Text('No chats yet')),
-        final rooms => ListView.builder(
-          itemCount: rooms.length,
-          itemBuilder: (context, index) => RoomTile(
-            account: account,
-            room: rooms[index],
-            selected: rooms[index].id == selectedRoomId,
-          ),
+        final rooms => _RoomList(
+          account: account,
+          rooms: rooms,
+          selectedRoomId: selectedRoomId,
         ),
       },
       floatingActionButton: FloatingActionButton(
@@ -207,6 +206,149 @@ class _AccountMenu extends ConsumerWidget {
       );
 }
 
+/// The rooms in their sections, each under a header that folds it; a plain list while every
+/// room is in Rooms, as in Element.
+class _RoomList extends ConsumerWidget {
+  const _RoomList({
+    required this.account,
+    required this.rooms,
+    required this.selectedRoomId,
+  });
+
+  final String account;
+  final List<Room> rooms;
+  final String? selectedRoomId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sections =
+        ref.watch(sectionsProvider(account)).value ?? const Sections();
+    final collapsed =
+        ref.watch(collapsedSectionTagsProvider(account)).value ?? const {};
+    final groups = groupRooms(rooms, sections);
+    final flat = groups.length == 1 && groups.single.tag == SectionTags.rooms;
+    final movable = movableOrder(sections);
+    final items = <Object>[
+      for (final group in groups) ...[
+        if (!flat) group,
+        if (flat || !collapsed.contains(group.tag)) ...group.rooms,
+      ],
+    ];
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) => switch (items[index]) {
+        final RoomGroup group => SectionHeader(
+          account: account,
+          group: group,
+          collapsed: collapsed.contains(group.tag),
+          canMoveUp: movable.indexOf(group.tag) > 0,
+          canMoveDown:
+              group.isMovable &&
+              movable.indexOf(group.tag) < movable.length - 1,
+        ),
+        final Room room => RoomTile(
+          account: account,
+          room: room,
+          selected: room.id == selectedRoomId,
+        ),
+        _ => const SizedBox.shrink(),
+      },
+    );
+  }
+}
+
+/// A section's title, unread count and menu; tapping it folds or unfolds the section.
+class SectionHeader extends ConsumerWidget {
+  const SectionHeader({
+    required this.account,
+    required this.group,
+    required this.collapsed,
+    required this.canMoveUp,
+    required this.canMoveDown,
+    super.key,
+  });
+
+  final String account;
+  final RoomGroup group;
+  final bool collapsed;
+  final bool canMoveUp;
+  final bool canMoveDown;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final actions = SectionActions(context, ref, account);
+    final unread = group.unread;
+    return InkWell(
+      key: Key('section.${group.tag}'),
+      onTap: () => ref
+          .read(collapsedSectionTagsProvider(account).notifier)
+          .toggle(group.tag),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+        child: SizedBox(
+          height: 36,
+          child: Row(
+            children: [
+              Icon(
+                collapsed
+                    ? Icons.chevron_right_rounded
+                    : Icons.expand_more_rounded,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  group.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              // Folded, the count says what is hidden.
+              if (collapsed && unread > 0) _Badge(count: unread),
+              if (group.isMovable)
+                PopupMenuButton<VoidCallback>(
+                  key: Key('sectionMenu.${group.tag}'),
+                  tooltip: 'Section menu',
+                  icon: const Icon(Icons.more_horiz_rounded, size: 20),
+                  onSelected: (action) => action(),
+                  itemBuilder: (_) => [
+                    if (group.isCustom)
+                      PopupMenuItem(
+                        value: () => unawaited(actions.rename(group.tag)),
+                        child: const Text('Rename…'),
+                      ),
+                    PopupMenuItem(
+                      enabled: canMoveUp,
+                      value: () => unawaited(actions.move(group.tag, -1)),
+                      child: const Text('Move up'),
+                    ),
+                    PopupMenuItem(
+                      enabled: canMoveDown,
+                      value: () => unawaited(actions.move(group.tag, 1)),
+                      child: const Text('Move down'),
+                    ),
+                    if (group.isCustom)
+                      PopupMenuItem(
+                        value: () => unawaited(actions.delete(group.tag)),
+                        child: const Text('Delete…'),
+                      ),
+                  ],
+                )
+              else
+                const SizedBox(width: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class RoomTile extends ConsumerWidget {
   const RoomTile({
     required this.account,
@@ -223,6 +365,79 @@ class RoomTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final invited = room.membership == Membership.invited;
+    return GestureDetector(
+      // Right-click on desktop, long-press on a phone; an invite has no sections yet.
+      onSecondaryTapUp: invited
+          ? null
+          : (details) => unawaited(_menu(context, ref, details.globalPosition)),
+      onLongPressStart: invited
+          ? null
+          : (details) => unawaited(_menu(context, ref, details.globalPosition)),
+      child: _tile(context, ref, theme, invited),
+    );
+  }
+
+  Future<void> _menu(BuildContext context, WidgetRef ref, Offset at) async {
+    final sections =
+        ref.read(sectionsProvider(account)).value ?? const Sections();
+    final current = sectionOf(room, sections);
+    final actions = SectionActions(context, ref, account);
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final action = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(
+        at & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: () => unawaited(
+            actions.setSection(
+              room,
+              current == SectionTags.favourites ? null : SectionTags.favourites,
+            ),
+          ),
+          child: Text(
+            current == SectionTags.favourites
+                ? 'Remove from favorites'
+                : 'Add to favorites',
+          ),
+        ),
+        PopupMenuItem(
+          value: () => unawaited(
+            actions.setSection(
+              room,
+              current == SectionTags.lowPriority
+                  ? null
+                  : SectionTags.lowPriority,
+            ),
+          ),
+          child: Text(
+            current == SectionTags.lowPriority
+                ? 'Remove from low priority'
+                : 'Low priority',
+          ),
+        ),
+        PopupMenuItem(
+          value: () => unawaited(actions.chooseFor(room)),
+          child: const Text('Move to section…'),
+        ),
+        PopupMenuItem(
+          value: () => unawaited(actions.create(room: room)),
+          child: const Text('New section…'),
+        ),
+      ],
+    );
+    action?.call();
+  }
+
+  Widget _tile(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    bool invited,
+  ) {
     return ListTile(
       selected: selected,
       selectedTileColor: theme.colorScheme.primaryContainer,
@@ -273,15 +488,19 @@ class RoomTile extends ConsumerWidget {
   }
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {
+    // Joining moves the room from Invites to its section, which replaces this tile; so the
+    // router and the messenger are taken before.
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     if (room.membership == Membership.invited) {
       try {
         await ref.read(accountsProvider).value?.byId(account)?.join(room.id);
       } on MatrixFailure catch (failure) {
-        if (context.mounted) showFailure(context, 'Can’t join', failure);
+        messenger.showSnackBar(failureSnackBar('Can’t join', failure));
         return;
       }
     }
-    if (context.mounted) context.go(Routes.room(room.id));
+    router.go(Routes.room(room.id));
   }
 }
 
@@ -350,12 +569,11 @@ class _NewChatDialogState extends State<_NewChatDialog> {
   );
 }
 
-void showFailure(BuildContext context, String what, MatrixFailure failure) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        '$what: ${failure.kind == FailureKind.invalidId ? 'invalid ID “${failure.message}”' : failure.kind.name}',
-      ),
-    ),
-  );
-}
+void showFailure(BuildContext context, String what, MatrixFailure failure) =>
+    ScaffoldMessenger.of(context).showSnackBar(failureSnackBar(what, failure));
+
+SnackBar failureSnackBar(String what, MatrixFailure failure) => SnackBar(
+  content: Text(
+    '$what: ${failure.kind == FailureKind.invalidId ? 'invalid ID “${failure.message}”' : failure.kind.name}',
+  ),
+);
