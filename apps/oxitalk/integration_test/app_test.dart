@@ -29,6 +29,24 @@ void main() {
     final dataDir = await Directory.systemTemp.createTemp('oxitalk-test');
     addTearDown(() => dataDir.delete(recursive: true));
 
+    // Alice's first device, without UI: its login creates her identity and is verified.
+    final aliceFirst =
+        await RustMatrixClientFactory(
+          secrets: MemorySecretStore(),
+          dataDir: () async =>
+              Directory('${dataDir.path}/alice-first')..createSync(),
+        ).login(
+          server: _homeserver,
+          username: alice.name,
+          password: alice.password,
+        );
+    addTearDown(() => _bounded(aliceFirst.close));
+    await aliceFirst.verificationStatus
+        .firstWhere((status) => status == VerificationStatus.verified)
+        .timeout(_timeout);
+    final requests = StreamIterator(aliceFirst.verificationRequests);
+    addTearDown(requests.cancel);
+
     // The real app, on the real core; only the keyring is replaced (CI has none).
     await tester.pumpWidget(
       ProviderScope(
@@ -52,6 +70,27 @@ void main() {
       alice.password,
     );
     await tester.tap(find.byKey(const Key('login.submit')));
+
+    // The app is her second device: it has to be verified, here with emoji from the first.
+    await _pumpUntil(tester, find.text('Confirm it’s you'));
+    await tester.tap(find.byKey(const Key('verify.otherDevice')));
+    expect(await _next(tester, requests), isTrue);
+    final verification = await aliceFirst.openVerification(
+      requests.current.flowId,
+    );
+    addTearDown(verification.close);
+    await verification.accept();
+    final compare = await _whileWaiting(
+      tester,
+      verification.steps.firstWhere((step) => step is VerificationCompare),
+    );
+    await _pumpUntil(tester, find.text('Compare emoji'));
+    for (final emoji in (compare as VerificationCompare).emojis) {
+      // The same emoji may come up twice.
+      expect(find.text(emoji.symbol), findsWidgets);
+    }
+    await verification.confirm();
+    await tester.tap(find.byKey(const Key('verify.match')));
     await _pumpUntil(tester, find.text('No chats yet'));
 
     // Bob, on the same Matrix layer, without UI.
@@ -131,6 +170,25 @@ Future<({String name, String password})> _registerUser() async {
   }
   return (name: name, password: password);
 }
+
+/// Waits for [future] while pumping frames, so the app keeps running meanwhile.
+Future<T> _whileWaiting<T>(WidgetTester tester, Future<T> future) async {
+  var done = false;
+  final settled = future.whenComplete(() => done = true);
+  final deadline = DateTime.now().add(_timeout);
+  while (!done) {
+    if (DateTime.now().isAfter(deadline)) {
+      settled.ignore();
+      throw TestFailure('Timed out waiting for the core');
+    }
+    await _pumpFor(tester, const Duration(milliseconds: 100));
+  }
+  return settled;
+}
+
+/// The next item of [items], while the app keeps running.
+Future<bool> _next<T>(WidgetTester tester, StreamIterator<T> items) =>
+    _whileWaiting(tester, items.moveNext());
 
 /// Pumps frames while [duration] of real time passes.
 Future<void> _pumpFor(WidgetTester tester, Duration duration) async {

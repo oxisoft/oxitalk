@@ -51,6 +51,6 @@ final class SyncSupervisor {
     _restart?.cancel();
     // Not awaited: a bridge stream's cancel waits for the next state, which may never come.
     unawaited(_subscription.cancel());
-    await status.close();
+    unawaited(status.close());
   }
 }

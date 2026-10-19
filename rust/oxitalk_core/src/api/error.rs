@@ -23,6 +23,10 @@ pub enum CoreError {
     InvalidId { id: String },
     /// No room with this ID is known to the session.
     RoomNotFound { room_id: String },
+    /// The recovery key or security phrase is not the account's.
+    WrongRecoveryKey,
+    /// The account has no recovery set up, so there is no key to enter.
+    RecoveryNotSetUp,
     /// Anything else. The message is for logs, not for the user.
     Internal { message: String },
 }
@@ -37,6 +41,8 @@ impl fmt::Display for CoreError {
             Self::WrongStorePassphrase => f.write_str("wrong store passphrase"),
             Self::InvalidId { id } => write!(f, "invalid ID: {id}"),
             Self::RoomNotFound { room_id } => write!(f, "room not found: {room_id}"),
+            Self::WrongRecoveryKey => f.write_str("wrong recovery key"),
+            Self::RecoveryNotSetUp => f.write_str("recovery is not set up"),
             Self::Internal { message } => write!(f, "internal error: {message}"),
         }
     }

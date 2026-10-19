@@ -43,6 +43,12 @@ sealed class CoreError with _$CoreError implements FrbException {
   const factory CoreError.roomNotFound({required String roomId}) =
       CoreError_RoomNotFound;
 
+  /// The recovery key or security phrase is not the account's.
+  const factory CoreError.wrongRecoveryKey() = CoreError_WrongRecoveryKey;
+
+  /// The account has no recovery set up, so there is no key to enter.
+  const factory CoreError.recoveryNotSetUp() = CoreError_RecoveryNotSetUp;
+
   /// Anything else. The message is for logs, not for the user.
   const factory CoreError.internal({required String message}) =
       CoreError_Internal;

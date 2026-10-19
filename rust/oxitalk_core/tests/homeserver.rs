@@ -8,8 +8,11 @@ mod support;
 
 use std::{
     error::Error,
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+use futures_util::StreamExt;
 
 use matrix_sdk::{
     Client,
@@ -21,8 +24,10 @@ use oxitalk_core::api::{
     room_list::Membership,
     session::{Session, login, restore},
     timeline::{SendState, TimelineItemContent},
+    verification::{Verification, VerificationFlowState, VerificationStatus},
 };
-use support::{TestResult, messages, watch_rooms, watch_timeline};
+use support::{TIMEOUT, TestResult, messages, watch_rooms, watch_timeline};
+use tokio::sync::mpsc;
 
 const PASSPHRASE: &str = "store passphrase";
 
@@ -174,4 +179,154 @@ async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
         .wait_until(|items| messages(items).contains(&("after the restart", false)))
         .await?;
     Ok(())
+}
+
+/// A new device of an account is verified by an existing one, comparing emoji.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {
+    let user = TestUser::register().await?;
+    let (first_store, second_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+
+    // The first login creates the account's identity, which verifies that device.
+    let first = user.login(&first_store.path().to_string_lossy()).await?;
+    first.start_sync().await;
+    wait_for_status(&first, VerificationStatus::Verified).await?;
+    let second = user.login(&second_store.path().to_string_lossy()).await?;
+    second.start_sync().await;
+    wait_for_status(&second, VerificationStatus::Unverified).await?;
+
+    // The new device asks; the first one gets the request and accepts it.
+    let mut requests = first.verification_requests();
+    let asking = Arc::new(second.request_self_verification().await?);
+    let mut asking_states = watch_flow(&asking);
+    let info = tokio::time::timeout(TIMEOUT, requests.next())
+        .await?
+        .ok_or("no request arrived")?;
+    assert_eq!(info.device_id, second.session_data()?.device_id);
+    let answering = Arc::new(first.verification(info.flow_id).await?);
+    let mut answering_states = watch_flow(&answering);
+    wait_for_flow(&mut answering_states, |s| {
+        *s == VerificationFlowState::Requested
+    })
+    .await?;
+    answering.accept().await?;
+
+    // The new device starts the emoji; the other accepts; both see the same ones.
+    wait_for_flow(&mut asking_states, |s| *s == VerificationFlowState::Ready).await?;
+    asking.start_sas().await?;
+    wait_for_flow(&mut answering_states, |s| {
+        *s == VerificationFlowState::SasStarted
+    })
+    .await?;
+    answering.accept_sas().await?;
+    let is_keys =
+        |s: &VerificationFlowState| matches!(s, VerificationFlowState::KeysExchanged { .. });
+    let asking_emoji = wait_for_flow(&mut asking_states, is_keys).await?;
+    let answering_emoji = wait_for_flow(&mut answering_states, is_keys).await?;
+    assert_eq!(asking_emoji, answering_emoji);
+    assert!(
+        matches!(&asking_emoji, VerificationFlowState::KeysExchanged { emojis: Some(e), .. } if e.len() == 7),
+        "{asking_emoji:?}"
+    );
+
+    asking.confirm().await?;
+    answering.confirm().await?;
+    wait_for_flow(&mut asking_states, |s| *s == VerificationFlowState::Done).await?;
+    wait_for_flow(&mut answering_states, |s| *s == VerificationFlowState::Done).await?;
+    wait_for_status(&second, VerificationStatus::Verified).await?;
+    Ok(())
+}
+
+/// The recovery key verifies a new device, and its history decrypts from the key backup.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn the_recovery_key_verifies_and_restores_history() -> TestResult {
+    let (user, other) = (TestUser::register().await?, TestUser::register().await?);
+    let (first_store, second_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+
+    // The first device writes a message, then sets up recovery (not in the app yet).
+    let first = user.login(&first_store.path().to_string_lossy()).await?;
+    first.start_sync().await;
+    wait_for_status(&first, VerificationStatus::Verified).await?;
+    let room_id = first
+        .create_dm(format!("@{}:localhost", other.name))
+        .await?;
+    let timeline = first.timeline(room_id.clone()).await?;
+    let mut items = watch_timeline(&timeline).await;
+    timeline
+        .send_text("before the new device".to_owned())
+        .await?;
+    items
+        .wait_until(|items| {
+            items.iter().any(|item| {
+                matches!(&item.content, TimelineItemContent::Message { event, body }
+                    if body == "before the new device" && event.send_state == SendState::Sent)
+            })
+        })
+        .await?;
+    let recovery_key = first.sdk().encryption().recovery().enable().await?;
+
+    let second = user.login(&second_store.path().to_string_lossy()).await?;
+    second.start_sync().await;
+    wait_for_status(&second, VerificationStatus::Unverified).await?;
+    let wrong = second.recover("EsTc 1234 not the key".to_owned()).await;
+    assert_eq!(wrong, Err(CoreError::WrongRecoveryKey));
+    second.recover(recovery_key).await?;
+    wait_for_status(&second, VerificationStatus::Verified).await?;
+
+    // The message from before this device existed decrypts.
+    let timeline = second.timeline(room_id).await?;
+    let mut items = watch_timeline(&timeline).await;
+    timeline.paginate_back(20).await?;
+    items
+        .wait_until(|items| messages(items).contains(&("before the new device", true)))
+        .await?;
+    Ok(())
+}
+
+async fn wait_for_status(session: &Session, wanted: VerificationStatus) -> TestResult {
+    let mut statuses = session.verification_statuses();
+    tokio::time::timeout(TIMEOUT, async {
+        while let Some(status) = statuses.next().await {
+            if status == wanted {
+                return Ok(());
+            }
+        }
+        Err("the status stream ended")
+    })
+    .await
+    .map_err(|_| format!("timed out waiting for {wanted:?}"))??;
+    Ok(())
+}
+
+fn watch_flow(verification: &Arc<Verification>) -> mpsc::UnboundedReceiver<VerificationFlowState> {
+    let (sender, states) = mpsc::unbounded_channel();
+    let verification = Arc::clone(verification);
+    tokio::spawn(async move {
+        verification
+            .state_updates(move |state| sender.send(state).is_ok())
+            .await;
+    });
+    states
+}
+
+async fn wait_for_flow(
+    states: &mut mpsc::UnboundedReceiver<VerificationFlowState>,
+    wanted: impl Fn(&VerificationFlowState) -> bool,
+) -> Result<VerificationFlowState, Box<dyn Error>> {
+    tokio::time::timeout(TIMEOUT, async {
+        while let Some(state) = states.recv().await {
+            if wanted(&state) {
+                return Ok(state);
+            }
+            if let VerificationFlowState::Cancelled { .. } = state {
+                return Err(format!("cancelled: {state:?}"));
+            }
+        }
+        Err("the flow ended".to_owned())
+    })
+    .await
+    .map_err(|_| "timed out waiting for the verification")?
+    .map_err(Into::into)
 }

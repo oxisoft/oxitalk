@@ -45,6 +45,14 @@ class Auth extends _$Auth {
         .read(clientFactoryProvider)
         .login(server: server, username: username, password: password);
     _watchExpiry(session);
+    // Right after login the status is unknown until the keys are fetched; waiting a moment
+    // avoids showing the chats just before the verification screen.
+    await session.verificationStatus
+        .firstWhere((status) => status != VerificationStatus.unknown)
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => VerificationStatus.unknown,
+        );
     state = AsyncData(session);
   }
 
@@ -68,6 +76,16 @@ MatrixSession? _session(Ref ref) => ref.watch(authProvider).value;
 @riverpod
 Stream<SyncStatus> syncStatus(Ref ref) =>
     _session(ref)?.syncStatus ?? Stream.value(SyncStatus.connecting);
+
+/// This device's verification status; [VerificationStatus.unknown] while logged out.
+@riverpod
+Stream<VerificationStatus> verificationStatus(Ref ref) =>
+    _session(ref)?.verificationStatus ??
+    Stream.value(VerificationStatus.unknown);
+
+@riverpod
+Stream<VerificationRequest> verificationRequests(Ref ref) =>
+    _session(ref)?.verificationRequests ?? const Stream.empty();
 
 /// `null` until the first room list has arrived.
 @riverpod

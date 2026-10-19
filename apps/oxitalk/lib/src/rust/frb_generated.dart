@@ -9,6 +9,7 @@ import 'api/room_list.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
 import 'api/timeline.dart';
+import 'api/verification.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -74,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1750083174;
+  int get rustContentHash => 969258985;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -98,6 +99,15 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSessionSessionLogout({required Session that});
 
+  Future<void> crateApiSessionSessionRecover({
+    required Session that,
+    required String key,
+  });
+
+  Future<Verification> crateApiSessionSessionRequestSelfVerification({
+    required Session that,
+  });
+
   SessionData crateApiSessionSessionSessionData({required Session that});
 
   Future<void> crateApiSessionSessionStartSync({required Session that});
@@ -116,12 +126,24 @@ abstract class RustLibApi extends BaseApi {
     required Session that,
   });
 
+  Stream<VerificationRequestInfo>
+  crateApiSessionSessionSubscribeVerificationRequests({required Session that});
+
+  Stream<VerificationStatus> crateApiSessionSessionSubscribeVerificationStatus({
+    required Session that,
+  });
+
   Future<Timeline> crateApiSessionSessionTimeline({
     required Session that,
     required String roomId,
   });
 
   String crateApiSessionSessionUserId({required Session that});
+
+  Future<Verification> crateApiSessionSessionVerification({
+    required Session that,
+    required String flowId,
+  });
 
   Future<bool> crateApiTimelineTimelinePaginateBack({
     required Timeline that,
@@ -136,6 +158,33 @@ abstract class RustLibApi extends BaseApi {
   Stream<List<TimelineDiff>> crateApiTimelineTimelineSubscribeItems({
     required Timeline that,
   });
+
+  Future<void> crateApiVerificationVerificationAccept({
+    required Verification that,
+  });
+
+  Future<void> crateApiVerificationVerificationAcceptSas({
+    required Verification that,
+  });
+
+  Future<void> crateApiVerificationVerificationCancel({
+    required Verification that,
+  });
+
+  Future<void> crateApiVerificationVerificationConfirm({
+    required Verification that,
+  });
+
+  Future<void> crateApiVerificationVerificationMismatch({
+    required Verification that,
+  });
+
+  Future<void> crateApiVerificationVerificationStartSas({
+    required Verification that,
+  });
+
+  Stream<VerificationFlowState>
+  crateApiVerificationVerificationSubscribeStates({required Verification that});
 
   String crateApiCoreVersion();
 
@@ -168,6 +217,14 @@ abstract class RustLibApi extends BaseApi {
   get rust_arc_decrement_strong_count_Timeline;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_TimelinePtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_Verification;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_Verification;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_VerificationPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -285,6 +342,81 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "Session_logout", argNames: ["that"]);
 
   @override
+  Future<void> crateApiSessionSessionRecover({
+    required Session that,
+    required String key,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          sse_encode_String(key, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionRecoverConstMeta,
+        argValues: [that, key],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionRecoverConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_recover",
+        argNames: ["that", "key"],
+      );
+
+  @override
+  Future<Verification> crateApiSessionSessionRequestSelfVerification({
+    required Session that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionRequestSelfVerificationConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionRequestSelfVerificationConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_request_self_verification",
+        argNames: ["that"],
+      );
+
+  @override
   SessionData crateApiSessionSessionSessionData({required Session that}) {
     return handler.executeSync(
       SyncTask(
@@ -294,7 +426,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_session_data,
@@ -326,7 +458,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 7,
             port: port_,
           );
         },
@@ -357,7 +489,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -393,7 +525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 7,
+              funcId: 9,
               port: port_,
             );
           },
@@ -434,7 +566,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 8,
+              funcId: 10,
               port: port_,
             );
           },
@@ -475,7 +607,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 9,
+              funcId: 11,
               port: port_,
             );
           },
@@ -499,6 +631,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Stream<VerificationRequestInfo>
+  crateApiSessionSessionSubscribeVerificationRequests({required Session that}) {
+    final sink = RustStreamSink<VerificationRequestInfo>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_verification_request_info_Sse(
+              sink,
+              serializer,
+            );
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 12,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta:
+              kCrateApiSessionSessionSubscribeVerificationRequestsConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta
+  get kCrateApiSessionSessionSubscribeVerificationRequestsConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_subscribe_verification_requests",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Stream<VerificationStatus> crateApiSessionSessionSubscribeVerificationStatus({
+    required Session that,
+  }) {
+    final sink = RustStreamSink<VerificationStatus>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_verification_status_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 13,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta:
+              kCrateApiSessionSessionSubscribeVerificationStatusConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta
+  get kCrateApiSessionSessionSubscribeVerificationStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_subscribe_verification_status",
+        argNames: ["that", "sink"],
+      );
+
+  @override
   Future<Timeline> crateApiSessionSessionTimeline({
     required Session that,
     required String roomId,
@@ -515,7 +735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 14,
             port: port_,
           );
         },
@@ -547,7 +767,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -562,6 +782,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionSessionUserIdConstMeta =>
       const TaskConstMeta(debugName: "Session_user_id", argNames: ["that"]);
+
+  @override
+  Future<Verification> crateApiSessionSessionVerification({
+    required Session that,
+    required String flowId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          sse_encode_String(flowId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionVerificationConstMeta,
+        argValues: [that, flowId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionVerificationConstMeta =>
+      const TaskConstMeta(
+        debugName: "Session_verification",
+        argNames: ["that", "flowId"],
+      );
 
   @override
   Future<bool> crateApiTimelineTimelinePaginateBack({
@@ -580,7 +839,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 17,
             port: port_,
           );
         },
@@ -618,7 +877,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 18,
             port: port_,
           );
         },
@@ -657,7 +916,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 14,
+              funcId: 19,
               port: port_,
             );
           },
@@ -681,12 +940,264 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiVerificationVerificationAccept({
+    required Verification that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiVerificationVerificationAcceptConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationAcceptConstMeta =>
+      const TaskConstMeta(debugName: "Verification_accept", argNames: ["that"]);
+
+  @override
+  Future<void> crateApiVerificationVerificationAcceptSas({
+    required Verification that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiVerificationVerificationAcceptSasConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationAcceptSasConstMeta =>
+      const TaskConstMeta(
+        debugName: "Verification_accept_sas",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiVerificationVerificationCancel({
+    required Verification that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiVerificationVerificationCancelConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationCancelConstMeta =>
+      const TaskConstMeta(debugName: "Verification_cancel", argNames: ["that"]);
+
+  @override
+  Future<void> crateApiVerificationVerificationConfirm({
+    required Verification that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiVerificationVerificationConfirmConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationConfirmConstMeta =>
+      const TaskConstMeta(
+        debugName: "Verification_confirm",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiVerificationVerificationMismatch({
+    required Verification that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiVerificationVerificationMismatchConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationMismatchConstMeta =>
+      const TaskConstMeta(
+        debugName: "Verification_mismatch",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiVerificationVerificationStartSas({
+    required Verification that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiVerificationVerificationStartSasConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationStartSasConstMeta =>
+      const TaskConstMeta(
+        debugName: "Verification_start_sas",
+        argNames: ["that"],
+      );
+
+  @override
+  Stream<VerificationFlowState>
+  crateApiVerificationVerificationSubscribeStates({
+    required Verification that,
+  }) {
+    final sink = RustStreamSink<VerificationFlowState>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_verification_flow_state_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 26,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiVerificationVerificationSubscribeStatesConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiVerificationVerificationSubscribeStatesConstMeta =>
+      const TaskConstMeta(
+        debugName: "Verification_subscribe_states",
+        argNames: ["that", "sink"],
+      );
+
+  @override
   String crateApiCoreVersion() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -711,7 +1222,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 28,
             port: port_,
           );
         },
@@ -749,7 +1260,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 29,
             port: port_,
           );
         },
@@ -786,7 +1297,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 30,
             port: port_,
           );
         },
@@ -823,6 +1334,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get rust_arc_decrement_strong_count_Timeline => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline;
 
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_Verification => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_Verification => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -848,6 +1367,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Verification
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VerificationImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   Session
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     dynamic raw,
@@ -866,6 +1394,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Verification
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VerificationImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   Session
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     dynamic raw,
@@ -881,6 +1418,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return TimelineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Verification
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VerificationImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -907,6 +1453,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<SyncState> dco_decode_StreamSink_sync_state_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<VerificationFlowState>
+  dco_decode_StreamSink_verification_flow_state_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<VerificationRequestInfo>
+  dco_decode_StreamSink_verification_request_info_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<VerificationStatus>
+  dco_decode_StreamSink_verification_status_Sse(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
   }
@@ -978,6 +1545,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 6:
         return CoreError_RoomNotFound(roomId: dco_decode_String(raw[1]));
       case 7:
+        return CoreError_WrongRecoveryKey();
+      case 8:
+        return CoreError_RecoveryNotSetUp();
+      case 9:
         return CoreError_Internal(message: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -1013,6 +1584,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Uint16List dco_decode_list_prim_u_16_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as Uint16List;
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -1043,6 +1620,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<VerificationEmoji> dco_decode_list_verification_emoji(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_verification_emoji).toList();
+  }
+
+  @protected
   Membership dco_decode_membership(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Membership.values[raw as int];
@@ -1058,6 +1641,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_verification_emoji(raw);
   }
 
   @protected
@@ -1293,6 +1882,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VerificationEmoji dco_decode_verification_emoji(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VerificationEmoji(
+      symbol: dco_decode_String(arr[0]),
+      description: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  VerificationFlowState dco_decode_verification_flow_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return VerificationFlowState_Created();
+      case 1:
+        return VerificationFlowState_Requested();
+      case 2:
+        return VerificationFlowState_Ready();
+      case 3:
+        return VerificationFlowState_SasCreated();
+      case 4:
+        return VerificationFlowState_SasStarted();
+      case 5:
+        return VerificationFlowState_SasAccepted();
+      case 6:
+        return VerificationFlowState_KeysExchanged(
+          emojis: dco_decode_opt_list_verification_emoji(raw[1]),
+          decimals: dco_decode_list_prim_u_16_strict(raw[2]),
+        );
+      case 7:
+        return VerificationFlowState_Confirmed();
+      case 8:
+        return VerificationFlowState_Done();
+      case 9:
+        return VerificationFlowState_Cancelled(
+          reason: dco_decode_String(raw[1]),
+          byUs: dco_decode_bool(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  VerificationRequestInfo dco_decode_verification_request_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return VerificationRequestInfo(
+      flowId: dco_decode_String(arr[0]),
+      deviceId: dco_decode_String(arr[1]),
+      deviceName: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  VerificationStatus dco_decode_verification_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VerificationStatus.values[raw as int];
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -1324,6 +1979,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Verification
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return VerificationImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   Session
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     SseDeserializer deserializer,
@@ -1348,6 +2015,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Verification
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return VerificationImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   Session
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     SseDeserializer deserializer,
@@ -1366,6 +2045,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return TimelineImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  Verification
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return VerificationImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1397,6 +2088,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustStreamSink<SyncState> sse_decode_StreamSink_sync_state_Sse(
     SseDeserializer deserializer,
   ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<VerificationFlowState>
+  sse_decode_StreamSink_verification_flow_state_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<VerificationRequestInfo>
+  sse_decode_StreamSink_verification_request_info_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<VerificationStatus>
+  sse_decode_StreamSink_verification_status_Sse(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     throw UnimplementedError('Unreachable ()');
   }
@@ -1482,6 +2198,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_roomId = sse_decode_String(deserializer);
         return CoreError_RoomNotFound(roomId: var_roomId);
       case 7:
+        return CoreError_WrongRecoveryKey();
+      case 8:
+        return CoreError_RecoveryNotSetUp();
+      case 9:
         var var_message = sse_decode_String(deserializer);
         return CoreError_Internal(message: var_message);
       default:
@@ -1518,6 +2238,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint16List(len_);
   }
 
   @protected
@@ -1582,6 +2309,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<VerificationEmoji> sse_decode_list_verification_emoji(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <VerificationEmoji>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_verification_emoji(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Membership sse_decode_membership(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -1605,6 +2346,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  List<VerificationEmoji>? sse_decode_opt_list_verification_emoji(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_verification_emoji(deserializer));
     } else {
       return null;
     }
@@ -1847,6 +2601,83 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VerificationEmoji sse_decode_verification_emoji(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_symbol = sse_decode_String(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    return VerificationEmoji(symbol: var_symbol, description: var_description);
+  }
+
+  @protected
+  VerificationFlowState sse_decode_verification_flow_state(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return VerificationFlowState_Created();
+      case 1:
+        return VerificationFlowState_Requested();
+      case 2:
+        return VerificationFlowState_Ready();
+      case 3:
+        return VerificationFlowState_SasCreated();
+      case 4:
+        return VerificationFlowState_SasStarted();
+      case 5:
+        return VerificationFlowState_SasAccepted();
+      case 6:
+        var var_emojis = sse_decode_opt_list_verification_emoji(deserializer);
+        var var_decimals = sse_decode_list_prim_u_16_strict(deserializer);
+        return VerificationFlowState_KeysExchanged(
+          emojis: var_emojis,
+          decimals: var_decimals,
+        );
+      case 7:
+        return VerificationFlowState_Confirmed();
+      case 8:
+        return VerificationFlowState_Done();
+      case 9:
+        var var_reason = sse_decode_String(deserializer);
+        var var_byUs = sse_decode_bool(deserializer);
+        return VerificationFlowState_Cancelled(
+          reason: var_reason,
+          byUs: var_byUs,
+        );
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  VerificationRequestInfo sse_decode_verification_request_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_flowId = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_deviceName = sse_decode_opt_String(deserializer);
+    return VerificationRequestInfo(
+      flowId: var_flowId,
+      deviceId: var_deviceId,
+      deviceName: var_deviceName,
+    );
+  }
+
+  @protected
+  VerificationStatus sse_decode_verification_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return VerificationStatus.values[inner];
+  }
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -1883,6 +2714,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    Verification self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as VerificationImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     Session self,
     SseSerializer serializer,
@@ -1909,6 +2753,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    Verification self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as VerificationImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     Session self,
     SseSerializer serializer,
@@ -1929,6 +2786,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as TimelineImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    Verification self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as VerificationImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -1994,6 +2864,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.setupAndSerialize(
         codec: SseCodec(
           decodeSuccessData: sse_decode_sync_state,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_verification_flow_state_Sse(
+    RustStreamSink<VerificationFlowState> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_verification_flow_state,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_verification_request_info_Sse(
+    RustStreamSink<VerificationRequestInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_verification_request_info,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_verification_status_Sse(
+    RustStreamSink<VerificationStatus> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_verification_status,
           decodeErrorData: sse_decode_AnyhowException,
         ),
       ),
@@ -2090,8 +3011,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case CoreError_RoomNotFound(roomId: final roomId):
         sse_encode_i_32(6, serializer);
         sse_encode_String(roomId, serializer);
-      case CoreError_Internal(message: final message):
+      case CoreError_WrongRecoveryKey():
         sse_encode_i_32(7, serializer);
+      case CoreError_RecoveryNotSetUp():
+        sse_encode_i_32(8, serializer);
+      case CoreError_Internal(message: final message):
+        sse_encode_i_32(9, serializer);
         sse_encode_String(message, serializer);
     }
   }
@@ -2117,6 +3042,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_prim_u_16_strict(
+    Uint16List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint16List(self);
   }
 
   @protected
@@ -2178,6 +3113,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_verification_emoji(
+    List<VerificationEmoji> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_verification_emoji(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_membership(Membership self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
@@ -2203,6 +3150,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_verification_emoji(
+    List<VerificationEmoji>? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_verification_emoji(self, serializer);
     }
   }
 
@@ -2404,6 +3364,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
+
+  @protected
+  void sse_encode_verification_emoji(
+    VerificationEmoji self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.symbol, serializer);
+    sse_encode_String(self.description, serializer);
+  }
+
+  @protected
+  void sse_encode_verification_flow_state(
+    VerificationFlowState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case VerificationFlowState_Created():
+        sse_encode_i_32(0, serializer);
+      case VerificationFlowState_Requested():
+        sse_encode_i_32(1, serializer);
+      case VerificationFlowState_Ready():
+        sse_encode_i_32(2, serializer);
+      case VerificationFlowState_SasCreated():
+        sse_encode_i_32(3, serializer);
+      case VerificationFlowState_SasStarted():
+        sse_encode_i_32(4, serializer);
+      case VerificationFlowState_SasAccepted():
+        sse_encode_i_32(5, serializer);
+      case VerificationFlowState_KeysExchanged(
+        emojis: final emojis,
+        decimals: final decimals,
+      ):
+        sse_encode_i_32(6, serializer);
+        sse_encode_opt_list_verification_emoji(emojis, serializer);
+        sse_encode_list_prim_u_16_strict(decimals, serializer);
+      case VerificationFlowState_Confirmed():
+        sse_encode_i_32(7, serializer);
+      case VerificationFlowState_Done():
+        sse_encode_i_32(8, serializer);
+      case VerificationFlowState_Cancelled(
+        reason: final reason,
+        byUs: final byUs,
+      ):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(reason, serializer);
+        sse_encode_bool(byUs, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_verification_request_info(
+    VerificationRequestInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.flowId, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_opt_String(self.deviceName, serializer);
+  }
+
+  @protected
+  void sse_encode_verification_status(
+    VerificationStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
 }
 
 @sealed
@@ -2450,6 +3480,25 @@ class SessionImpl extends RustOpaque implements Session {
   Future<void> logout() =>
       RustLib.instance.api.crateApiSessionSessionLogout(that: this);
 
+  /// Verifies this device with the recovery key or the security phrase, and turns on the key
+  /// backup with it.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::WrongRecoveryKey`], [`CoreError::RecoveryNotSetUp`] if the account has no
+  /// recovery, or as the server answers.
+  Future<void> recover({required String key}) =>
+      RustLib.instance.api.crateApiSessionSessionRecover(that: this, key: key);
+
+  /// Asks the user's other devices to verify this one.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if the account has no cross-signing identity yet, or as the
+  /// server answers.
+  Future<Verification> requestSelfVerification() => RustLib.instance.api
+      .crateApiSessionSessionRequestSelfVerification(that: this);
+
   /// What the app stores to [`restore`] this session later.
   ///
   /// # Errors
@@ -2483,6 +3532,18 @@ class SessionImpl extends RustOpaque implements Session {
   Stream<SyncState> subscribeSyncState() =>
       RustLib.instance.api.crateApiSessionSessionSubscribeSyncState(that: this);
 
+  /// Sends every verification request that arrives from another device of the user.
+  Stream<VerificationRequestInfo> subscribeVerificationRequests() => RustLib
+      .instance
+      .api
+      .crateApiSessionSessionSubscribeVerificationRequests(that: this);
+
+  /// Sends the current [`VerificationStatus`], then every change.
+  Stream<VerificationStatus> subscribeVerificationStatus() => RustLib
+      .instance
+      .api
+      .crateApiSessionSessionSubscribeVerificationStatus(that: this);
+
   /// Opens the timeline of a room the user is in.
   ///
   /// # Errors
@@ -2495,6 +3556,16 @@ class SessionImpl extends RustOpaque implements Session {
   /// The logged-in user's Matrix ID.
   String userId() =>
       RustLib.instance.api.crateApiSessionSessionUserId(that: this);
+
+  /// Opens a request that arrived through [`Self::subscribe_verification_requests`].
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if the request is unknown, e.g. already cancelled.
+  Future<Verification> verification({required String flowId}) => RustLib
+      .instance
+      .api
+      .crateApiSessionSessionVerification(that: this, flowId: flowId);
 }
 
 @sealed
@@ -2537,4 +3608,77 @@ class TimelineImpl extends RustOpaque implements Timeline {
   /// loaded so far.
   Stream<List<TimelineDiff>> subscribeItems() =>
       RustLib.instance.api.crateApiTimelineTimelineSubscribeItems(that: this);
+}
+
+@sealed
+class VerificationImpl extends RustOpaque implements Verification {
+  // Not to be used by end users
+  VerificationImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  VerificationImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_Verification,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_Verification,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_VerificationPtr,
+  );
+
+  /// Accepts a request from the other device, offering emoji verification.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> accept() =>
+      RustLib.instance.api.crateApiVerificationVerificationAccept(that: this);
+
+  /// Accepts the emoji verification the other device started.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> acceptSas() => RustLib.instance.api
+      .crateApiVerificationVerificationAcceptSas(that: this);
+
+  /// Cancels the verification at any point.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> cancel() =>
+      RustLib.instance.api.crateApiVerificationVerificationCancel(that: this);
+
+  /// The emoji match.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> confirm() =>
+      RustLib.instance.api.crateApiVerificationVerificationConfirm(that: this);
+
+  /// The emoji don't match; cancels the verification.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> mismatch() =>
+      RustLib.instance.api.crateApiVerificationVerificationMismatch(that: this);
+
+  /// Starts the emoji verification once the request is ready.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> startSas() =>
+      RustLib.instance.api.crateApiVerificationVerificationStartSas(that: this);
+
+  /// Sends the current [`VerificationFlowState`], then every change, until it is done or
+  /// cancelled.
+  Stream<VerificationFlowState> subscribeStates() => RustLib.instance.api
+      .crateApiVerificationVerificationSubscribeStates(that: this);
 }

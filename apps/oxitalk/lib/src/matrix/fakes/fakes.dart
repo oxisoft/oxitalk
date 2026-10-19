@@ -24,6 +24,7 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
     this.saved,
     this.password = 'secret',
     this.rooms = const [],
+    this.loginVerification = VerificationStatus.verified,
   });
 
   /// What [restoreSaved] returns.
@@ -34,6 +35,9 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
 
   /// The rooms a session made by [login] starts with.
   final List<Room> rooms;
+
+  /// The verification status of a session made by [login].
+  final VerificationStatus loginVerification;
 
   FakeSession? lastLogin;
 
@@ -46,7 +50,8 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
     if (password != this.password) {
       throw const MatrixFailure(FailureKind.forbidden, 'Invalid password');
     }
-    return lastLogin = FakeSession(userId: '@$username:$server', rooms: rooms);
+    return lastLogin = FakeSession(userId: '@$username:$server', rooms: rooms)
+      ..verification.value = loginVerification;
   }
 
   @override
@@ -65,6 +70,20 @@ final class FakeSession implements MatrixSession {
   final _expired = Completer<void>();
   var loggedOut = false;
 
+  /// This device's verification status; tests change it.
+  final verification = Latest(VerificationStatus.verified);
+
+  /// What [recover] accepts; any other key is wrong.
+  String? recoveryKey = 'the recovery key';
+  final _requests = StreamController<VerificationRequest>.broadcast();
+
+  /// The verification [requestVerification] or [openVerification] returned last.
+  FakeVerification? lastVerification;
+
+  /// Sends a request from another device, as it would arrive.
+  void receiveVerificationRequest(VerificationRequest request) =>
+      _requests.add(request);
+
   set roomList(List<Room>? rooms) => _rooms.value = rooms;
 
   List<Room> get roomList => _rooms.value ?? const [];
@@ -80,6 +99,34 @@ final class FakeSession implements MatrixSession {
 
   @override
   Future<void> get expired => _expired.future;
+
+  @override
+  Stream<VerificationStatus> get verificationStatus => verification.stream;
+
+  @override
+  Stream<VerificationRequest> get verificationRequests => _requests.stream;
+
+  @override
+  Future<void> recover(String key) async {
+    if (recoveryKey == null) {
+      throw const MatrixFailure(FailureKind.recoveryNotSetUp);
+    }
+    if (key != recoveryKey) {
+      throw const MatrixFailure(FailureKind.wrongRecoveryKey);
+    }
+    verification.value = VerificationStatus.verified;
+  }
+
+  @override
+  Future<DeviceVerification> requestVerification() async =>
+      lastVerification = FakeVerification(this);
+
+  @override
+  Future<DeviceVerification> openVerification(String flowId) async =>
+      lastVerification = FakeVerification(
+        this,
+        step: const VerificationIncoming(),
+      );
 
   @override
   Future<String> createDm(String userId) async {
@@ -150,6 +197,63 @@ final class FakeTimeline implements RoomTimeline {
       ),
     ];
   }
+
+  @override
+  void close() => closed = true;
+}
+
+/// A verification the test drives: it moves the [step] as the other device would.
+final class FakeVerification implements DeviceVerification {
+  FakeVerification(
+    this._session, {
+    VerificationStep step = const VerificationWaiting(),
+  }) : _steps = Latest(step);
+
+  static const emojis = [
+    VerificationEmoji('🐶', 'Dog'),
+    VerificationEmoji('🔑', 'Key'),
+    VerificationEmoji('🎸', 'Guitar'),
+    VerificationEmoji('🚀', 'Rocket'),
+    VerificationEmoji('🌵', 'Cactus'),
+    VerificationEmoji('🍕', 'Pizza'),
+    VerificationEmoji('⚓', 'Anchor'),
+  ];
+
+  final FakeSession _session;
+  final Latest<VerificationStep> _steps;
+  var accepted = false;
+  var closed = false;
+
+  set step(VerificationStep step) => _steps.value = step;
+
+  VerificationStep get step => _steps.value;
+
+  /// The other device accepted and both sides exchanged keys.
+  void showEmoji() => step = const VerificationCompare(emojis, [1, 2, 3]);
+
+  @override
+  Stream<VerificationStep> get steps => _steps.stream;
+
+  @override
+  Future<void> accept() async {
+    accepted = true;
+    step = const VerificationWaiting();
+  }
+
+  /// The other device has confirmed already, so confirming finishes it.
+  @override
+  Future<void> confirm() async {
+    step = const VerificationDone();
+    _session.verification.value = VerificationStatus.verified;
+  }
+
+  @override
+  Future<void> mismatch() async =>
+      step = const VerificationCancelled('The emoji did not match', byUs: true);
+
+  @override
+  Future<void> cancel() async =>
+      step = const VerificationCancelled('Cancelled', byUs: true);
 
   @override
   void close() => closed = true;

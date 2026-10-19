@@ -179,7 +179,7 @@ final class AuthProvider extends $AsyncNotifierProvider<Auth, MatrixSession?> {
   Auth create() => Auth();
 }
 
-String _$authHash() => r'93ef7b2ae0e17901cd758341793bec60d3378cff';
+String _$authHash() => r'95eedfd341dd36f158ed2e1bdb090dc13fc886d6';
 
 /// The logged-in session, or `null` when logged out. Starts by restoring a saved session.
 
@@ -238,6 +238,95 @@ final class SyncStatusProvider
 }
 
 String _$syncStatusHash() => r'68729a0c736199ae1176dca42681965bae9795a3';
+
+/// This device's verification status; [VerificationStatus.unknown] while logged out.
+
+@ProviderFor(verificationStatus)
+final verificationStatusProvider = VerificationStatusProvider._();
+
+/// This device's verification status; [VerificationStatus.unknown] while logged out.
+
+final class VerificationStatusProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<VerificationStatus>,
+          VerificationStatus,
+          Stream<VerificationStatus>
+        >
+    with
+        $FutureModifier<VerificationStatus>,
+        $StreamProvider<VerificationStatus> {
+  /// This device's verification status; [VerificationStatus.unknown] while logged out.
+  VerificationStatusProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'verificationStatusProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$verificationStatusHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<VerificationStatus> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<VerificationStatus> create(Ref ref) {
+    return verificationStatus(ref);
+  }
+}
+
+String _$verificationStatusHash() =>
+    r'6c4d4db979323984e4fcd85d6a5359700dc9a7f0';
+
+@ProviderFor(verificationRequests)
+final verificationRequestsProvider = VerificationRequestsProvider._();
+
+final class VerificationRequestsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<VerificationRequest>,
+          VerificationRequest,
+          Stream<VerificationRequest>
+        >
+    with
+        $FutureModifier<VerificationRequest>,
+        $StreamProvider<VerificationRequest> {
+  VerificationRequestsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'verificationRequestsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$verificationRequestsHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<VerificationRequest> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<VerificationRequest> create(Ref ref) {
+    return verificationRequests(ref);
+  }
+}
+
+String _$verificationRequestsHash() =>
+    r'0c6cc48cfe941fd3c419e7f433d03c61de8e8014';
 
 /// `null` until the first room list has arrived.
 

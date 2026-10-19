@@ -6,6 +6,7 @@ import 'dart:math';
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/session.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
+import '../../rust/api/verification.dart' as rust;
 import '../../util/latest.dart';
 import '../api/matrix.dart';
 import '../api/secret_store.dart';
@@ -145,6 +146,22 @@ final class RustMatrixSession implements MatrixSession {
         }),
       )
       ..add(
+        _session.subscribeVerificationStatus().listen(
+          (status) => _verificationStatus.value = verificationStatusOf(status),
+        ),
+      )
+      ..add(
+        _session.subscribeVerificationRequests().listen(
+          (request) => _verificationRequests.add(
+            VerificationRequest(
+              flowId: request.flowId,
+              deviceId: request.deviceId,
+              deviceName: request.deviceName,
+            ),
+          ),
+        ),
+      )
+      ..add(
         _session.subscribeSessionChanges().listen((change) {
           if (change is rust.SessionChange_UnknownToken) {
             unawaited(_onTokenRejected());
@@ -160,6 +177,9 @@ final class RustMatrixSession implements MatrixSession {
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _summaries = <rust.RoomSummary>[];
   final _rooms = Latest<List<Room>?>(null);
+  final _verificationStatus = Latest(VerificationStatus.unknown);
+  final _verificationRequests =
+      StreamController<VerificationRequest>.broadcast();
   final _expired = Completer<void>();
   var _closed = false;
 
@@ -174,6 +194,31 @@ final class RustMatrixSession implements MatrixSession {
 
   @override
   Future<void> get expired => _expired.future;
+
+  @override
+  Stream<VerificationStatus> get verificationStatus =>
+      _verificationStatus.stream;
+
+  @override
+  Stream<VerificationRequest> get verificationRequests =>
+      _verificationRequests.stream;
+
+  @override
+  Future<void> recover(String key) => guarded(() => _session.recover(key: key));
+
+  @override
+  Future<DeviceVerification> requestVerification() async =>
+      RustDeviceVerification._(
+        await guarded(_session.requestSelfVerification),
+        weAsked: true,
+      );
+
+  @override
+  Future<DeviceVerification> openVerification(String flowId) async =>
+      RustDeviceVerification._(
+        await guarded(() => _session.verification(flowId: flowId)),
+        weAsked: false,
+      );
 
   @override
   Future<String> createDm(String userId) =>
@@ -216,7 +261,11 @@ final class RustMatrixSession implements MatrixSession {
     }
     await _supervisor.close();
     await _session.stopSync();
-    await _rooms.close();
+    // Not awaited either: closing a broadcast stream waits for every listener to take the
+    // done event, which a paused listener never does.
+    unawaited(_rooms.close());
+    unawaited(_verificationStatus.close());
+    unawaited(_verificationRequests.close());
     _session.dispose();
   }
 }
@@ -251,5 +300,61 @@ final class RustRoomTimeline implements RoomTimeline {
     unawaited(_subscription.cancel());
     unawaited(_entries.close());
     _timeline.dispose();
+  }
+}
+
+/// The app's policy on top of the SDK's verification states: the device that asked starts the
+/// emoji once both sides are ready, and the other one accepts them.
+final class RustDeviceVerification implements DeviceVerification {
+  RustDeviceVerification._(this._verification, {required this._weAsked}) {
+    _subscription = _verification.subscribeStates().listen(_onState);
+  }
+
+  final rust.Verification _verification;
+  final bool _weAsked;
+  late final StreamSubscription<rust.VerificationFlowState> _subscription;
+  final _steps = Latest<VerificationStep>(const VerificationWaiting());
+
+  void _onState(rust.VerificationFlowState state) {
+    switch (state) {
+      case rust.VerificationFlowState_Ready() when _weAsked:
+        unawaited(_quietly(_verification.startSas));
+      case rust.VerificationFlowState_SasStarted():
+        unawaited(_quietly(_verification.acceptSas));
+      default:
+    }
+    _steps.value = stepOf(state);
+  }
+
+  /// A failed step shows as a cancellation from the other side; nothing to report here.
+  Future<void> _quietly(Future<void> Function() call) async {
+    try {
+      await call();
+    } on Object {
+      // The state stream reports what happened.
+    }
+  }
+
+  @override
+  Stream<VerificationStep> get steps => _steps.stream;
+
+  @override
+  Future<void> accept() => guarded(_verification.accept);
+
+  @override
+  Future<void> confirm() => guarded(_verification.confirm);
+
+  @override
+  Future<void> mismatch() => guarded(_verification.mismatch);
+
+  @override
+  Future<void> cancel() => guarded(_verification.cancel);
+
+  @override
+  void close() {
+    // Not awaited: see RustMatrixSession.close.
+    unawaited(_subscription.cancel());
+    unawaited(_steps.close());
+    _verification.dispose();
   }
 }

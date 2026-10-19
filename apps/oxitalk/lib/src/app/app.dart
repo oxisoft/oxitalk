@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/verify/incoming_verifications.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -14,5 +15,6 @@ class OxiTalkApp extends ConsumerWidget {
     theme: oxiTheme(Brightness.light),
     darkTheme: oxiTheme(Brightness.dark),
     routerConfig: ref.watch(routerProvider),
+    builder: (_, child) => IncomingVerifications(child: child!),
   );
 }

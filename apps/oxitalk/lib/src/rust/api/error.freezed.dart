@@ -56,7 +56,7 @@ extension CoreErrorPatterns on CoreError {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CoreError_InvalidHomeserver value)?  invalidHomeserver,TResult Function( CoreError_Network value)?  network,TResult Function( CoreError_Forbidden value)?  forbidden,TResult Function( CoreError_SessionExpired value)?  sessionExpired,TResult Function( CoreError_WrongStorePassphrase value)?  wrongStorePassphrase,TResult Function( CoreError_InvalidId value)?  invalidId,TResult Function( CoreError_RoomNotFound value)?  roomNotFound,TResult Function( CoreError_Internal value)?  internal,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CoreError_InvalidHomeserver value)?  invalidHomeserver,TResult Function( CoreError_Network value)?  network,TResult Function( CoreError_Forbidden value)?  forbidden,TResult Function( CoreError_SessionExpired value)?  sessionExpired,TResult Function( CoreError_WrongStorePassphrase value)?  wrongStorePassphrase,TResult Function( CoreError_InvalidId value)?  invalidId,TResult Function( CoreError_RoomNotFound value)?  roomNotFound,TResult Function( CoreError_WrongRecoveryKey value)?  wrongRecoveryKey,TResult Function( CoreError_RecoveryNotSetUp value)?  recoveryNotSetUp,TResult Function( CoreError_Internal value)?  internal,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CoreError_InvalidHomeserver() when invalidHomeserver != null:
@@ -66,7 +66,9 @@ return forbidden(_that);case CoreError_SessionExpired() when sessionExpired != n
 return sessionExpired(_that);case CoreError_WrongStorePassphrase() when wrongStorePassphrase != null:
 return wrongStorePassphrase(_that);case CoreError_InvalidId() when invalidId != null:
 return invalidId(_that);case CoreError_RoomNotFound() when roomNotFound != null:
-return roomNotFound(_that);case CoreError_Internal() when internal != null:
+return roomNotFound(_that);case CoreError_WrongRecoveryKey() when wrongRecoveryKey != null:
+return wrongRecoveryKey(_that);case CoreError_RecoveryNotSetUp() when recoveryNotSetUp != null:
+return recoveryNotSetUp(_that);case CoreError_Internal() when internal != null:
 return internal(_that);case _:
   return orElse();
 
@@ -85,7 +87,7 @@ return internal(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CoreError_InvalidHomeserver value)  invalidHomeserver,required TResult Function( CoreError_Network value)  network,required TResult Function( CoreError_Forbidden value)  forbidden,required TResult Function( CoreError_SessionExpired value)  sessionExpired,required TResult Function( CoreError_WrongStorePassphrase value)  wrongStorePassphrase,required TResult Function( CoreError_InvalidId value)  invalidId,required TResult Function( CoreError_RoomNotFound value)  roomNotFound,required TResult Function( CoreError_Internal value)  internal,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CoreError_InvalidHomeserver value)  invalidHomeserver,required TResult Function( CoreError_Network value)  network,required TResult Function( CoreError_Forbidden value)  forbidden,required TResult Function( CoreError_SessionExpired value)  sessionExpired,required TResult Function( CoreError_WrongStorePassphrase value)  wrongStorePassphrase,required TResult Function( CoreError_InvalidId value)  invalidId,required TResult Function( CoreError_RoomNotFound value)  roomNotFound,required TResult Function( CoreError_WrongRecoveryKey value)  wrongRecoveryKey,required TResult Function( CoreError_RecoveryNotSetUp value)  recoveryNotSetUp,required TResult Function( CoreError_Internal value)  internal,}){
 final _that = this;
 switch (_that) {
 case CoreError_InvalidHomeserver():
@@ -95,7 +97,9 @@ return forbidden(_that);case CoreError_SessionExpired():
 return sessionExpired(_that);case CoreError_WrongStorePassphrase():
 return wrongStorePassphrase(_that);case CoreError_InvalidId():
 return invalidId(_that);case CoreError_RoomNotFound():
-return roomNotFound(_that);case CoreError_Internal():
+return roomNotFound(_that);case CoreError_WrongRecoveryKey():
+return wrongRecoveryKey(_that);case CoreError_RecoveryNotSetUp():
+return recoveryNotSetUp(_that);case CoreError_Internal():
 return internal(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -110,7 +114,7 @@ return internal(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CoreError_InvalidHomeserver value)?  invalidHomeserver,TResult? Function( CoreError_Network value)?  network,TResult? Function( CoreError_Forbidden value)?  forbidden,TResult? Function( CoreError_SessionExpired value)?  sessionExpired,TResult? Function( CoreError_WrongStorePassphrase value)?  wrongStorePassphrase,TResult? Function( CoreError_InvalidId value)?  invalidId,TResult? Function( CoreError_RoomNotFound value)?  roomNotFound,TResult? Function( CoreError_Internal value)?  internal,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CoreError_InvalidHomeserver value)?  invalidHomeserver,TResult? Function( CoreError_Network value)?  network,TResult? Function( CoreError_Forbidden value)?  forbidden,TResult? Function( CoreError_SessionExpired value)?  sessionExpired,TResult? Function( CoreError_WrongStorePassphrase value)?  wrongStorePassphrase,TResult? Function( CoreError_InvalidId value)?  invalidId,TResult? Function( CoreError_RoomNotFound value)?  roomNotFound,TResult? Function( CoreError_WrongRecoveryKey value)?  wrongRecoveryKey,TResult? Function( CoreError_RecoveryNotSetUp value)?  recoveryNotSetUp,TResult? Function( CoreError_Internal value)?  internal,}){
 final _that = this;
 switch (_that) {
 case CoreError_InvalidHomeserver() when invalidHomeserver != null:
@@ -120,7 +124,9 @@ return forbidden(_that);case CoreError_SessionExpired() when sessionExpired != n
 return sessionExpired(_that);case CoreError_WrongStorePassphrase() when wrongStorePassphrase != null:
 return wrongStorePassphrase(_that);case CoreError_InvalidId() when invalidId != null:
 return invalidId(_that);case CoreError_RoomNotFound() when roomNotFound != null:
-return roomNotFound(_that);case CoreError_Internal() when internal != null:
+return roomNotFound(_that);case CoreError_WrongRecoveryKey() when wrongRecoveryKey != null:
+return wrongRecoveryKey(_that);case CoreError_RecoveryNotSetUp() when recoveryNotSetUp != null:
+return recoveryNotSetUp(_that);case CoreError_Internal() when internal != null:
 return internal(_that);case _:
   return null;
 
@@ -138,7 +144,7 @@ return internal(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String message)?  invalidHomeserver,TResult Function( String message)?  network,TResult Function( String message)?  forbidden,TResult Function()?  sessionExpired,TResult Function()?  wrongStorePassphrase,TResult Function( String id)?  invalidId,TResult Function( String roomId)?  roomNotFound,TResult Function( String message)?  internal,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String message)?  invalidHomeserver,TResult Function( String message)?  network,TResult Function( String message)?  forbidden,TResult Function()?  sessionExpired,TResult Function()?  wrongStorePassphrase,TResult Function( String id)?  invalidId,TResult Function( String roomId)?  roomNotFound,TResult Function()?  wrongRecoveryKey,TResult Function()?  recoveryNotSetUp,TResult Function( String message)?  internal,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CoreError_InvalidHomeserver() when invalidHomeserver != null:
 return invalidHomeserver(_that.message);case CoreError_Network() when network != null:
@@ -147,7 +153,9 @@ return forbidden(_that.message);case CoreError_SessionExpired() when sessionExpi
 return sessionExpired();case CoreError_WrongStorePassphrase() when wrongStorePassphrase != null:
 return wrongStorePassphrase();case CoreError_InvalidId() when invalidId != null:
 return invalidId(_that.id);case CoreError_RoomNotFound() when roomNotFound != null:
-return roomNotFound(_that.roomId);case CoreError_Internal() when internal != null:
+return roomNotFound(_that.roomId);case CoreError_WrongRecoveryKey() when wrongRecoveryKey != null:
+return wrongRecoveryKey();case CoreError_RecoveryNotSetUp() when recoveryNotSetUp != null:
+return recoveryNotSetUp();case CoreError_Internal() when internal != null:
 return internal(_that.message);case _:
   return orElse();
 
@@ -166,7 +174,7 @@ return internal(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String message)  invalidHomeserver,required TResult Function( String message)  network,required TResult Function( String message)  forbidden,required TResult Function()  sessionExpired,required TResult Function()  wrongStorePassphrase,required TResult Function( String id)  invalidId,required TResult Function( String roomId)  roomNotFound,required TResult Function( String message)  internal,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String message)  invalidHomeserver,required TResult Function( String message)  network,required TResult Function( String message)  forbidden,required TResult Function()  sessionExpired,required TResult Function()  wrongStorePassphrase,required TResult Function( String id)  invalidId,required TResult Function( String roomId)  roomNotFound,required TResult Function()  wrongRecoveryKey,required TResult Function()  recoveryNotSetUp,required TResult Function( String message)  internal,}) {final _that = this;
 switch (_that) {
 case CoreError_InvalidHomeserver():
 return invalidHomeserver(_that.message);case CoreError_Network():
@@ -175,7 +183,9 @@ return forbidden(_that.message);case CoreError_SessionExpired():
 return sessionExpired();case CoreError_WrongStorePassphrase():
 return wrongStorePassphrase();case CoreError_InvalidId():
 return invalidId(_that.id);case CoreError_RoomNotFound():
-return roomNotFound(_that.roomId);case CoreError_Internal():
+return roomNotFound(_that.roomId);case CoreError_WrongRecoveryKey():
+return wrongRecoveryKey();case CoreError_RecoveryNotSetUp():
+return recoveryNotSetUp();case CoreError_Internal():
 return internal(_that.message);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -190,7 +200,7 @@ return internal(_that.message);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String message)?  invalidHomeserver,TResult? Function( String message)?  network,TResult? Function( String message)?  forbidden,TResult? Function()?  sessionExpired,TResult? Function()?  wrongStorePassphrase,TResult? Function( String id)?  invalidId,TResult? Function( String roomId)?  roomNotFound,TResult? Function( String message)?  internal,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String message)?  invalidHomeserver,TResult? Function( String message)?  network,TResult? Function( String message)?  forbidden,TResult? Function()?  sessionExpired,TResult? Function()?  wrongStorePassphrase,TResult? Function( String id)?  invalidId,TResult? Function( String roomId)?  roomNotFound,TResult? Function()?  wrongRecoveryKey,TResult? Function()?  recoveryNotSetUp,TResult? Function( String message)?  internal,}) {final _that = this;
 switch (_that) {
 case CoreError_InvalidHomeserver() when invalidHomeserver != null:
 return invalidHomeserver(_that.message);case CoreError_Network() when network != null:
@@ -199,7 +209,9 @@ return forbidden(_that.message);case CoreError_SessionExpired() when sessionExpi
 return sessionExpired();case CoreError_WrongStorePassphrase() when wrongStorePassphrase != null:
 return wrongStorePassphrase();case CoreError_InvalidId() when invalidId != null:
 return invalidId(_that.id);case CoreError_RoomNotFound() when roomNotFound != null:
-return roomNotFound(_that.roomId);case CoreError_Internal() when internal != null:
+return roomNotFound(_that.roomId);case CoreError_WrongRecoveryKey() when wrongRecoveryKey != null:
+return wrongRecoveryKey();case CoreError_RecoveryNotSetUp() when recoveryNotSetUp != null:
+return recoveryNotSetUp();case CoreError_Internal() when internal != null:
 return internal(_that.message);case _:
   return null;
 
@@ -611,6 +623,70 @@ as String,
 
 
 }
+
+/// @nodoc
+
+
+class CoreError_WrongRecoveryKey extends CoreError {
+  const CoreError_WrongRecoveryKey(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreError_WrongRecoveryKey);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'CoreError.wrongRecoveryKey()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class CoreError_RecoveryNotSetUp extends CoreError {
+  const CoreError_RecoveryNotSetUp(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreError_RecoveryNotSetUp);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'CoreError.recoveryNotSetUp()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 

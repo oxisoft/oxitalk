@@ -1,6 +1,7 @@
 import '../../rust/api/error.dart';
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
+import '../../rust/api/verification.dart' as rust;
 import '../api/matrix.dart';
 
 MatrixFailure failure(CoreError error) => switch (error) {
@@ -24,6 +25,12 @@ MatrixFailure failure(CoreError error) => switch (error) {
   CoreError_RoomNotFound(:final roomId) => MatrixFailure(
     FailureKind.roomNotFound,
     roomId,
+  ),
+  CoreError_WrongRecoveryKey() => const MatrixFailure(
+    FailureKind.wrongRecoveryKey,
+  ),
+  CoreError_RecoveryNotSetUp() => const MatrixFailure(
+    FailureKind.recoveryNotSetUp,
   ),
   CoreError_Internal(:final message) => MatrixFailure(
     FailureKind.internal,
@@ -93,4 +100,29 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
   rust.TimelineItemContent_OtherEvent() ||
   rust.TimelineItemContent_ReadMarker() ||
   rust.TimelineItemContent_TimelineStart() => null,
+};
+
+VerificationStatus verificationStatusOf(rust.VerificationStatus status) =>
+    switch (status) {
+      rust.VerificationStatus.unknown => VerificationStatus.unknown,
+      rust.VerificationStatus.verified => VerificationStatus.verified,
+      rust.VerificationStatus.unverified => VerificationStatus.unverified,
+    };
+
+VerificationStep stepOf(rust.VerificationFlowState state) => switch (state) {
+  rust.VerificationFlowState_Requested() => const VerificationIncoming(),
+  rust.VerificationFlowState_Created() ||
+  rust.VerificationFlowState_Ready() ||
+  rust.VerificationFlowState_SasCreated() ||
+  rust.VerificationFlowState_SasStarted() ||
+  rust.VerificationFlowState_SasAccepted() => const VerificationWaiting(),
+  rust.VerificationFlowState_KeysExchanged(:final emojis, :final decimals) =>
+    VerificationCompare([
+      for (final emoji in emojis ?? const <rust.VerificationEmoji>[])
+        VerificationEmoji(emoji.symbol, emoji.description),
+    ], decimals),
+  rust.VerificationFlowState_Confirmed() => const VerificationConfirmed(),
+  rust.VerificationFlowState_Done() => const VerificationDone(),
+  rust.VerificationFlowState_Cancelled(:final reason, :final byUs) =>
+    VerificationCancelled(reason, byUs: byUs),
 };

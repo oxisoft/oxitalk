@@ -9,6 +9,7 @@ import 'api/room_list.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
 import 'api/timeline.dart';
+import 'api/verification.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -34,6 +35,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   get rust_arc_decrement_strong_count_TimelinePtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimelinePtr;
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_VerificationPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerificationPtr;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
@@ -50,6 +55,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Verification
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  );
+
+  @protected
   Session
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     dynamic raw,
@@ -62,6 +73,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Verification
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  );
+
+  @protected
   Session
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     dynamic raw,
@@ -70,6 +87,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Timeline
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    dynamic raw,
+  );
+
+  @protected
+  Verification
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
     dynamic raw,
   );
 
@@ -88,6 +111,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<SyncState> dco_decode_StreamSink_sync_state_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<VerificationFlowState>
+  dco_decode_StreamSink_verification_flow_state_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<VerificationRequestInfo>
+  dco_decode_StreamSink_verification_request_info_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<VerificationStatus>
+  dco_decode_StreamSink_verification_status_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -126,6 +161,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -141,6 +179,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TimelineItem> dco_decode_list_timeline_item(dynamic raw);
 
   @protected
+  List<VerificationEmoji> dco_decode_list_verification_emoji(dynamic raw);
+
+  @protected
   Membership dco_decode_membership(dynamic raw);
 
   @protected
@@ -148,6 +189,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw);
 
   @protected
   RoomListDiff dco_decode_room_list_diff(dynamic raw);
@@ -192,6 +236,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  VerificationEmoji dco_decode_verification_emoji(dynamic raw);
+
+  @protected
+  VerificationFlowState dco_decode_verification_flow_state(dynamic raw);
+
+  @protected
+  VerificationRequestInfo dco_decode_verification_request_info(dynamic raw);
+
+  @protected
+  VerificationStatus dco_decode_verification_status(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -203,6 +259,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Timeline
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Verification
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
     SseDeserializer deserializer,
   );
 
@@ -219,6 +281,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Verification
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Session
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     SseDeserializer deserializer,
@@ -227,6 +295,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Timeline
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Verification
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
     SseDeserializer deserializer,
   );
 
@@ -247,6 +321,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<SyncState> sse_decode_StreamSink_sync_state_Sse(
     SseDeserializer deserializer,
   );
+
+  @protected
+  RustStreamSink<VerificationFlowState>
+  sse_decode_StreamSink_verification_flow_state_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<VerificationRequestInfo>
+  sse_decode_StreamSink_verification_request_info_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<VerificationStatus>
+  sse_decode_StreamSink_verification_status_Sse(SseDeserializer deserializer);
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -287,6 +377,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -308,6 +401,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<VerificationEmoji> sse_decode_list_verification_emoji(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Membership sse_decode_membership(SseDeserializer deserializer);
 
   @protected
@@ -315,6 +413,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<VerificationEmoji>? sse_decode_opt_list_verification_emoji(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RoomListDiff sse_decode_room_list_diff(SseDeserializer deserializer);
@@ -361,6 +464,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  VerificationEmoji sse_decode_verification_emoji(SseDeserializer deserializer);
+
+  @protected
+  VerificationFlowState sse_decode_verification_flow_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  VerificationRequestInfo sse_decode_verification_request_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  VerificationStatus sse_decode_verification_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -382,6 +503,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    Verification self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     Session self,
     SseSerializer serializer,
@@ -396,6 +524,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    Verification self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     Session self,
     SseSerializer serializer,
@@ -405,6 +540,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline(
     Timeline self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    Verification self,
     SseSerializer serializer,
   );
 
@@ -429,6 +571,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_sync_state_Sse(
     RustStreamSink<SyncState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_verification_flow_state_Sse(
+    RustStreamSink<VerificationFlowState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_verification_request_info_Sse(
+    RustStreamSink<VerificationRequestInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_verification_status_Sse(
+    RustStreamSink<VerificationStatus> self,
     SseSerializer serializer,
   );
 
@@ -487,6 +647,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_prim_u_16_strict(
+    Uint16List self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -517,6 +683,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_verification_emoji(
+    List<VerificationEmoji> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_membership(Membership self, SseSerializer serializer);
 
   @protected
@@ -525,6 +697,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_verification_emoji(
+    List<VerificationEmoji>? self,
     SseSerializer serializer,
   );
 
@@ -572,6 +750,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_verification_emoji(
+    VerificationEmoji self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_verification_flow_state(
+    VerificationFlowState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_verification_request_info(
+    VerificationRequestInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_verification_status(
+    VerificationStatus self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class
@@ -654,5 +856,39 @@ class RustLibWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimeline =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTimelinePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerificationPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_oxitalk_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerificationPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerificationPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_oxitalk_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerificationPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

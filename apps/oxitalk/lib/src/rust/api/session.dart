@@ -12,11 +12,12 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'room_list.dart';
 import 'sync.dart';
 import 'timeline.dart';
+import 'verification.dart';
 part 'session.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `build_client`, `new`, `session_change`, `spawn`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `session_changes`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `sdk`, `session_changes`
 
 /// Logs in with a user name and password. `server` is a server name (`matrix.org`, found
 /// through `.well-known`) or a homeserver URL. `store_dir` must be a directory of its own for
@@ -80,6 +81,23 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> logout();
 
+  /// Verifies this device with the recovery key or the security phrase, and turns on the key
+  /// backup with it.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::WrongRecoveryKey`], [`CoreError::RecoveryNotSetUp`] if the account has no
+  /// recovery, or as the server answers.
+  Future<void> recover({required String key});
+
+  /// Asks the user's other devices to verify this one.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if the account has no cross-signing identity yet, or as the
+  /// server answers.
+  Future<Verification> requestSelfVerification();
+
   /// What the app stores to [`restore`] this session later.
   ///
   /// # Errors
@@ -107,6 +125,12 @@ abstract class Session implements RustOpaqueInterface {
   /// Sends the current [`SyncState`], then every change.
   Stream<SyncState> subscribeSyncState();
 
+  /// Sends every verification request that arrives from another device of the user.
+  Stream<VerificationRequestInfo> subscribeVerificationRequests();
+
+  /// Sends the current [`VerificationStatus`], then every change.
+  Stream<VerificationStatus> subscribeVerificationStatus();
+
   /// Opens the timeline of a room the user is in.
   ///
   /// # Errors
@@ -117,6 +141,13 @@ abstract class Session implements RustOpaqueInterface {
 
   /// The logged-in user's Matrix ID.
   String userId();
+
+  /// Opens a request that arrived through [`Self::subscribe_verification_requests`].
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if the request is unknown, e.g. already cancelled.
+  Future<Verification> verification({required String flowId});
 }
 
 @freezed

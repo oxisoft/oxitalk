@@ -8,8 +8,11 @@ use std::{
 use flutter_rust_bridge::frb;
 use futures_util::{Stream, StreamExt};
 use matrix_sdk::{
-    Client, ClientBuilder, SessionMeta, SessionTokens, authentication::matrix::MatrixSession,
-    ruma::OwnedUserId, store::RoomLoadSettings,
+    Client, ClientBuilder, SessionMeta, SessionTokens,
+    authentication::matrix::MatrixSession,
+    encryption::{BackupDownloadStrategy, EncryptionSettings},
+    ruma::OwnedUserId,
+    store::RoomLoadSettings,
 };
 use matrix_sdk_ui::sync_service::SyncService;
 use tokio::task::AbortHandle;
@@ -115,6 +118,13 @@ async fn build_client(
     store_passphrase: &str,
 ) -> Result<Client, CoreError> {
     Ok(homeserver
+        .with_encryption_settings(EncryptionSettings {
+            // A new account gets its identity at the first login, which verifies that device.
+            auto_enable_cross_signing: true,
+            // Keys go to the server backup; a verified device fetches the ones it lacks.
+            auto_enable_backups: true,
+            backup_download_strategy: BackupDownloadStrategy::AfterDecryptionFailure,
+        })
         .sqlite_store(store_dir, Some(store_passphrase))
         .build()
         .await?)
@@ -204,6 +214,13 @@ impl Session {
                 }
             },
         ))
+    }
+
+    /// The SDK client, for Rust callers (the tests set up what the app doesn't do yet).
+    #[frb(ignore)]
+    #[must_use]
+    pub fn sdk(&self) -> &Client {
+        &self.client
     }
 
     /// Runs `future` until the session is dropped.
