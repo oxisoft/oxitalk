@@ -128,6 +128,49 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   var _loadingOlder = false;
   var _reachedStart = false;
 
+  /// Whether the newest message is in view; the list is reversed, so its start is the bottom.
+  var _atBottom = true;
+
+  /// The newest entry when the room was last marked read.
+  String? _readUpTo;
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: () => unawaited(_markRead()));
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  /// Marks the room read while the user can see its newest message: the chat is open, the
+  /// window in front and the timeline at the bottom.
+  Future<void> _markRead() async {
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (!mounted || !_atBottom) return;
+    if (state != null && state != AppLifecycleState.resumed) return;
+    final newest = ref
+        .read(timelineEntriesProvider(widget.account, widget.roomId))
+        .value
+        ?.lastOrNull
+        ?.id;
+    final timeline = ref
+        .read(roomTimelineProvider(widget.account, widget.roomId))
+        .value;
+    if (newest == null || newest == _readUpTo || timeline == null) return;
+    _readUpTo = newest;
+    try {
+      await timeline.markAsRead();
+    } on MatrixFailure {
+      // Tried again with the next message.
+      _readUpTo = null;
+    }
+  }
+
   /// Loads older messages when the list is short or scrolled near its top.
   Future<void> _loadOlder() async {
     if (_loadingOlder || _reachedStart) return;
@@ -148,6 +191,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   bool _onScroll(ScrollNotification notification) {
     // The list is reversed: its end is the oldest message.
     if (notification.metrics.extentAfter < 400) unawaited(_loadOlder());
+    final atBottom = notification.metrics.extentBefore < 48;
+    if (atBottom != _atBottom) {
+      _atBottom = atBottom;
+      if (atBottom) unawaited(_markRead());
+    }
     return false;
   }
 
@@ -166,6 +214,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   }
 
   Widget _list(List<TimelineEntry> entries) {
+    if (entries.lastOrNull?.id != _readUpTo) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_markRead()),
+      );
+    }
     if (entries.length < 20) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => unawaited(_loadOlder()),

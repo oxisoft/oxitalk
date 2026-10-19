@@ -130,6 +130,15 @@ void main() {
     await _pumpUntil(tester, find.byType(PictureAvatar));
     await bobTimeline.send('Hello from Bob');
     await _pumpUntil(tester, find.text('Hello from Bob'));
+    // Read while she looks at it: no unread badge on the open chat.
+    await _pumpUntil(
+      tester,
+      find.descendant(
+        of: find.widgetWithText(ListTile, bob.name),
+        matching: find.text('1'),
+      ),
+      gone: true,
+    );
 
     // Alice answers through the composer; Bob gets it decrypted.
     await _type(tester, find.byKey(const Key('composer.text')), 'Hi Bob!');

@@ -441,6 +441,9 @@ final class RustRoomTimeline implements RoomTimeline {
       guarded(() => _timeline.sendText(body: text));
 
   @override
+  Future<void> markAsRead() => guarded(_timeline.markAsRead);
+
+  @override
   void close() {
     unawaited(_subscription.cancel());
     unawaited(_entries.close());

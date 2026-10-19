@@ -5,7 +5,10 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
-use matrix_sdk::ruma::{OwnedRoomId, events::room::message::RoomMessageEventContent};
+use matrix_sdk::ruma::{
+    OwnedRoomId, api::client::receipt::create_receipt::v3::ReceiptType,
+    events::room::message::RoomMessageEventContent,
+};
 use matrix_sdk_ui::{
     eyeball_im::VectorDiff,
     timeline::{
@@ -150,6 +153,19 @@ impl Timeline {
     /// As the server answers.
     pub async fn paginate_back(&self, count: u16) -> Result<bool, CoreError> {
         Ok(self.inner.paginate_backwards(count).await?)
+    }
+
+    /// Marks the room read up to its latest event: a read receipt, which the room's other
+    /// members see, and the read marker, which the user's other devices go by. Nothing is
+    /// sent when both are there already.
+    ///
+    /// # Errors
+    ///
+    /// As the server answers.
+    pub async fn mark_as_read(&self) -> Result<(), CoreError> {
+        self.inner.mark_as_read(ReceiptType::Read).await?;
+        self.inner.mark_as_read(ReceiptType::FullyRead).await?;
+        Ok(())
     }
 
     /// Queues a plain-text message. It shows at once as a local echo in [`SendState::Sending`];

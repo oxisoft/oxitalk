@@ -254,6 +254,9 @@ final class FakeTimeline implements RoomTimeline {
   final String ownUserId;
   final Latest<List<TimelineEntry>> _entries;
   var olderLoads = 0;
+
+  /// How many times the room was marked read.
+  var readMarks = 0;
   var closed = false;
 
   set entryList(List<TimelineEntry> entries) => _entries.value = entries;
@@ -282,6 +285,9 @@ final class FakeTimeline implements RoomTimeline {
       ),
     ];
   }
+
+  @override
+  Future<void> markAsRead() async => readMarks++;
 
   @override
   void close() => closed = true;

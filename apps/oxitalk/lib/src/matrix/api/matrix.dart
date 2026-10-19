@@ -130,6 +130,10 @@ abstract interface class RoomTimeline {
 
   Future<void> send(String text);
 
+  /// Marks the room read up to its latest message, for the other members and the user's
+  /// other devices.
+  Future<void> markAsRead();
+
   void close();
 }
 

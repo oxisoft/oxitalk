@@ -16,6 +16,15 @@ part 'timeline.freezed.dart';
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Timeline>>
 abstract class Timeline implements RustOpaqueInterface {
+  /// Marks the room read up to its latest event: a read receipt, which the room's other
+  /// members see, and the read marker, which the user's other devices go by. Nothing is
+  /// sent when both are there already.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> markAsRead();
+
   /// Loads up to `count` older events. Returns `true` once the start of the room is reached.
   ///
   /// # Errors

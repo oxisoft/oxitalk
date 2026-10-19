@@ -24,7 +24,7 @@ use matrix_sdk::{
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
-    room_list::Membership,
+    room_list::{Membership, RoomSummary},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
     session::{Session, login, restore},
     timeline::{SendState, TimelineItemContent},
@@ -360,6 +360,52 @@ async fn rooms_move_between_sections_as_in_element() -> TestResult {
         stored["RoomList.CustomSectionData"][ACME]["spaceId"],
         json!("home-space")
     );
+    Ok(())
+}
+
+/// Reading a chat clears its unread count, here and for the user's other devices.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn marking_a_chat_read_clears_its_unread_count() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice = alice_user
+        .login(&alice_store.path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    bob.join(room_id.clone()).await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    alice_timeline.send_text("one".to_owned()).await?;
+    alice_timeline.send_text("two".to_owned()).await?;
+    let unread = |rooms: &[RoomSummary]| {
+        rooms
+            .iter()
+            .find(|r| r.room_id == room_id)
+            .map(|r| r.unread_count)
+    };
+    bob_rooms
+        .wait_until(|rooms| unread(rooms) == Some(2))
+        .await?;
+
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_items
+        .wait_until(|items| messages(items).contains(&("two", false)))
+        .await?;
+    bob_timeline.mark_as_read().await?;
+    bob_rooms
+        .wait_until(|rooms| unread(rooms) == Some(0))
+        .await?;
+    // Again, with nothing new: nothing to send, no error.
+    bob_timeline.mark_as_read().await?;
     Ok(())
 }
 
