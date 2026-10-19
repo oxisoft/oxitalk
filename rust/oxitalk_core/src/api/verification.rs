@@ -4,7 +4,11 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
 use flutter_rust_bridge::frb;
-use futures_util::{Stream, StreamExt, stream};
+use futures_util::{
+    Stream, StreamExt,
+    future::{self, Either},
+    stream::{self, BoxStream},
+};
 use matrix_sdk::{
     Client,
     encryption::{
@@ -230,28 +234,50 @@ impl Verification {
     /// `false` to stop.
     #[frb(ignore)]
     pub async fn state_updates(&self, mut emit: impl FnMut(VerificationFlowState) -> bool) {
-        let mut changes = self.request.changes();
-        let mut next = Some(self.request.state());
+        let mut requests = stream::iter([self.request.state()])
+            .chain(self.request.changes())
+            .boxed();
+        let mut requests_ended = false;
+        // The emoji verification being followed. When both devices start one at once, the
+        // SDK keeps one of them and the request transitions again, to that one.
+        let mut sas_states: Option<BoxStream<'static, SasState>> = None;
         loop {
-            let state = match next.take() {
-                Some(state) => state,
-                None => match changes.next().await {
-                    Some(state) => state,
-                    None => return,
+            let update = match (&mut sas_states, requests_ended) {
+                (None, true) => return,
+                (None, false) => requests
+                    .next()
+                    .await
+                    .map_or(Update::RequestEnded, Update::Request),
+                (Some(sas), true) => sas.next().await.map_or(Update::SasEnded, Update::Sas),
+                (Some(sas), false) => match future::select(requests.next(), sas.next()).await {
+                    Either::Left((state, _)) => state.map_or(Update::RequestEnded, Update::Request),
+                    Either::Right((state, _)) => state.map_or(Update::SasEnded, Update::Sas),
                 },
             };
-            if let VerificationRequestState::Transitioned { verification } = state {
-                if let Some(sas) = verification.sas() {
-                    self.set_sas(sas.clone());
-                    sas_updates(&sas, &mut emit).await;
+            let state = match update {
+                Update::Request(VerificationRequestState::Transitioned { verification }) => {
+                    if let Some(sas) = verification.sas() {
+                        self.set_sas(sas.clone());
+                        sas_states = Some(stream::iter([sas.state()]).chain(sas.changes()).boxed());
+                    }
+                    continue;
                 }
-                return;
-            }
+                Update::Request(state) => request_state(&state),
+                Update::Sas(state) => sas_state(&state),
+                Update::RequestEnded => {
+                    requests_ended = true;
+                    continue;
+                }
+                Update::SasEnded => {
+                    sas_states = None;
+                    continue;
+                }
+            };
             let last = matches!(
                 state,
-                VerificationRequestState::Done | VerificationRequestState::Cancelled(_)
+                VerificationFlowState::Done | VerificationFlowState::Cancelled { .. }
             );
-            if !emit(request_state(&state)) || last {
+            if !emit(state) || last {
                 return;
             }
         }
@@ -281,7 +307,11 @@ impl Verification {
             .await
             .map_err(|error| CoreError::from_sdk(&error))?
             .ok_or_else(|| CoreError::internal(&"the request is not ready for emoji"))?;
-        self.set_sas(sas);
+        // The request's state stream takes over if the SDK keeps the other device's instead.
+        let mut slot = self.sas.lock().unwrap_or_else(PoisonError::into_inner);
+        if slot.is_none() {
+            *slot = Some(sas);
+        }
         Ok(())
     }
 
@@ -352,24 +382,6 @@ impl Verification {
     }
 }
 
-async fn sas_updates(sas: &SasVerification, emit: &mut impl FnMut(VerificationFlowState) -> bool) {
-    let mut changes = sas.changes();
-    let mut next = Some(sas.state());
-    loop {
-        let state = match next.take() {
-            Some(state) => state,
-            None => match changes.next().await {
-                Some(state) => state,
-                None => return,
-            },
-        };
-        let last = matches!(state, SasState::Done { .. } | SasState::Cancelled(_));
-        if !emit(sas_state(&state)) || last {
-            return;
-        }
-    }
-}
-
 async fn request_info(
     client: &Client,
     event: &ToDeviceKeyVerificationRequestEvent,
@@ -394,6 +406,13 @@ async fn request_info(
     })
 }
 
+enum Update {
+    Request(VerificationRequestState),
+    Sas(SasState),
+    RequestEnded,
+    SasEnded,
+}
+
 fn verification_status(state: VerificationState) -> VerificationStatus {
     match state {
         VerificationState::Unknown => VerificationStatus::Unknown,
@@ -407,7 +426,7 @@ fn request_state(state: &VerificationRequestState) -> VerificationFlowState {
         VerificationRequestState::Created { .. } => VerificationFlowState::Created,
         VerificationRequestState::Requested { .. } => VerificationFlowState::Requested,
         VerificationRequestState::Ready { .. } => VerificationFlowState::Ready,
-        // Handled by the caller, which switches to the emoji verification's states.
+        // Handled by the caller, which follows the emoji verification's states from then on.
         VerificationRequestState::Transitioned { .. } => VerificationFlowState::SasStarted,
         VerificationRequestState::Done => VerificationFlowState::Done,
         VerificationRequestState::Cancelled(info) => cancelled(info),

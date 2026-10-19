@@ -238,6 +238,56 @@ async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {
     Ok(())
 }
 
+/// Both devices start the emoji at the same moment, as OxiTalk and Fractal do: the SDK keeps
+/// one start, and the side whose start was dropped follows the one kept.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn both_devices_starting_the_emoji_still_verify() -> TestResult {
+    let user = TestUser::register().await?;
+    let (first_store, second_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let first = user.login(&first_store.path().to_string_lossy()).await?;
+    first.start_sync().await;
+    wait_for_status(&first, VerificationStatus::Verified).await?;
+    let second = user.login(&second_store.path().to_string_lossy()).await?;
+    second.start_sync().await;
+    wait_for_status(&second, VerificationStatus::Unverified).await?;
+
+    let mut requests = first.verification_requests();
+    let asking = Arc::new(second.request_self_verification().await?);
+    let mut asking_states = drive_flow(&asking);
+    let info = tokio::time::timeout(TIMEOUT, requests.next())
+        .await?
+        .ok_or("no request arrived")?;
+    let answering = Arc::new(first.verification(info.flow_id).await?);
+    let mut answering_states = drive_flow(&answering);
+    wait_for_flow(&mut answering_states, |s| {
+        *s == VerificationFlowState::Requested
+    })
+    .await?;
+    answering.accept().await?;
+    wait_for_flow(&mut asking_states, |s| *s == VerificationFlowState::Ready).await?;
+    wait_for_flow(&mut answering_states, |s| {
+        *s == VerificationFlowState::Ready
+    })
+    .await?;
+
+    let (asked, answered) = tokio::join!(asking.start_sas(), answering.start_sas());
+    asked?;
+    answered?;
+
+    let is_keys =
+        |s: &VerificationFlowState| matches!(s, VerificationFlowState::KeysExchanged { .. });
+    let asking_emoji = wait_for_flow(&mut asking_states, is_keys).await?;
+    let answering_emoji = wait_for_flow(&mut answering_states, is_keys).await?;
+    assert_eq!(asking_emoji, answering_emoji);
+    asking.confirm().await?;
+    answering.confirm().await?;
+    wait_for_flow(&mut asking_states, |s| *s == VerificationFlowState::Done).await?;
+    wait_for_flow(&mut answering_states, |s| *s == VerificationFlowState::Done).await?;
+    wait_for_status(&second, VerificationStatus::Verified).await?;
+    Ok(())
+}
+
 /// The recovery key verifies a new device, and its history decrypts from the key backup.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs the Synapse test homeserver (test-infra/)"]
@@ -306,6 +356,26 @@ fn watch_flow(verification: &Arc<Verification>) -> mpsc::UnboundedReceiver<Verif
     tokio::spawn(async move {
         verification
             .state_updates(move |state| sender.send(state).is_ok())
+            .await;
+    });
+    states
+}
+
+/// Like [`watch_flow`], accepting an emoji verification the other side started, as the app
+/// does.
+fn drive_flow(verification: &Arc<Verification>) -> mpsc::UnboundedReceiver<VerificationFlowState> {
+    let (sender, states) = mpsc::unbounded_channel();
+    let driven = Arc::clone(verification);
+    tokio::spawn(async move {
+        let accepting = Arc::clone(&driven);
+        driven
+            .state_updates(move |state| {
+                if state == VerificationFlowState::SasStarted {
+                    let accepting = Arc::clone(&accepting);
+                    tokio::spawn(async move { accepting.accept_sas().await });
+                }
+                sender.send(state).is_ok()
+            })
             .await;
     });
     states
