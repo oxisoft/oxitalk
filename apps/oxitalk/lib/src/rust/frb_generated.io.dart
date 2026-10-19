@@ -5,6 +5,7 @@
 
 import 'api.dart';
 import 'api/error.dart';
+import 'api/logging.dart';
 import 'api/room_list.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
@@ -180,6 +181,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<VerificationEmoji> dco_decode_list_verification_emoji(dynamic raw);
+
+  @protected
+  LogLevel dco_decode_log_level(dynamic raw);
 
   @protected
   Membership dco_decode_membership(dynamic raw);
@@ -404,6 +408,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VerificationEmoji> sse_decode_list_verification_emoji(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LogLevel sse_decode_log_level(SseDeserializer deserializer);
 
   @protected
   Membership sse_decode_membership(SseDeserializer deserializer);
@@ -687,6 +694,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<VerificationEmoji> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_log_level(LogLevel self, SseSerializer serializer);
 
   @protected
   void sse_encode_membership(Membership self, SseSerializer serializer);

@@ -8,6 +8,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../matrix/api/matrix.dart';
 import '../matrix/api/secret_store.dart';
 import '../matrix/rust/rust_matrix.dart';
+import '../util/log.dart';
+import 'diagnostics.dart';
 import 'secure_secret_store.dart';
 
 part 'providers.g.dart';
@@ -22,6 +24,11 @@ MatrixClientFactory clientFactory(Ref ref) => RustMatrixClientFactory(
   secrets: ref.watch(secretStoreProvider),
   dataDir: getApplicationSupportDirectory,
 );
+
+/// Set by `main` (and by tests): it is started before the app.
+@Riverpod(keepAlive: true)
+Diagnostics diagnostics(Ref ref) =>
+    throw UnimplementedError('diagnosticsProvider is overridden in main');
 
 /// What the login form suggests.
 @Riverpod(keepAlive: true)
@@ -79,6 +86,7 @@ class Accounts extends _$Accounts {
           const Duration(seconds: 15),
           onTimeout: () => VerificationStatus.unknown,
         );
+    appLog(LogLevel.info, 'accounts', 'logged in ${session.userId}');
     state = AsyncData(
       AccountsState([..._current.sessions, session], session.userId),
     );
@@ -97,6 +105,7 @@ class Accounts extends _$Accounts {
   Future<void> logout(String userId) async {
     final session = _current.byId(userId);
     if (session == null) return;
+    appLog(LogLevel.info, 'accounts', 'logging out $userId');
     _remove(session);
     await session.logout();
   }
@@ -118,8 +127,12 @@ class Accounts extends _$Accounts {
   void _saveActive(String userId) =>
       unawaited(ref.read(clientFactoryProvider).writeActive(userId));
 
-  void _watchExpiry(MatrixSession session) =>
-      unawaited(session.expired.then((_) => _remove(session)));
+  void _watchExpiry(MatrixSession session) => unawaited(
+    session.expired.then((_) {
+      appLog(LogLevel.warn, 'accounts', 'session rejected: ${session.userId}');
+      _remove(session);
+    }),
+  );
 }
 
 /// The user ID of the account in front, or `null` when there are none.

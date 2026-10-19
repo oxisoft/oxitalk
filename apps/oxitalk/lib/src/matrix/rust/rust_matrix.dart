@@ -8,6 +8,7 @@ import '../../rust/api/session.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
 import '../../util/latest.dart';
+import '../../util/log.dart';
 import '../api/matrix.dart';
 import '../api/secret_store.dart';
 import 'diffs.dart';
@@ -384,6 +385,7 @@ final class RustDeviceVerification implements DeviceVerification {
   final _steps = Latest<VerificationStep>(const VerificationWaiting());
 
   void _onState(rust.VerificationFlowState state) {
+    appLog(LogLevel.debug, 'verification', '$state');
     switch (state) {
       case rust.VerificationFlowState_Ready() when _weAsked:
         unawaited(_quietly(_verification.startSas));

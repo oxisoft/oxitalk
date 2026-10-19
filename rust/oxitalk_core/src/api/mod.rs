@@ -3,6 +3,7 @@
 use flutter_rust_bridge::frb;
 
 pub mod error;
+pub mod logging;
 pub mod room_list;
 pub mod rooms;
 pub mod session;
@@ -32,6 +33,6 @@ mod tests {
 
     #[test]
     fn core_version_is_the_crate_version() {
-        assert_eq!(core_version(), "0.1.9");
+        assert_eq!(core_version(), "0.1.10");
     }
 }

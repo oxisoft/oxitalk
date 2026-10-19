@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/app.dart';
+import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/providers.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 
@@ -10,6 +11,7 @@ Future<void> pumpApp(
   WidgetTester tester,
   FakeMatrixClientFactory factory, {
   Size size = const Size(400, 800),
+  MemoryDiagnostics? diagnostics,
 }) async {
   tester.view
     ..physicalSize = size
@@ -20,6 +22,9 @@ Future<void> pumpApp(
       overrides: [
         clientFactoryProvider.overrideWithValue(factory),
         secretStoreProvider.overrideWithValue(MemorySecretStore()),
+        diagnosticsProvider.overrideWithValue(
+          diagnostics ?? MemoryDiagnostics(),
+        ),
       ],
       child: const OxiTalkApp(),
     ),

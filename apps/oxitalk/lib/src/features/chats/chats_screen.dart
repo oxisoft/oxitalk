@@ -187,6 +187,10 @@ class _AccountMenu extends ConsumerWidget {
         itemBuilder: (context) => [
           PopupMenuItem(enabled: false, child: Text(account)),
           PopupMenuItem(
+            value: () => context.go(Routes.settings),
+            child: const Text('Settings'),
+          ),
+          PopupMenuItem(
             value: () => showAboutDialog(
               context: context,
               applicationName: 'OxiTalk',

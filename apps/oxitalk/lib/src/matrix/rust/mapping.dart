@@ -2,6 +2,7 @@ import '../../rust/api/error.dart';
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
+import '../../util/log.dart';
 import '../api/matrix.dart';
 
 MatrixFailure failure(CoreError error) => switch (error) {
@@ -43,6 +44,7 @@ Future<T> guarded<T>(Future<T> Function() call) async {
   try {
     return await call();
   } on CoreError catch (error) {
+    appLog(LogLevel.warn, 'core', '$error');
     throw failure(error);
   }
 }

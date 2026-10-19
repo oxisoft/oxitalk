@@ -3,7 +3,7 @@ resolver = "3"
 members = ["oxitalk_core"]
 
 [workspace.package]
-version = "0.1.9"
+version = "0.1.10"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
@@ -21,6 +21,10 @@ rustls = { version = "0.23.45", default-features = false, features = ["ring"] }
 serde_json = "1.0.151"
 tempfile = "3.27.0"
 tokio = "1.53.2"
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+# No ANSI colours or `log` bridge: the output goes to a file.
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["env-filter", "fmt", "std"] }
 wiremock = "0.6.5"
 
 [workspace.lints.rust]

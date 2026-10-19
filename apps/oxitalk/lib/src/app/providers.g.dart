@@ -106,6 +106,52 @@ final class ClientFactoryProvider
 
 String _$clientFactoryHash() => r'faa6039222f420e578c1d1d8b6803a0a4ac54181';
 
+/// Set by `main` (and by tests): it is started before the app.
+
+@ProviderFor(diagnostics)
+final diagnosticsProvider = DiagnosticsProvider._();
+
+/// Set by `main` (and by tests): it is started before the app.
+
+final class DiagnosticsProvider
+    extends $FunctionalProvider<Diagnostics, Diagnostics, Diagnostics>
+    with $Provider<Diagnostics> {
+  /// Set by `main` (and by tests): it is started before the app.
+  DiagnosticsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'diagnosticsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$diagnosticsHash();
+
+  @$internal
+  @override
+  $ProviderElement<Diagnostics> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  Diagnostics create(Ref ref) {
+    return diagnostics(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Diagnostics value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Diagnostics>(value),
+    );
+  }
+}
+
+String _$diagnosticsHash() => r'748c8d8e39bccb5f5a046f3816c861999580ef47';
+
 /// What the login form suggests.
 
 @ProviderFor(defaultServer)
@@ -180,7 +226,7 @@ final class AccountsProvider
   Accounts create() => Accounts();
 }
 
-String _$accountsHash() => r'88e7bc18e8f3b110f2097d4dd7a2a3eb56fdb4a9';
+String _$accountsHash() => r'79b6e5b0d77a0a3d484ed3462614a7689e653fba';
 
 /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:oxitalk/src/app/app.dart';
+import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/providers.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
@@ -60,6 +61,7 @@ void main() {
             ),
           ),
           defaultServerProvider.overrideWithValue(_homeserver),
+          diagnosticsProvider.overrideWithValue(MemoryDiagnostics()),
         ],
         child: const OxiTalkApp(),
       ),

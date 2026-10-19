@@ -5,6 +5,7 @@
 
 import 'api.dart';
 import 'api/error.dart';
+import 'api/logging.dart';
 import 'api/room_list.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
@@ -75,7 +76,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 969258985;
+  int get rustContentHash => 696309973;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -190,6 +191,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiInitApp();
 
+  void crateApiLoggingInitLogging({required String dir, required bool enabled});
+
   Future<Session> crateApiSessionLogin({
     required String server,
     required String username,
@@ -202,6 +205,14 @@ abstract class RustLibApi extends BaseApi {
     required SessionData data,
     required String storeDir,
     required String storePassphrase,
+  });
+
+  void crateApiLoggingSetLogging({required bool enabled});
+
+  void crateApiLoggingWriteLog({
+    required LogLevel level,
+    required String target,
+    required String message,
   });
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Session;
@@ -1241,6 +1252,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
+  void crateApiLoggingInitLogging({
+    required String dir,
+    required bool enabled,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dir, serializer);
+          sse_encode_bool(enabled, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiLoggingInitLoggingConstMeta,
+        argValues: [dir, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLoggingInitLoggingConstMeta => const TaskConstMeta(
+    debugName: "init_logging",
+    argNames: ["dir", "enabled"],
+  );
+
+  @override
   Future<Session> crateApiSessionLogin({
     required String server,
     required String username,
@@ -1260,7 +1300,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1297,7 +1337,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1316,6 +1356,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSessionRestoreConstMeta => const TaskConstMeta(
     debugName: "restore",
     argNames: ["data", "storeDir", "storePassphrase"],
+  );
+
+  @override
+  void crateApiLoggingSetLogging({required bool enabled}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(enabled, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLoggingSetLoggingConstMeta,
+        argValues: [enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLoggingSetLoggingConstMeta =>
+      const TaskConstMeta(debugName: "set_logging", argNames: ["enabled"]);
+
+  @override
+  void crateApiLoggingWriteLog({
+    required LogLevel level,
+    required String target,
+    required String message,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_log_level(level, serializer);
+          sse_encode_String(target, serializer);
+          sse_encode_String(message, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLoggingWriteLogConstMeta,
+        argValues: [level, target, message],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLoggingWriteLogConstMeta => const TaskConstMeta(
+    debugName: "write_log",
+    argNames: ["level", "target", "message"],
   );
 
   RustArcIncrementStrongCountFnType
@@ -1623,6 +1717,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<VerificationEmoji> dco_decode_list_verification_emoji(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_verification_emoji).toList();
+  }
+
+  @protected
+  LogLevel dco_decode_log_level(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LogLevel.values[raw as int];
   }
 
   @protected
@@ -2320,6 +2420,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_verification_emoji(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  LogLevel sse_decode_log_level(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LogLevel.values[inner];
   }
 
   @protected
@@ -3122,6 +3229,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_verification_emoji(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_log_level(LogLevel self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

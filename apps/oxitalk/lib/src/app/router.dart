@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../features/auth/login_screen.dart';
 import '../features/chat/chat_pane.dart';
 import '../features/chats/chats_screen.dart';
+import '../features/settings/settings_screen.dart';
 import '../features/verify/verify_screen.dart';
 import '../matrix/api/matrix.dart';
 import 'providers.dart';
@@ -20,6 +21,7 @@ abstract final class Routes {
   static const login = '/login';
   static const verify = '/verify';
   static const addAccount = '/add-account';
+  static const settings = '/settings';
   static const chats = '/';
 
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
@@ -64,7 +66,9 @@ GoRouter router(Ref ref) {
       if (accounts.value?.sessions.isEmpty ?? true) {
         return location == Routes.login ? null : Routes.login;
       }
-      if (location == Routes.addAccount) return null;
+      if (location == Routes.addAccount || location == Routes.settings) {
+        return null;
+      }
       // An unverified account sees nothing else until it is verified (or logged out).
       if (ref.read(activeVerificationProvider) ==
           VerificationStatus.unverified) {
@@ -84,6 +88,7 @@ GoRouter router(Ref ref) {
             const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
+      GoRoute(path: Routes.settings, builder: (_, _) => const SettingsScreen()),
       GoRoute(
         path: Routes.addAccount,
         builder: (_, _) => const LoginScreen(adding: true),
