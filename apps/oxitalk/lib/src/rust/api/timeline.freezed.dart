@@ -147,7 +147,7 @@ return reset(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( List<TimelineItem> values)?  append,TResult Function()?  clear,TResult Function( TimelineItem value)?  pushFront,TResult Function( TimelineItem value)?  pushBack,TResult Function()?  popFront,TResult Function()?  popBack,TResult Function( BigInt index,  TimelineItem value)?  insert,TResult Function( BigInt index,  TimelineItem value)?  set_,TResult Function( BigInt index)?  remove,TResult Function( BigInt length)?  truncate,TResult Function( List<TimelineItem> values)?  reset,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( List<TimelineItem> values)?  append,TResult Function()?  clear,TResult Function( TimelineItem value)?  pushFront,TResult Function( TimelineItem value)?  pushBack,TResult Function()?  popFront,TResult Function()?  popBack,TResult Function( int index,  TimelineItem value)?  insert,TResult Function( int index,  TimelineItem value)?  set_,TResult Function( int index)?  remove,TResult Function( int length)?  truncate,TResult Function( List<TimelineItem> values)?  reset,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case TimelineDiff_Append() when append != null:
 return append(_that.values);case TimelineDiff_Clear() when clear != null:
@@ -178,7 +178,7 @@ return reset(_that.values);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( List<TimelineItem> values)  append,required TResult Function()  clear,required TResult Function( TimelineItem value)  pushFront,required TResult Function( TimelineItem value)  pushBack,required TResult Function()  popFront,required TResult Function()  popBack,required TResult Function( BigInt index,  TimelineItem value)  insert,required TResult Function( BigInt index,  TimelineItem value)  set_,required TResult Function( BigInt index)  remove,required TResult Function( BigInt length)  truncate,required TResult Function( List<TimelineItem> values)  reset,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( List<TimelineItem> values)  append,required TResult Function()  clear,required TResult Function( TimelineItem value)  pushFront,required TResult Function( TimelineItem value)  pushBack,required TResult Function()  popFront,required TResult Function()  popBack,required TResult Function( int index,  TimelineItem value)  insert,required TResult Function( int index,  TimelineItem value)  set_,required TResult Function( int index)  remove,required TResult Function( int length)  truncate,required TResult Function( List<TimelineItem> values)  reset,}) {final _that = this;
 switch (_that) {
 case TimelineDiff_Append():
 return append(_that.values);case TimelineDiff_Clear():
@@ -205,7 +205,7 @@ return reset(_that.values);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( List<TimelineItem> values)?  append,TResult? Function()?  clear,TResult? Function( TimelineItem value)?  pushFront,TResult? Function( TimelineItem value)?  pushBack,TResult? Function()?  popFront,TResult? Function()?  popBack,TResult? Function( BigInt index,  TimelineItem value)?  insert,TResult? Function( BigInt index,  TimelineItem value)?  set_,TResult? Function( BigInt index)?  remove,TResult? Function( BigInt length)?  truncate,TResult? Function( List<TimelineItem> values)?  reset,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( List<TimelineItem> values)?  append,TResult? Function()?  clear,TResult? Function( TimelineItem value)?  pushFront,TResult? Function( TimelineItem value)?  pushBack,TResult? Function()?  popFront,TResult? Function()?  popBack,TResult? Function( int index,  TimelineItem value)?  insert,TResult? Function( int index,  TimelineItem value)?  set_,TResult? Function( int index)?  remove,TResult? Function( int length)?  truncate,TResult? Function( List<TimelineItem> values)?  reset,}) {final _that = this;
 switch (_that) {
 case TimelineDiff_Append() when append != null:
 return append(_that.values);case TimelineDiff_Clear() when clear != null:
@@ -539,7 +539,7 @@ class TimelineDiff_Insert extends TimelineDiff {
   const TimelineDiff_Insert({required this.index, required this.value}): super._();
   
 
- final  BigInt index;
+ final  int index;
  final  TimelineItem value;
 
 /// Create a copy of TimelineDiff
@@ -574,7 +574,7 @@ abstract mixin class $TimelineDiff_InsertCopyWith<$Res> implements $TimelineDiff
   factory $TimelineDiff_InsertCopyWith(TimelineDiff_Insert value, $Res Function(TimelineDiff_Insert) _then) = _$TimelineDiff_InsertCopyWithImpl;
 @useResult
 $Res call({
- BigInt index, TimelineItem value
+ int index, TimelineItem value
 });
 
 
@@ -594,7 +594,7 @@ class _$TimelineDiff_InsertCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? value = null,}) {
   return _then(TimelineDiff_Insert(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
-as BigInt,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as int,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as TimelineItem,
   ));
 }
@@ -609,7 +609,7 @@ class TimelineDiff_Set extends TimelineDiff {
   const TimelineDiff_Set({required this.index, required this.value}): super._();
   
 
- final  BigInt index;
+ final  int index;
  final  TimelineItem value;
 
 /// Create a copy of TimelineDiff
@@ -644,7 +644,7 @@ abstract mixin class $TimelineDiff_SetCopyWith<$Res> implements $TimelineDiffCop
   factory $TimelineDiff_SetCopyWith(TimelineDiff_Set value, $Res Function(TimelineDiff_Set) _then) = _$TimelineDiff_SetCopyWithImpl;
 @useResult
 $Res call({
- BigInt index, TimelineItem value
+ int index, TimelineItem value
 });
 
 
@@ -664,7 +664,7 @@ class _$TimelineDiff_SetCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? value = null,}) {
   return _then(TimelineDiff_Set(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
-as BigInt,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as int,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as TimelineItem,
   ));
 }
@@ -679,7 +679,7 @@ class TimelineDiff_Remove extends TimelineDiff {
   const TimelineDiff_Remove({required this.index}): super._();
   
 
- final  BigInt index;
+ final  int index;
 
 /// Create a copy of TimelineDiff
 /// with the given fields replaced by the non-null parameter values.
@@ -713,7 +713,7 @@ abstract mixin class $TimelineDiff_RemoveCopyWith<$Res> implements $TimelineDiff
   factory $TimelineDiff_RemoveCopyWith(TimelineDiff_Remove value, $Res Function(TimelineDiff_Remove) _then) = _$TimelineDiff_RemoveCopyWithImpl;
 @useResult
 $Res call({
- BigInt index
+ int index
 });
 
 
@@ -733,7 +733,7 @@ class _$TimelineDiff_RemoveCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? index = null,}) {
   return _then(TimelineDiff_Remove(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as int,
   ));
 }
 
@@ -747,7 +747,7 @@ class TimelineDiff_Truncate extends TimelineDiff {
   const TimelineDiff_Truncate({required this.length}): super._();
   
 
- final  BigInt length;
+ final  int length;
 
 /// Create a copy of TimelineDiff
 /// with the given fields replaced by the non-null parameter values.
@@ -781,7 +781,7 @@ abstract mixin class $TimelineDiff_TruncateCopyWith<$Res> implements $TimelineDi
   factory $TimelineDiff_TruncateCopyWith(TimelineDiff_Truncate value, $Res Function(TimelineDiff_Truncate) _then) = _$TimelineDiff_TruncateCopyWithImpl;
 @useResult
 $Res call({
- BigInt length
+ int length
 });
 
 
@@ -801,7 +801,7 @@ class _$TimelineDiff_TruncateCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? length = null,}) {
   return _then(TimelineDiff_Truncate(
 length: null == length ? _self.length : length // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as int,
   ));
 }
 
@@ -1002,7 +1002,7 @@ return timelineStart(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( EventInfo event,  String body)?  message,TResult Function( EventInfo event)?  unableToDecrypt,TResult Function( EventInfo event)?  otherEvent,TResult Function( BigInt timestampMs)?  dateDivider,TResult Function()?  readMarker,TResult Function()?  timelineStart,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( EventInfo event,  String body)?  message,TResult Function( EventInfo event)?  unableToDecrypt,TResult Function( EventInfo event)?  otherEvent,TResult Function( PlatformInt64 timestampMs)?  dateDivider,TResult Function()?  readMarker,TResult Function()?  timelineStart,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case TimelineItemContent_Message() when message != null:
 return message(_that.event,_that.body);case TimelineItemContent_UnableToDecrypt() when unableToDecrypt != null:
@@ -1028,7 +1028,7 @@ return timelineStart();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( EventInfo event,  String body)  message,required TResult Function( EventInfo event)  unableToDecrypt,required TResult Function( EventInfo event)  otherEvent,required TResult Function( BigInt timestampMs)  dateDivider,required TResult Function()  readMarker,required TResult Function()  timelineStart,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( EventInfo event,  String body)  message,required TResult Function( EventInfo event)  unableToDecrypt,required TResult Function( EventInfo event)  otherEvent,required TResult Function( PlatformInt64 timestampMs)  dateDivider,required TResult Function()  readMarker,required TResult Function()  timelineStart,}) {final _that = this;
 switch (_that) {
 case TimelineItemContent_Message():
 return message(_that.event,_that.body);case TimelineItemContent_UnableToDecrypt():
@@ -1050,7 +1050,7 @@ return timelineStart();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( EventInfo event,  String body)?  message,TResult? Function( EventInfo event)?  unableToDecrypt,TResult? Function( EventInfo event)?  otherEvent,TResult? Function( BigInt timestampMs)?  dateDivider,TResult? Function()?  readMarker,TResult? Function()?  timelineStart,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( EventInfo event,  String body)?  message,TResult? Function( EventInfo event)?  unableToDecrypt,TResult? Function( EventInfo event)?  otherEvent,TResult? Function( PlatformInt64 timestampMs)?  dateDivider,TResult? Function()?  readMarker,TResult? Function()?  timelineStart,}) {final _that = this;
 switch (_that) {
 case TimelineItemContent_Message() when message != null:
 return message(_that.event,_that.body);case TimelineItemContent_UnableToDecrypt() when unableToDecrypt != null:
@@ -1279,7 +1279,7 @@ class TimelineItemContent_DateDivider extends TimelineItemContent {
   const TimelineItemContent_DateDivider({required this.timestampMs}): super._();
   
 
- final  BigInt timestampMs;
+ final  PlatformInt64 timestampMs;
 
 /// Create a copy of TimelineItemContent
 /// with the given fields replaced by the non-null parameter values.
@@ -1313,7 +1313,7 @@ abstract mixin class $TimelineItemContent_DateDividerCopyWith<$Res> implements $
   factory $TimelineItemContent_DateDividerCopyWith(TimelineItemContent_DateDivider value, $Res Function(TimelineItemContent_DateDivider) _then) = _$TimelineItemContent_DateDividerCopyWithImpl;
 @useResult
 $Res call({
- BigInt timestampMs
+ PlatformInt64 timestampMs
 });
 
 
@@ -1333,7 +1333,7 @@ class _$TimelineItemContent_DateDividerCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? timestampMs = null,}) {
   return _then(TimelineItemContent_DateDivider(
 timestampMs: null == timestampMs ? _self.timestampMs : timestampMs // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as PlatformInt64,
   ));
 }
 

@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `event_content`, `item`, `timeline_diff`
+// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `item`, `timeline_diff`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
@@ -41,7 +41,7 @@ class EventInfo {
   final String? eventId;
   final String sender;
   final String? senderName;
-  final BigInt timestampMs;
+  final PlatformInt64 timestampMs;
   final bool isOwn;
   final SendState sendState;
 
@@ -92,16 +92,15 @@ sealed class TimelineDiff with _$TimelineDiff {
   const factory TimelineDiff.popFront() = TimelineDiff_PopFront;
   const factory TimelineDiff.popBack() = TimelineDiff_PopBack;
   const factory TimelineDiff.insert({
-    required BigInt index,
+    required int index,
     required TimelineItem value,
   }) = TimelineDiff_Insert;
   const factory TimelineDiff.set_({
-    required BigInt index,
+    required int index,
     required TimelineItem value,
   }) = TimelineDiff_Set;
-  const factory TimelineDiff.remove({required BigInt index}) =
-      TimelineDiff_Remove;
-  const factory TimelineDiff.truncate({required BigInt length}) =
+  const factory TimelineDiff.remove({required int index}) = TimelineDiff_Remove;
+  const factory TimelineDiff.truncate({required int length}) =
       TimelineDiff_Truncate;
   const factory TimelineDiff.reset({required List<TimelineItem> values}) =
       TimelineDiff_Reset;
@@ -147,8 +146,9 @@ sealed class TimelineItemContent with _$TimelineItemContent {
       TimelineItemContent_OtherEvent;
 
   /// The start of a day, in milliseconds since the Unix epoch.
-  const factory TimelineItemContent.dateDivider({required BigInt timestampMs}) =
-      TimelineItemContent_DateDivider;
+  const factory TimelineItemContent.dateDivider({
+    required PlatformInt64 timestampMs,
+  }) = TimelineItemContent_DateDivider;
 
   /// Where the user stopped reading.
   const factory TimelineItemContent.readMarker() =

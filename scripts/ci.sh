@@ -20,9 +20,9 @@ actionlint=$(command -v actionlint || echo "$HOME/go/bin/actionlint")
 "$actionlint" "$root"/.github/workflows/*.yml
 zizmor --quiet "$root/.github/workflows"
 
-step "generated bindings are up to date"
-(cd "$app" && flutter_rust_bridge_codegen generate >/dev/null)
-generated=(rust/oxitalk_core/src/frb_generated.rs apps/oxitalk/lib/src/rust)
+step "generated code is up to date (bindings, freezed, riverpod)"
+(cd "$app" && flutter_rust_bridge_codegen generate >/dev/null && dart run build_runner build >/dev/null)
+generated=(rust/oxitalk_core/src/frb_generated.rs apps/oxitalk/lib)
 git -C "$root" diff --exit-code -- "${generated[@]}"
 if [ -n "$(git -C "$root" ls-files --others --exclude-standard -- "${generated[@]}")" ]; then
   echo "untracked generated files" >&2
@@ -63,7 +63,8 @@ cargo llvm-cov clean --workspace
 step "dart: format, analyze, tests"
 cd "$app"
 flutter pub get --enforce-lockfile
-dart format --output=none --set-exit-if-changed lib/main.dart test integration_test hook
+dart format --output=none --set-exit-if-changed \
+  lib/main.dart lib/src/{app,features,matrix,ui,util} test integration_test hook
 flutter analyze --fatal-infos --fatal-warnings
 flutter test
 
@@ -71,11 +72,12 @@ step "debug builds: linux, android"
 flutter build linux --debug
 flutter build apk --debug
 
+# A hung test must fail the run, not stall it.
 step "integration test (linux)"
 if [ -n "${CI:-}" ]; then
-  xvfb-run -a flutter test integration_test -d linux
+  timeout 600 xvfb-run -a flutter test integration_test -d linux
 else
-  flutter test integration_test -d linux
+  timeout 600 flutter test integration_test -d linux
 fi
 
 printf '\nCI OK\n'

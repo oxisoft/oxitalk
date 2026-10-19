@@ -147,7 +147,7 @@ return reset(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( List<RoomSummary> values)?  append,TResult Function()?  clear,TResult Function( RoomSummary value)?  pushFront,TResult Function( RoomSummary value)?  pushBack,TResult Function()?  popFront,TResult Function()?  popBack,TResult Function( BigInt index,  RoomSummary value)?  insert,TResult Function( BigInt index,  RoomSummary value)?  set_,TResult Function( BigInt index)?  remove,TResult Function( BigInt length)?  truncate,TResult Function( List<RoomSummary> values)?  reset,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( List<RoomSummary> values)?  append,TResult Function()?  clear,TResult Function( RoomSummary value)?  pushFront,TResult Function( RoomSummary value)?  pushBack,TResult Function()?  popFront,TResult Function()?  popBack,TResult Function( int index,  RoomSummary value)?  insert,TResult Function( int index,  RoomSummary value)?  set_,TResult Function( int index)?  remove,TResult Function( int length)?  truncate,TResult Function( List<RoomSummary> values)?  reset,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case RoomListDiff_Append() when append != null:
 return append(_that.values);case RoomListDiff_Clear() when clear != null:
@@ -178,7 +178,7 @@ return reset(_that.values);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( List<RoomSummary> values)  append,required TResult Function()  clear,required TResult Function( RoomSummary value)  pushFront,required TResult Function( RoomSummary value)  pushBack,required TResult Function()  popFront,required TResult Function()  popBack,required TResult Function( BigInt index,  RoomSummary value)  insert,required TResult Function( BigInt index,  RoomSummary value)  set_,required TResult Function( BigInt index)  remove,required TResult Function( BigInt length)  truncate,required TResult Function( List<RoomSummary> values)  reset,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( List<RoomSummary> values)  append,required TResult Function()  clear,required TResult Function( RoomSummary value)  pushFront,required TResult Function( RoomSummary value)  pushBack,required TResult Function()  popFront,required TResult Function()  popBack,required TResult Function( int index,  RoomSummary value)  insert,required TResult Function( int index,  RoomSummary value)  set_,required TResult Function( int index)  remove,required TResult Function( int length)  truncate,required TResult Function( List<RoomSummary> values)  reset,}) {final _that = this;
 switch (_that) {
 case RoomListDiff_Append():
 return append(_that.values);case RoomListDiff_Clear():
@@ -205,7 +205,7 @@ return reset(_that.values);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( List<RoomSummary> values)?  append,TResult? Function()?  clear,TResult? Function( RoomSummary value)?  pushFront,TResult? Function( RoomSummary value)?  pushBack,TResult? Function()?  popFront,TResult? Function()?  popBack,TResult? Function( BigInt index,  RoomSummary value)?  insert,TResult? Function( BigInt index,  RoomSummary value)?  set_,TResult? Function( BigInt index)?  remove,TResult? Function( BigInt length)?  truncate,TResult? Function( List<RoomSummary> values)?  reset,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( List<RoomSummary> values)?  append,TResult? Function()?  clear,TResult? Function( RoomSummary value)?  pushFront,TResult? Function( RoomSummary value)?  pushBack,TResult? Function()?  popFront,TResult? Function()?  popBack,TResult? Function( int index,  RoomSummary value)?  insert,TResult? Function( int index,  RoomSummary value)?  set_,TResult? Function( int index)?  remove,TResult? Function( int length)?  truncate,TResult? Function( List<RoomSummary> values)?  reset,}) {final _that = this;
 switch (_that) {
 case RoomListDiff_Append() when append != null:
 return append(_that.values);case RoomListDiff_Clear() when clear != null:
@@ -539,7 +539,7 @@ class RoomListDiff_Insert extends RoomListDiff {
   const RoomListDiff_Insert({required this.index, required this.value}): super._();
   
 
- final  BigInt index;
+ final  int index;
  final  RoomSummary value;
 
 /// Create a copy of RoomListDiff
@@ -574,7 +574,7 @@ abstract mixin class $RoomListDiff_InsertCopyWith<$Res> implements $RoomListDiff
   factory $RoomListDiff_InsertCopyWith(RoomListDiff_Insert value, $Res Function(RoomListDiff_Insert) _then) = _$RoomListDiff_InsertCopyWithImpl;
 @useResult
 $Res call({
- BigInt index, RoomSummary value
+ int index, RoomSummary value
 });
 
 
@@ -594,7 +594,7 @@ class _$RoomListDiff_InsertCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? value = null,}) {
   return _then(RoomListDiff_Insert(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
-as BigInt,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as int,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as RoomSummary,
   ));
 }
@@ -609,7 +609,7 @@ class RoomListDiff_Set extends RoomListDiff {
   const RoomListDiff_Set({required this.index, required this.value}): super._();
   
 
- final  BigInt index;
+ final  int index;
  final  RoomSummary value;
 
 /// Create a copy of RoomListDiff
@@ -644,7 +644,7 @@ abstract mixin class $RoomListDiff_SetCopyWith<$Res> implements $RoomListDiffCop
   factory $RoomListDiff_SetCopyWith(RoomListDiff_Set value, $Res Function(RoomListDiff_Set) _then) = _$RoomListDiff_SetCopyWithImpl;
 @useResult
 $Res call({
- BigInt index, RoomSummary value
+ int index, RoomSummary value
 });
 
 
@@ -664,7 +664,7 @@ class _$RoomListDiff_SetCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? value = null,}) {
   return _then(RoomListDiff_Set(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
-as BigInt,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as int,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as RoomSummary,
   ));
 }
@@ -679,7 +679,7 @@ class RoomListDiff_Remove extends RoomListDiff {
   const RoomListDiff_Remove({required this.index}): super._();
   
 
- final  BigInt index;
+ final  int index;
 
 /// Create a copy of RoomListDiff
 /// with the given fields replaced by the non-null parameter values.
@@ -713,7 +713,7 @@ abstract mixin class $RoomListDiff_RemoveCopyWith<$Res> implements $RoomListDiff
   factory $RoomListDiff_RemoveCopyWith(RoomListDiff_Remove value, $Res Function(RoomListDiff_Remove) _then) = _$RoomListDiff_RemoveCopyWithImpl;
 @useResult
 $Res call({
- BigInt index
+ int index
 });
 
 
@@ -733,7 +733,7 @@ class _$RoomListDiff_RemoveCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? index = null,}) {
   return _then(RoomListDiff_Remove(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as int,
   ));
 }
 
@@ -747,7 +747,7 @@ class RoomListDiff_Truncate extends RoomListDiff {
   const RoomListDiff_Truncate({required this.length}): super._();
   
 
- final  BigInt length;
+ final  int length;
 
 /// Create a copy of RoomListDiff
 /// with the given fields replaced by the non-null parameter values.
@@ -781,7 +781,7 @@ abstract mixin class $RoomListDiff_TruncateCopyWith<$Res> implements $RoomListDi
   factory $RoomListDiff_TruncateCopyWith(RoomListDiff_Truncate value, $Res Function(RoomListDiff_Truncate) _then) = _$RoomListDiff_TruncateCopyWithImpl;
 @useResult
 $Res call({
- BigInt length
+ int length
 });
 
 
@@ -801,7 +801,7 @@ class _$RoomListDiff_TruncateCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? length = null,}) {
   return _then(RoomListDiff_Truncate(
 length: null == length ? _self.length : length // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as int,
   ));
 }
 

@@ -29,16 +29,15 @@ sealed class RoomListDiff with _$RoomListDiff {
   const factory RoomListDiff.popFront() = RoomListDiff_PopFront;
   const factory RoomListDiff.popBack() = RoomListDiff_PopBack;
   const factory RoomListDiff.insert({
-    required BigInt index,
+    required int index,
     required RoomSummary value,
   }) = RoomListDiff_Insert;
   const factory RoomListDiff.set_({
-    required BigInt index,
+    required int index,
     required RoomSummary value,
   }) = RoomListDiff_Set;
-  const factory RoomListDiff.remove({required BigInt index}) =
-      RoomListDiff_Remove;
-  const factory RoomListDiff.truncate({required BigInt length}) =
+  const factory RoomListDiff.remove({required int index}) = RoomListDiff_Remove;
+  const factory RoomListDiff.truncate({required int length}) =
       RoomListDiff_Truncate;
   const factory RoomListDiff.reset({required List<RoomSummary> values}) =
       RoomListDiff_Reset;
@@ -55,8 +54,8 @@ class RoomSummary {
   final String? lastMessage;
 
   /// When the latest event happened, in milliseconds since the Unix epoch.
-  final BigInt? lastActivityMs;
-  final BigInt unreadCount;
+  final PlatformInt64? lastActivityMs;
+  final int unreadCount;
   final bool isDm;
   final bool isEncrypted;
 

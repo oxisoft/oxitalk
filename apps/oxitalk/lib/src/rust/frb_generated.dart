@@ -74,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1521955482;
+  int get rustContentHash => 1750083174;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -95,6 +95,8 @@ abstract class RustLibApi extends BaseApi {
     required Session that,
     required String roomId,
   });
+
+  Future<void> crateApiSessionSessionLogout({required Session that});
 
   SessionData crateApiSessionSessionSessionData({required Session that});
 
@@ -140,7 +142,7 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiInitApp();
 
   Future<Session> crateApiSessionLogin({
-    required String homeserverUrl,
+    required String server,
     required String username,
     required String password,
     required String storeDir,
@@ -252,6 +254,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiSessionSessionLogout({required Session that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiSessionSessionLogoutConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionLogoutConstMeta =>
+      const TaskConstMeta(debugName: "Session_logout", argNames: ["that"]);
+
+  @override
   SessionData crateApiSessionSessionSessionData({required Session that}) {
     return handler.executeSync(
       SyncTask(
@@ -261,7 +294,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_session_data,
@@ -293,7 +326,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -324,7 +357,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -360,7 +393,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 6,
+              funcId: 7,
               port: port_,
             );
           },
@@ -401,7 +434,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 7,
+              funcId: 8,
               port: port_,
             );
           },
@@ -442,7 +475,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 8,
+              funcId: 9,
               port: port_,
             );
           },
@@ -482,7 +515,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -514,7 +547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -547,7 +580,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -585,7 +618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -624,7 +657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 13,
+              funcId: 14,
               port: port_,
             );
           },
@@ -653,7 +686,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -678,7 +711,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -698,7 +731,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<Session> crateApiSessionLogin({
-    required String homeserverUrl,
+    required String server,
     required String username,
     required String password,
     required String storeDir,
@@ -708,7 +741,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(homeserverUrl, serializer);
+          sse_encode_String(server, serializer);
           sse_encode_String(username, serializer);
           sse_encode_String(password, serializer);
           sse_encode_String(storeDir, serializer);
@@ -716,7 +749,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -726,13 +759,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiSessionLoginConstMeta,
-        argValues: [
-          homeserverUrl,
-          username,
-          password,
-          storeDir,
-          storePassphrase,
-        ],
+        argValues: [server, username, password, storeDir, storePassphrase],
         apiImpl: this,
       ),
     );
@@ -740,13 +767,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionLoginConstMeta => const TaskConstMeta(
     debugName: "login",
-    argNames: [
-      "homeserverUrl",
-      "username",
-      "password",
-      "storeDir",
-      "storePassphrase",
-    ],
+    argNames: ["server", "username", "password", "storeDir", "storePassphrase"],
   );
 
   @override
@@ -765,7 +786,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -915,6 +936,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
   RoomSummary dco_decode_box_autoadd_room_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_room_summary(raw);
@@ -930,12 +957,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TimelineItem dco_decode_box_autoadd_timeline_item(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_timeline_item(raw);
-  }
-
-  @protected
-  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_u_64(raw);
   }
 
   @protected
@@ -973,7 +994,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       eventId: dco_decode_opt_String(arr[0]),
       sender: dco_decode_String(arr[1]),
       senderName: dco_decode_opt_String(arr[2]),
-      timestampMs: dco_decode_u_64(arr[3]),
+      timestampMs: dco_decode_i_64(arr[3]),
       isOwn: dco_decode_bool(arr[4]),
       sendState: dco_decode_send_state(arr[5]),
     );
@@ -983,6 +1004,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -1028,9 +1055,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
   }
 
   @protected
@@ -1057,18 +1084,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return RoomListDiff_PopBack();
       case 6:
         return RoomListDiff_Insert(
-          index: dco_decode_usize(raw[1]),
+          index: dco_decode_u_32(raw[1]),
           value: dco_decode_box_autoadd_room_summary(raw[2]),
         );
       case 7:
         return RoomListDiff_Set(
-          index: dco_decode_usize(raw[1]),
+          index: dco_decode_u_32(raw[1]),
           value: dco_decode_box_autoadd_room_summary(raw[2]),
         );
       case 8:
-        return RoomListDiff_Remove(index: dco_decode_usize(raw[1]));
+        return RoomListDiff_Remove(index: dco_decode_u_32(raw[1]));
       case 9:
-        return RoomListDiff_Truncate(length: dco_decode_usize(raw[1]));
+        return RoomListDiff_Truncate(length: dco_decode_u_32(raw[1]));
       case 10:
         return RoomListDiff_Reset(values: dco_decode_list_room_summary(raw[1]));
       default:
@@ -1087,8 +1114,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       name: dco_decode_String(arr[1]),
       membership: dco_decode_membership(arr[2]),
       lastMessage: dco_decode_opt_String(arr[3]),
-      lastActivityMs: dco_decode_opt_box_autoadd_u_64(arr[4]),
-      unreadCount: dco_decode_u_64(arr[5]),
+      lastActivityMs: dco_decode_opt_box_autoadd_i_64(arr[4]),
+      unreadCount: dco_decode_u_32(arr[5]),
       isDm: dco_decode_bool(arr[6]),
       isEncrypted: dco_decode_bool(arr[7]),
     );
@@ -1172,18 +1199,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return TimelineDiff_PopBack();
       case 6:
         return TimelineDiff_Insert(
-          index: dco_decode_usize(raw[1]),
+          index: dco_decode_u_32(raw[1]),
           value: dco_decode_box_autoadd_timeline_item(raw[2]),
         );
       case 7:
         return TimelineDiff_Set(
-          index: dco_decode_usize(raw[1]),
+          index: dco_decode_u_32(raw[1]),
           value: dco_decode_box_autoadd_timeline_item(raw[2]),
         );
       case 8:
-        return TimelineDiff_Remove(index: dco_decode_usize(raw[1]));
+        return TimelineDiff_Remove(index: dco_decode_u_32(raw[1]));
       case 9:
-        return TimelineDiff_Truncate(length: dco_decode_usize(raw[1]));
+        return TimelineDiff_Truncate(length: dco_decode_u_32(raw[1]));
       case 10:
         return TimelineDiff_Reset(
           values: dco_decode_list_timeline_item(raw[1]),
@@ -1224,7 +1251,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 3:
         return TimelineItemContent_DateDivider(
-          timestampMs: dco_decode_u_64(raw[1]),
+          timestampMs: dco_decode_i_64(raw[1]),
         );
       case 4:
         return TimelineItemContent_ReadMarker();
@@ -1242,9 +1269,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt dco_decode_u_64(dynamic raw) {
+  int dco_decode_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeU64(raw);
+    return raw as int;
   }
 
   @protected
@@ -1400,6 +1427,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
   RoomSummary sse_decode_box_autoadd_room_summary(
     SseDeserializer deserializer,
   ) {
@@ -1421,12 +1454,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_timeline_item(deserializer));
-  }
-
-  @protected
-  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_u_64(deserializer));
   }
 
   @protected
@@ -1468,7 +1495,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_eventId = sse_decode_opt_String(deserializer);
     var var_sender = sse_decode_String(deserializer);
     var var_senderName = sse_decode_opt_String(deserializer);
-    var var_timestampMs = sse_decode_u_64(deserializer);
+    var var_timestampMs = sse_decode_i_64(deserializer);
     var var_isOwn = sse_decode_bool(deserializer);
     var var_sendState = sse_decode_send_state(deserializer);
     return EventInfo(
@@ -1485,6 +1512,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -1567,11 +1600,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_u_64(deserializer));
+      return (sse_decode_box_autoadd_i_64(deserializer));
     } else {
       return null;
     }
@@ -1599,18 +1632,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return RoomListDiff_PopBack();
       case 6:
-        var var_index = sse_decode_usize(deserializer);
+        var var_index = sse_decode_u_32(deserializer);
         var var_value = sse_decode_box_autoadd_room_summary(deserializer);
         return RoomListDiff_Insert(index: var_index, value: var_value);
       case 7:
-        var var_index = sse_decode_usize(deserializer);
+        var var_index = sse_decode_u_32(deserializer);
         var var_value = sse_decode_box_autoadd_room_summary(deserializer);
         return RoomListDiff_Set(index: var_index, value: var_value);
       case 8:
-        var var_index = sse_decode_usize(deserializer);
+        var var_index = sse_decode_u_32(deserializer);
         return RoomListDiff_Remove(index: var_index);
       case 9:
-        var var_length = sse_decode_usize(deserializer);
+        var var_length = sse_decode_u_32(deserializer);
         return RoomListDiff_Truncate(length: var_length);
       case 10:
         var var_values = sse_decode_list_room_summary(deserializer);
@@ -1627,8 +1660,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_name = sse_decode_String(deserializer);
     var var_membership = sse_decode_membership(deserializer);
     var var_lastMessage = sse_decode_opt_String(deserializer);
-    var var_lastActivityMs = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_unreadCount = sse_decode_u_64(deserializer);
+    var var_lastActivityMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_unreadCount = sse_decode_u_32(deserializer);
     var var_isDm = sse_decode_bool(deserializer);
     var var_isEncrypted = sse_decode_bool(deserializer);
     return RoomSummary(
@@ -1725,18 +1758,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return TimelineDiff_PopBack();
       case 6:
-        var var_index = sse_decode_usize(deserializer);
+        var var_index = sse_decode_u_32(deserializer);
         var var_value = sse_decode_box_autoadd_timeline_item(deserializer);
         return TimelineDiff_Insert(index: var_index, value: var_value);
       case 7:
-        var var_index = sse_decode_usize(deserializer);
+        var var_index = sse_decode_u_32(deserializer);
         var var_value = sse_decode_box_autoadd_timeline_item(deserializer);
         return TimelineDiff_Set(index: var_index, value: var_value);
       case 8:
-        var var_index = sse_decode_usize(deserializer);
+        var var_index = sse_decode_u_32(deserializer);
         return TimelineDiff_Remove(index: var_index);
       case 9:
-        var var_length = sse_decode_usize(deserializer);
+        var var_length = sse_decode_u_32(deserializer);
         return TimelineDiff_Truncate(length: var_length);
       case 10:
         var var_values = sse_decode_list_timeline_item(deserializer);
@@ -1773,7 +1806,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_event = sse_decode_box_autoadd_event_info(deserializer);
         return TimelineItemContent_OtherEvent(event: var_event);
       case 3:
-        var var_timestampMs = sse_decode_u_64(deserializer);
+        var var_timestampMs = sse_decode_i_64(deserializer);
         return TimelineItemContent_DateDivider(timestampMs: var_timestampMs);
       case 4:
         return TimelineItemContent_ReadMarker();
@@ -1791,9 +1824,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+  int sse_decode_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getBigUint64();
+    return deserializer.buffer.getUint32();
   }
 
   @protected
@@ -1999,6 +2032,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_room_summary(
     RoomSummary self,
     SseSerializer serializer,
@@ -2023,12 +2065,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_timeline_item(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self, serializer);
   }
 
   @protected
@@ -2066,7 +2102,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.eventId, serializer);
     sse_encode_String(self.sender, serializer);
     sse_encode_opt_String(self.senderName, serializer);
-    sse_encode_u_64(self.timestampMs, serializer);
+    sse_encode_i_64(self.timestampMs, serializer);
     sse_encode_bool(self.isOwn, serializer);
     sse_encode_send_state(self.sendState, serializer);
   }
@@ -2075,6 +2111,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -2152,12 +2194,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
-      sse_encode_box_autoadd_u_64(self, serializer);
+      sse_encode_box_autoadd_i_64(self, serializer);
     }
   }
 
@@ -2182,18 +2227,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(5, serializer);
       case RoomListDiff_Insert(index: final index, value: final value):
         sse_encode_i_32(6, serializer);
-        sse_encode_usize(index, serializer);
+        sse_encode_u_32(index, serializer);
         sse_encode_box_autoadd_room_summary(value, serializer);
       case RoomListDiff_Set(index: final index, value: final value):
         sse_encode_i_32(7, serializer);
-        sse_encode_usize(index, serializer);
+        sse_encode_u_32(index, serializer);
         sse_encode_box_autoadd_room_summary(value, serializer);
       case RoomListDiff_Remove(index: final index):
         sse_encode_i_32(8, serializer);
-        sse_encode_usize(index, serializer);
+        sse_encode_u_32(index, serializer);
       case RoomListDiff_Truncate(length: final length):
         sse_encode_i_32(9, serializer);
-        sse_encode_usize(length, serializer);
+        sse_encode_u_32(length, serializer);
       case RoomListDiff_Reset(values: final values):
         sse_encode_i_32(10, serializer);
         sse_encode_list_room_summary(values, serializer);
@@ -2207,8 +2252,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.name, serializer);
     sse_encode_membership(self.membership, serializer);
     sse_encode_opt_String(self.lastMessage, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.lastActivityMs, serializer);
-    sse_encode_u_64(self.unreadCount, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.lastActivityMs, serializer);
+    sse_encode_u_32(self.unreadCount, serializer);
     sse_encode_bool(self.isDm, serializer);
     sse_encode_bool(self.isEncrypted, serializer);
   }
@@ -2279,18 +2324,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(5, serializer);
       case TimelineDiff_Insert(index: final index, value: final value):
         sse_encode_i_32(6, serializer);
-        sse_encode_usize(index, serializer);
+        sse_encode_u_32(index, serializer);
         sse_encode_box_autoadd_timeline_item(value, serializer);
       case TimelineDiff_Set(index: final index, value: final value):
         sse_encode_i_32(7, serializer);
-        sse_encode_usize(index, serializer);
+        sse_encode_u_32(index, serializer);
         sse_encode_box_autoadd_timeline_item(value, serializer);
       case TimelineDiff_Remove(index: final index):
         sse_encode_i_32(8, serializer);
-        sse_encode_usize(index, serializer);
+        sse_encode_u_32(index, serializer);
       case TimelineDiff_Truncate(length: final length):
         sse_encode_i_32(9, serializer);
-        sse_encode_usize(length, serializer);
+        sse_encode_u_32(length, serializer);
       case TimelineDiff_Reset(values: final values):
         sse_encode_i_32(10, serializer);
         sse_encode_list_timeline_item(values, serializer);
@@ -2323,7 +2368,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_box_autoadd_event_info(event, serializer);
       case TimelineItemContent_DateDivider(timestampMs: final timestampMs):
         sse_encode_i_32(3, serializer);
-        sse_encode_u_64(timestampMs, serializer);
+        sse_encode_i_64(timestampMs, serializer);
       case TimelineItemContent_ReadMarker():
         sse_encode_i_32(4, serializer);
       case TimelineItemContent_TimelineStart():
@@ -2338,9 +2383,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+  void sse_encode_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putBigUint64(self);
+    serializer.buffer.putUint32(self);
   }
 
   @protected
@@ -2395,6 +2440,15 @@ class SessionImpl extends RustOpaque implements Session {
   /// [`CoreError::InvalidId`] for a malformed room ID, otherwise as the server answers.
   Future<void> join({required String roomId}) => RustLib.instance.api
       .crateApiSessionSessionJoin(that: this, roomId: roomId);
+
+  /// Stops syncing and logs this device out on the server. The store stays; the app deletes
+  /// it.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> logout() =>
+      RustLib.instance.api.crateApiSessionSessionLogout(that: this);
 
   /// What the app stores to [`restore`] this session later.
   ///

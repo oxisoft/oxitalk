@@ -8,8 +8,8 @@ use std::{
 use flutter_rust_bridge::frb;
 use futures_util::{Stream, StreamExt};
 use matrix_sdk::{
-    Client, SessionMeta, SessionTokens, authentication::matrix::MatrixSession, ruma::OwnedUserId,
-    store::RoomLoadSettings,
+    Client, ClientBuilder, SessionMeta, SessionTokens, authentication::matrix::MatrixSession,
+    ruma::OwnedUserId, store::RoomLoadSettings,
 };
 use matrix_sdk_ui::sync_service::SyncService;
 use tokio::task::AbortHandle;
@@ -51,7 +51,8 @@ pub struct Session {
     tasks: Mutex<Vec<AbortHandle>>,
 }
 
-/// Logs in with a user name and password. `store_dir` must be a directory of its own for
+/// Logs in with a user name and password. `server` is a server name (`matrix.org`, found
+/// through `.well-known`) or a homeserver URL. `store_dir` must be a directory of its own for
 /// this account; the store in it is encrypted with `store_passphrase`.
 ///
 /// # Errors
@@ -59,13 +60,15 @@ pub struct Session {
 /// [`CoreError::Forbidden`] for a wrong user name or password, [`CoreError::InvalidHomeserver`],
 /// [`CoreError::Network`], or [`CoreError::WrongStorePassphrase`] for an existing store.
 pub async fn login(
-    homeserver_url: String,
+    server: String,
     username: String,
     password: String,
     store_dir: String,
     store_passphrase: String,
 ) -> Result<Session, CoreError> {
-    let client = build_client(&homeserver_url, &store_dir, &store_passphrase).await?;
+    // A server name ("matrix.org") is looked up; a URL is checked to be a homeserver.
+    let homeserver = Client::builder().server_name_or_homeserver_url(&server);
+    let client = build_client(homeserver, &store_dir, &store_passphrase).await?;
     client
         .matrix_auth()
         .login_username(&username, &password)
@@ -86,7 +89,9 @@ pub async fn restore(
     store_passphrase: String,
 ) -> Result<Session, CoreError> {
     let user_id: OwnedUserId = parse_id(&data.user_id)?;
-    let client = build_client(&data.homeserver_url, &store_dir, &store_passphrase).await?;
+    // The saved URL as is, with no request: a restore has to work offline.
+    let homeserver = Client::builder().homeserver_url(&data.homeserver_url);
+    let client = build_client(homeserver, &store_dir, &store_passphrase).await?;
     let session = MatrixSession {
         meta: SessionMeta {
             user_id,
@@ -105,12 +110,11 @@ pub async fn restore(
 }
 
 async fn build_client(
-    homeserver_url: &str,
+    homeserver: ClientBuilder,
     store_dir: &str,
     store_passphrase: &str,
 ) -> Result<Client, CoreError> {
-    Ok(Client::builder()
-        .homeserver_url(homeserver_url)
+    Ok(homeserver
         .sqlite_store(store_dir, Some(store_passphrase))
         .build()
         .await?)
@@ -144,6 +148,17 @@ impl Session {
             device_id: session.meta.device_id.to_string(),
             access_token: session.tokens.access_token,
         })
+    }
+
+    /// Stops syncing and logs this device out on the server. The store stays; the app deletes
+    /// it.
+    ///
+    /// # Errors
+    ///
+    /// As the server answers.
+    pub async fn logout(&self) -> Result<(), CoreError> {
+        self.sync.stop().await;
+        Ok(self.client.logout().await?)
     }
 
     /// The logged-in user's Matrix ID.

@@ -18,7 +18,8 @@ part 'session.freezed.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `session_changes`
 
-/// Logs in with a user name and password. `store_dir` must be a directory of its own for
+/// Logs in with a user name and password. `server` is a server name (`matrix.org`, found
+/// through `.well-known`) or a homeserver URL. `store_dir` must be a directory of its own for
 /// this account; the store in it is encrypted with `store_passphrase`.
 ///
 /// # Errors
@@ -26,13 +27,13 @@ part 'session.freezed.dart';
 /// [`CoreError::Forbidden`] for a wrong user name or password, [`CoreError::InvalidHomeserver`],
 /// [`CoreError::Network`], or [`CoreError::WrongStorePassphrase`] for an existing store.
 Future<Session> login({
-  required String homeserverUrl,
+  required String server,
   required String username,
   required String password,
   required String storeDir,
   required String storePassphrase,
 }) => RustLib.instance.api.crateApiSessionLogin(
-  homeserverUrl: homeserverUrl,
+  server: server,
   username: username,
   password: password,
   storeDir: storeDir,
@@ -70,6 +71,14 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] for a malformed room ID, otherwise as the server answers.
   Future<void> join({required String roomId});
+
+  /// Stops syncing and logs this device out on the server. The store stays; the app deletes
+  /// it.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> logout();
 
   /// What the app stores to [`restore`] this session later.
   ///

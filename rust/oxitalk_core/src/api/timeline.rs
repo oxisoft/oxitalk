@@ -46,7 +46,7 @@ pub enum TimelineItemContent {
     /// Any other event; M0 doesn't show them.
     OtherEvent { event: EventInfo },
     /// The start of a day, in milliseconds since the Unix epoch.
-    DateDivider { timestamp_ms: u64 },
+    DateDivider { timestamp_ms: i64 },
     /// Where the user stopped reading.
     ReadMarker,
     /// Nothing older exists.
@@ -59,7 +59,7 @@ pub struct EventInfo {
     pub event_id: Option<String>,
     pub sender: String,
     pub sender_name: Option<String>,
-    pub timestamp_ms: u64,
+    pub timestamp_ms: i64,
     pub is_own: bool,
     pub send_state: SendState,
 }
@@ -81,10 +81,10 @@ pub enum TimelineDiff {
     PushBack { value: TimelineItem },
     PopFront,
     PopBack,
-    Insert { index: usize, value: TimelineItem },
-    Set { index: usize, value: TimelineItem },
-    Remove { index: usize },
-    Truncate { length: usize },
+    Insert { index: u32, value: TimelineItem },
+    Set { index: u32, value: TimelineItem },
+    Remove { index: u32 },
+    Truncate { length: u32 },
     Reset { values: Vec<TimelineItem> },
 }
 
@@ -191,19 +191,29 @@ fn timeline_diff(diff: VectorDiff<Arc<timeline::TimelineItem>>) -> TimelineDiff 
         VectorDiff::PopFront => TimelineDiff::PopFront,
         VectorDiff::PopBack => TimelineDiff::PopBack,
         VectorDiff::Insert { index, value } => TimelineDiff::Insert {
-            index,
+            index: dart_int(index),
             value: item(&value),
         },
         VectorDiff::Set { index, value } => TimelineDiff::Set {
-            index,
+            index: dart_int(index),
             value: item(&value),
         },
-        VectorDiff::Remove { index } => TimelineDiff::Remove { index },
-        VectorDiff::Truncate { length } => TimelineDiff::Truncate { length },
+        VectorDiff::Remove { index } => TimelineDiff::Remove {
+            index: dart_int(index),
+        },
+        VectorDiff::Truncate { length } => TimelineDiff::Truncate {
+            length: dart_int(length),
+        },
         VectorDiff::Reset { values } => TimelineDiff::Reset {
             values: items(values),
         },
     }
+}
+
+/// A list index or length as a `u32`, which Dart gets as an `int` (a `usize` would be a
+/// `BigInt`). No list comes near `u32::MAX`.
+pub(crate) fn dart_int(value: usize) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
 }
 
 fn item(item: &timeline::TimelineItem) -> TimelineItem {

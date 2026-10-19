@@ -31,12 +31,12 @@ macro_rules! apply {
             $Diff::PopBack => {
                 $list.pop();
             }
-            $Diff::Insert { index, value } => $list.insert(index, value),
-            $Diff::Set { index, value } => $list[index] = value,
+            $Diff::Insert { index, value } => $list.insert(index as usize, value),
+            $Diff::Set { index, value } => $list[index as usize] = value,
             $Diff::Remove { index } => {
-                $list.remove(index);
+                $list.remove(index as usize);
             }
-            $Diff::Truncate { length } => $list.truncate(length),
+            $Diff::Truncate { length } => $list.truncate(length as usize),
             $Diff::Reset { values } => *$list = values,
         }
     };

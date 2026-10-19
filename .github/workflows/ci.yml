@@ -43,7 +43,7 @@ jobs:
       - name: Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev xvfb
       - name: Android NDK and platform pinned by the app
         run: |
           ndk=$(sed -n 's/.*ndkVersion = "\(.*\)".*/\1/p' apps/oxitalk/android/app/build.gradle.kts)

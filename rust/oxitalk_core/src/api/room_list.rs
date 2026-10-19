@@ -10,7 +10,7 @@ use matrix_sdk_ui::{
     timeline::{LatestEventValue, RoomExt},
 };
 
-use super::{error::CoreError, session::Session};
+use super::{error::CoreError, session::Session, timeline::dart_int};
 use crate::frb_generated::StreamSink;
 
 /// How many rooms the list holds. M0 has no paging; this is far above any real account.
@@ -25,8 +25,8 @@ pub struct RoomSummary {
     /// The body of the latest message, if the latest event is a text message.
     pub last_message: Option<String>,
     /// When the latest event happened, in milliseconds since the Unix epoch.
-    pub last_activity_ms: Option<u64>,
-    pub unread_count: u64,
+    pub last_activity_ms: Option<i64>,
+    pub unread_count: u32,
     pub is_dm: bool,
     pub is_encrypted: bool,
 }
@@ -50,10 +50,10 @@ pub enum RoomListDiff {
     PushBack { value: RoomSummary },
     PopFront,
     PopBack,
-    Insert { index: usize, value: RoomSummary },
-    Set { index: usize, value: RoomSummary },
-    Remove { index: usize },
-    Truncate { length: usize },
+    Insert { index: u32, value: RoomSummary },
+    Set { index: u32, value: RoomSummary },
+    Remove { index: u32 },
+    Truncate { length: u32 },
     Reset { values: Vec<RoomSummary> },
 }
 
@@ -119,15 +119,19 @@ async fn room_list_diff(diff: VectorDiff<RoomListItem>) -> RoomListDiff {
         VectorDiff::PopFront => RoomListDiff::PopFront,
         VectorDiff::PopBack => RoomListDiff::PopBack,
         VectorDiff::Insert { index, value } => RoomListDiff::Insert {
-            index,
+            index: dart_int(index),
             value: summary(value).await,
         },
         VectorDiff::Set { index, value } => RoomListDiff::Set {
-            index,
+            index: dart_int(index),
             value: summary(value).await,
         },
-        VectorDiff::Remove { index } => RoomListDiff::Remove { index },
-        VectorDiff::Truncate { length } => RoomListDiff::Truncate { length },
+        VectorDiff::Remove { index } => RoomListDiff::Remove {
+            index: dart_int(index),
+        },
+        VectorDiff::Truncate { length } => RoomListDiff::Truncate {
+            length: dart_int(length),
+        },
         VectorDiff::Reset { values } => RoomListDiff::Reset {
             values: summaries(values).await,
         },
@@ -169,7 +173,7 @@ async fn summary(room: RoomListItem) -> RoomSummary {
         },
         last_message,
         last_activity_ms,
-        unread_count: room.num_unread_messages(),
+        unread_count: u32::try_from(room.num_unread_messages()).unwrap_or(u32::MAX),
         // A store read error only loses the DM marker; the room still shows.
         is_dm: room.is_direct().await.unwrap_or(false),
         is_encrypted: room.encryption_state().is_encrypted(),
