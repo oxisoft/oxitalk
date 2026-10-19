@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
@@ -206,12 +207,15 @@ void main() {
     expect(session.saved, {'/saved/file': 'photo'});
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('the chat title opens its info beside it', (tester) async {
+  testWidgets('the chat title opens its info in the chat’s place', (
+    tester,
+  ) async {
     await _openChat(tester);
     await tester.tap(find.byKey(const Key('chat.title')));
     await tester.pumpAndSettle();
     final info = find.byType(ChatInfoPane);
     expect(info, findsOneWidget);
+    expect(find.byKey(const Key('composer.text')), findsNothing);
     Finder inInfo(Finder finder) => find.descendant(of: info, matching: finder);
     expect(inInfo(find.text('#team:acme.com')), findsOneWidget);
     expect(inInfo(find.text('Where the team talks')), findsOneWidget);
@@ -239,10 +243,17 @@ void main() {
     expect(inInfo(find.text('https://oxisoft.io/docs')), findsOneWidget);
     expect(inInfo(find.text('https://example.org/a')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('info.close')));
+    await tester.tap(find.byKey(const Key('info.back')));
     await tester.pumpAndSettle();
     expect(info, findsNothing);
-    // The chat stayed open.
+    expect(find.byKey(const Key('composer.text')), findsOneWidget);
+
+    // Esc goes back too.
+    await tester.tap(find.byKey(const Key('chat.title')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(info, findsNothing);
     expect(find.byKey(const Key('composer.text')), findsOneWidget);
   });
 

@@ -28,7 +28,8 @@ List<String> _accountIds(WidgetRef ref) => [
     session.userId,
 ];
 
-/// The accounts down the left edge of a wide window: tap one to bring it to the front.
+/// The accounts down the left edge of a wide window: tap one to bring it to the front,
+/// right-click it to log out. At the bottom: hiding the rail, Settings and About.
 class AccountRail extends ConsumerWidget {
   const AccountRail({super.key});
 
@@ -42,7 +43,29 @@ class AccountRail extends ConsumerWidget {
         width: 72,
         child: Column(
           children: [
-            Expanded(child: _accounts(context, ref, ids, active)),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                children: [
+                  for (final (index, id) in ids.indexed)
+                    _RailAccount(id: id, index: index, active: id == active),
+                  Center(
+                    child: IconButton.filledTonal(
+                      key: const Key('account.add'),
+                      tooltip: 'Add account',
+                      onPressed: () => context.go(Routes.addAccount),
+                      icon: const Icon(Icons.add_rounded),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              key: const Key('rail.hide'),
+              tooltip: 'Hide accounts',
+              onPressed: () => ref.read(railHiddenProvider.notifier).toggle(),
+              icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
+            ),
             IconButton(
               key: const Key('rail.settings'),
               tooltip: 'Settings',
@@ -61,55 +84,76 @@ class AccountRail extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _accounts(
-    BuildContext context,
-    WidgetRef ref,
-    List<String> ids,
-    String? active,
-  ) => ListView(
-    padding: const EdgeInsets.symmetric(vertical: 12),
-    children: [
-      for (final (index, id) in ids.indexed)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Tooltip(
-            message: '$id  ${_shortcut(index)}'.trim(),
-            child: InkWell(
-              key: Key('account.$id'),
-              customBorder: const CircleBorder(),
-              onTap: () => ref.read(accountsProvider.notifier).activate(id),
-              child: Row(
-                children: [
-                  // Marks the account in front, as Slack and Discord do.
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 4,
-                    height: id == active ? 36 : 0,
-                    decoration: const BoxDecoration(
-                      color: OxiColors.accent,
-                      borderRadius: BorderRadius.horizontal(
-                        right: Radius.circular(4),
-                      ),
-                    ),
+class _RailAccount extends ConsumerWidget {
+  const _RailAccount({
+    required this.id,
+    required this.index,
+    required this.active,
+  });
+
+  final String id;
+  final int index;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Tooltip(
+      message: '$id  ${_shortcut(index)}'.trim(),
+      child: GestureDetector(
+        onSecondaryTapUp: (details) =>
+            unawaited(_menu(context, ref, details.globalPosition)),
+        child: InkWell(
+          key: Key('account.$id'),
+          customBorder: const CircleBorder(),
+          onTap: () => ref.read(accountsProvider.notifier).activate(id),
+          child: Row(
+            children: [
+              // Marks the account in front, as Slack and Discord do.
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 4,
+                height: active ? 36 : 0,
+                decoration: const BoxDecoration(
+                  color: OxiColors.accent,
+                  borderRadius: BorderRadius.horizontal(
+                    right: Radius.circular(4),
                   ),
-                  const SizedBox(width: 8),
-                  AccountAvatar(account: id),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              AccountAvatar(account: id),
+            ],
           ),
         ),
-      Center(
-        child: IconButton.filledTonal(
-          key: const Key('account.add'),
-          tooltip: 'Add account',
-          onPressed: () => context.go(Routes.addAccount),
-          icon: const Icon(Icons.add_rounded),
-        ),
       ),
-    ],
+    ),
   );
+
+  Future<void> _menu(BuildContext context, WidgetRef ref, Offset at) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final logOut = await showMenu<bool>(
+      context: context,
+      position: RelativeRect.fromRect(
+        at & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(enabled: false, child: Text(id)),
+        const PopupMenuItem(
+          key: Key('railMenu.logout'),
+          value: true,
+          child: Text('Log out'),
+        ),
+      ],
+    );
+    if (logOut ?? false) {
+      unawaited(ref.read(accountsProvider.notifier).logout(id));
+    }
+  }
 }
 
 void showOxiTalkAbout(BuildContext context) => showAboutDialog(
@@ -232,72 +276,169 @@ class _ServerLetter extends StatelessWidget {
   );
 }
 
-/// The active account's avatar in the chat list header, where there is no rail; opens the
-/// account list. A dot shows unread messages in the other accounts.
-class AccountSwitcherButton extends ConsumerWidget {
-  const AccountSwitcherButton({required this.account, super.key});
+/// The account in front, in the chat list's header: its picture and name (and, while not
+/// online, what the connection is doing). A click lists every account to switch to, adding
+/// one, and logging out of this one; with [withAppItems] also Settings and About.
+class AccountDropdown extends ConsumerWidget {
+  const AccountDropdown({
+    required this.account,
+    this.compact = false,
+    this.withAppItems = false,
+    super.key,
+  });
 
   final String account;
 
+  /// Only the picture, for the narrow list.
+  final bool compact;
+
+  /// Settings and About, which are at the bottom of the rail while it shows.
+  final bool withAppItems;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final name =
+        ref.watch(profileProvider(account)).value?.displayName ?? account;
+    final status =
+        ref.watch(syncStatusProvider(account)).value ?? SyncStatus.connecting;
+    final roomsLoaded = ref.watch(roomsProvider(account)).value != null;
+    final state = switch (status) {
+      SyncStatus.offline => 'Waiting for network…',
+      SyncStatus.connecting => 'Connecting…',
+      SyncStatus.online when !roomsLoaded => 'Updating…',
+      SyncStatus.online => null,
+    };
     final othersUnread = _accountIds(ref)
         .where((id) => id != account)
         .any((id) => ref.watch(unreadCountProvider(id)) > 0);
-    return IconButton(
-      key: const Key('account.switcher'),
-      tooltip: 'Accounts',
-      onPressed: () => unawaited(
-        showModalBottomSheet<void>(
-          context: context,
-          builder: (_) => const _AccountSheet(),
+    return Tooltip(
+      message: 'Accounts',
+      child: InkWell(
+        key: const Key('account.dropdown'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => unawaited(_open(context, ref)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Badge(
+                isLabelVisible: othersUnread,
+                smallSize: 10,
+                backgroundColor: OxiColors.accent,
+                child: AccountPicture(account: account, radius: 16),
+              ),
+              if (!compact) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (state != null)
+                        Text(
+                          state,
+                          key: const Key('account.status'),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              // The narrow list has no room for it; the picture alone opens the menu.
+              if (!compact) const Icon(Icons.arrow_drop_down_rounded),
+            ],
+          ),
         ),
-      ),
-      icon: Badge(
-        isLabelVisible: othersUnread,
-        smallSize: 10,
-        backgroundColor: OxiColors.accent,
-        child: AccountPicture(account: account, radius: 16),
       ),
     );
   }
-}
 
-class _AccountSheet extends ConsumerWidget {
-  const _AccountSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final active = ref.watch(activeAccountProvider);
-    return SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          for (final (index, id) in _accountIds(ref).indexed)
-            ListTile(
-              key: Key('accountSheet.$id'),
-              leading: AccountAvatar(account: id, radius: 20),
-              title: Text(id, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(_shortcut(index)),
-              trailing: id == active
-                  ? const Icon(Icons.check_rounded, color: OxiColors.accent)
-                  : null,
-              onTap: () {
-                Navigator.of(context).pop();
-                ref.read(accountsProvider.notifier).activate(id);
-              },
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final ids = _accountIds(ref);
+    final notifier = ref.read(accountsProvider.notifier);
+    final action = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(
+        box.localToGlobal(Offset(0, box.size.height), ancestor: overlay) &
+            const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final (index, id) in ids.indexed)
+          PopupMenuItem(
+            key: Key('accountMenu.$id'),
+            value: () => notifier.activate(id),
+            child: Row(
+              children: [
+                AccountAvatar(account: id, radius: 16),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(id, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _shortcut(index),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                SizedBox(
+                  width: 28,
+                  child: id == account
+                      ? const Icon(Icons.check_rounded, color: OxiColors.accent)
+                      : null,
+                ),
+              ],
             ),
-          ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.add_rounded)),
-            title: const Text('Add account'),
-            onTap: () {
-              Navigator.of(context).pop();
-              context.go(Routes.addAccount);
-            },
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const Key('accountMenu.add'),
+          value: () => context.go(Routes.addAccount),
+          child: const ListTile(
+            leading: Icon(Icons.add_rounded),
+            title: Text('Add account'),
+          ),
+        ),
+        if (withAppItems) ...[
+          PopupMenuItem(
+            key: const Key('accountMenu.settings'),
+            value: () => context.go(Routes.settings),
+            child: const ListTile(
+              leading: Icon(Icons.settings_outlined),
+              title: Text('Settings'),
+            ),
+          ),
+          PopupMenuItem(
+            key: const Key('accountMenu.about'),
+            value: () => showOxiTalkAbout(context),
+            child: const ListTile(
+              leading: Icon(Icons.info_outline_rounded),
+              title: Text('About'),
+            ),
           ),
         ],
-      ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const Key('accountMenu.logout'),
+          value: () => unawaited(notifier.logout(account)),
+          child: const ListTile(
+            leading: Icon(Icons.logout_rounded),
+            title: Text('Log out of this account'),
+          ),
+        ),
+      ],
     );
+    action?.call();
   }
 }
 

@@ -54,7 +54,7 @@ void main() {
 
       expect(factory.lastLogin?.userId, '@alice:matrix.org');
       expect(find.text('Team'), findsOneWidget);
-      expect(find.text('OxiTalk'), findsOneWidget);
+      expect(find.byKey(const Key('account.dropdown')), findsOneWidget);
     });
   });
 
@@ -131,10 +131,7 @@ void main() {
       final session = _session();
       await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
-      await tester.tap(find.byTooltip('Menu'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Log out'));
-      await tester.pumpAndSettle();
+      await pickFromAccountMenu(tester, 'accountMenu.logout');
 
       expect(session.loggedOut, isTrue);
       expect(find.text('Sign in'), findsOneWidget);
@@ -247,7 +244,7 @@ void main() {
       expect(find.byType(BackButton), findsNothing);
     });
 
-    testWidgets('a wide window without a chat asks to pick one', (
+    testWidgets('a wide window without a chat welcomes and asks to pick one', (
       tester,
     ) async {
       await pumpApp(
@@ -255,7 +252,8 @@ void main() {
         FakeMatrixClientFactory(saved: [_session()]),
         size: const Size(1200, 800),
       );
-      expect(find.text('Select a chat to start messaging'), findsOneWidget);
+      expect(find.byKey(const Key('welcome')), findsOneWidget);
+      expect(find.text('Pick a chat on the left to start.'), findsOneWidget);
     });
   });
 }

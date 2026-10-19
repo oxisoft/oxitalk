@@ -127,7 +127,7 @@ void main() {
     );
     expect(_picture(find.byKey(const Key('account.$_me'))), findsNWidgets(2));
     expect(
-      _picture(find.byKey(const Key('serverIcon.acme.com'))),
+      _picture(find.byKey(const Key('serverIcon.acme.com')).first),
       findsOneWidget,
     );
     expect(find.byKey(const Key('localPicture.$_me')), findsNothing);
@@ -171,7 +171,7 @@ void main() {
     );
     expect(
       find.descendant(
-        of: find.byKey(const Key('serverIcon.acme.com')),
+        of: find.byKey(const Key('serverIcon.acme.com')).first,
         matching: find.text('A'),
       ),
       findsOneWidget,
@@ -217,10 +217,7 @@ void main() {
       FakeMatrixClientFactory(saved: [_session()]),
       pictures: pictures,
     );
-    await tester.tap(find.byTooltip('Menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Log out'));
-    await tester.pumpAndSettle();
+    await pickFromAccountMenu(tester, 'accountMenu.logout');
     expect(pictures.locals, isEmpty);
   });
 }

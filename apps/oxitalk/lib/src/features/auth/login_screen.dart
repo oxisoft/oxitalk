@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
+import '../../app/window_controls.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
@@ -62,10 +63,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ? AppBar(
             leading: CloseButton(
               key: const Key('login.cancel'),
-              onPressed: () => context.go(Routes.chats),
+              onPressed: () => context.go(
+                homeLocation(
+                  ref.read(uiPrefsProvider),
+                  ref.read(activeAccountProvider),
+                ),
+              ),
             ),
+            flexibleSpace: const WindowDragArea(),
+            actions: const [WindowButtons.right()],
           )
-        : null,
+        : windowOnlyAppBar(ref),
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

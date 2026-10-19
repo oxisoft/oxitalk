@@ -16,6 +16,7 @@ import 'diagnostics.dart';
 import 'file_actions.dart';
 import 'media_prefs.dart';
 import 'pick_image.dart';
+import 'ui_prefs.dart';
 import 'window_controls.dart';
 import 'secure_secret_store.dart';
 
@@ -51,6 +52,35 @@ CollapsedSections collapsedSectionsStore(Ref ref) => throw UnimplementedError(
 /// Tests override this; there is no file dialog in a test.
 @Riverpod(keepAlive: true)
 PickImage pickImage(Ref ref) => pickImageFile;
+
+/// Set by `main` (and by tests), next to the app's other data.
+@Riverpod(keepAlive: true)
+UiPrefs uiPrefs(Ref ref) =>
+    throw UnimplementedError('uiPrefsProvider is overridden in main');
+
+/// Whether the chat list is narrowed to pictures and short names.
+@Riverpod(keepAlive: true)
+class NarrowList extends _$NarrowList {
+  @override
+  bool build() => ref.watch(uiPrefsProvider).narrowList;
+
+  void toggle() {
+    state = !state;
+    unawaited(ref.read(uiPrefsProvider).setNarrowList(narrow: state));
+  }
+}
+
+/// Whether the account rail is hidden.
+@Riverpod(keepAlive: true)
+class RailHidden extends _$RailHidden {
+  @override
+  bool build() => ref.watch(uiPrefsProvider).railHidden;
+
+  void toggle() {
+    state = !state;
+    unawaited(ref.read(uiPrefsProvider).setRailHidden(hidden: state));
+  }
+}
 
 /// `main` sets the real window; tests and phones have none of the app's own.
 @Riverpod(keepAlive: true)

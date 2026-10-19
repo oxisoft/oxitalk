@@ -38,7 +38,6 @@ class ChatPane extends ConsumerWidget {
     required this.account,
     required this.roomId,
     required this.showBack,
-    this.leaveWindowButtonsSpace = true,
     super.key,
   });
 
@@ -46,9 +45,6 @@ class ChatPane extends ConsumerWidget {
   final String account;
   final String roomId;
   final bool showBack;
-
-  /// Whether the header is at the window's top right, under the window buttons.
-  final bool leaveWindowButtonsSpace;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,36 +61,53 @@ class ChatPane extends ConsumerWidget {
             ? BackButton(onPressed: () => context.go(Routes.chats))
             : null,
         titleSpacing: showBack ? 0 : null,
-        actions: [if (leaveWindowButtonsSpace) const WindowButtonsSpace()],
-        // The picture and name open the chat's info.
-        title: InkWell(
-          key: const Key('chat.title'),
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => context.go(Routes.roomInfo(roomId)),
-          child: Row(
-            children: [
-              MatrixAvatar(
-                account: account,
-                url: room?.avatarUrl,
-                name: name,
-                seed: roomId,
-                radius: 18,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        // The rest of the header is the window's title bar.
+        flexibleSpace: const WindowDragArea(),
+        actions: const [WindowButtons.right()],
+        // The picture and name, and only they, open the chat's info.
+        title: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Tooltip(
+            message: 'Chat info',
+            child: InkWell(
+              key: const Key('chat.title'),
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => context.go(Routes.roomInfo(roomId)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    if (room?.isEncrypted ?? false)
-                      Text(
-                        'end-to-end encrypted',
-                        style: Theme.of(context).textTheme.bodySmall,
+                    MatrixAvatar(
+                      account: account,
+                      url: room?.avatarUrl,
+                      name: name,
+                      seed: roomId,
+                      radius: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (room?.isEncrypted ?? false)
+                            Text(
+                              'end-to-end encrypted',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

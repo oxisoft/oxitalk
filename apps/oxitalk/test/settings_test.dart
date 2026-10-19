@@ -13,10 +13,7 @@ void main() {
       FakeMatrixClientFactory(saved: [FakeSession(rooms: const [])]),
       diagnostics: diagnostics,
     );
-    await tester.tap(find.byTooltip('Menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
+    await pickFromAccountMenu(tester, 'accountMenu.settings');
     // Below the account on a phone.
     await tester.scrollUntilVisible(find.text(diagnostics.logDir), 200);
     expect(find.text('Collect logs'), findsOneWidget);

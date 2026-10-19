@@ -5,7 +5,6 @@ import '../features/accounts/account_switcher.dart';
 import '../features/verify/incoming_verifications.dart';
 import 'router.dart';
 import 'theme.dart';
-import 'window_controls.dart';
 
 class OxiTalkApp extends ConsumerWidget {
   const OxiTalkApp({super.key});
@@ -17,8 +16,7 @@ class OxiTalkApp extends ConsumerWidget {
     theme: oxiTheme(Brightness.light),
     darkTheme: oxiTheme(Brightness.dark),
     routerConfig: ref.watch(routerProvider),
-    builder: (_, child) => WindowCaption(
-      child: IncomingVerifications(child: AccountHotkeys(child: child!)),
-    ),
+    builder: (_, child) =>
+        IncomingVerifications(child: AccountHotkeys(child: child!)),
   );
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 
 /// "Confirm it's you": an unverified device sees only this until it is verified, with another
@@ -84,6 +85,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    appBar: windowOnlyAppBar(ref),
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

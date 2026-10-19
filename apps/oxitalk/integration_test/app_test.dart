@@ -16,6 +16,7 @@ import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/providers.dart';
+import 'package:oxitalk/src/app/ui_prefs.dart';
 import 'package:oxitalk/src/features/chat/media_views.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
@@ -74,6 +75,7 @@ void main() {
           diagnosticsProvider.overrideWithValue(MemoryDiagnostics()),
           mediaPrefsProvider.overrideWithValue(MemoryMediaPrefs()),
           fileActionsProvider.overrideWithValue(FakeFileActions()),
+          uiPrefsProvider.overrideWithValue(MemoryUiPrefs()),
           accountPicturesProvider.overrideWithValue(MemoryAccountPictures()),
           collapsedSectionsStoreProvider.overrideWithValue(
             MemoryCollapsedSections(),
@@ -247,10 +249,10 @@ void main() {
 }
 
 Future<void> _logOut(WidgetTester tester) async {
-  await tester.tap(find.byTooltip('Menu'));
-  await _pumpUntil(tester, find.text('Log out'));
+  await tester.tap(find.byKey(const Key('account.dropdown')));
+  await _pumpUntil(tester, find.byKey(const Key('accountMenu.logout')));
   await _pumpFor(tester, const Duration(milliseconds: 500)); // the menu opening
-  await tester.tap(find.text('Log out'));
+  await tester.tap(find.byKey(const Key('accountMenu.logout')));
 }
 
 /// Ctrl+[key], as the user presses it.

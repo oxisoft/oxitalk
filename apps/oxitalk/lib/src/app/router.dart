@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -10,6 +12,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/verify/verify_screen.dart';
 import '../matrix/api/matrix.dart';
 import 'providers.dart';
+import 'ui_prefs.dart';
 import 'theme.dart';
 
 part 'router.g.dart';
@@ -40,25 +43,30 @@ VerificationStatus activeVerification(Ref ref) =>
       null => VerificationStatus.unknown,
     };
 
+/// Where [account] comes back to: its last open chat, else the chat list.
+String homeLocation(UiPrefs prefs, String? account) => switch (account) {
+  final account? => switch (prefs.lastRoom(account)) {
+    final room? => Routes.room(room),
+    null => Routes.chats,
+  },
+  null => Routes.chats,
+};
+
 @Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
   final refresh = ValueNotifier(0);
-  // Each account's open chat, so switching back to it returns there.
-  final openRooms = <String, String?>{};
+  // Each account's open chat, kept across starts, so the app and each account come back to it.
+  final prefs = ref.read(uiPrefsProvider);
+  String home(String? account) => homeLocation(prefs, account);
   late final GoRouter router;
   ref
     ..listen(accountsProvider, (_, _) => refresh.value++)
     ..listen(activeVerificationProvider, (_, _) => refresh.value++)
     ..listen(activeAccountProvider, (previous, next) {
-      if (previous == next) return;
-      if (previous != null) {
-        openRooms[previous] = router.state.pathParameters['roomId'];
-      }
-      final room = next == null ? null : openRooms[next];
-      router.go(room == null ? Routes.chats : Routes.room(room));
+      if (previous != next) router.go(home(next));
     })
     ..onDispose(refresh.dispose);
-  return router = GoRouter(
+  router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: Routes.chats,
     refreshListenable: refresh,
@@ -80,7 +88,7 @@ GoRouter router(Ref ref) {
       if (location == Routes.login ||
           location == Routes.starting ||
           location == Routes.verify) {
-        return Routes.chats;
+        return home(ref.read(activeAccountProvider));
       }
       return null;
     },
@@ -141,4 +149,20 @@ GoRouter router(Ref ref) {
       ),
     ],
   );
+  // Remembers the open chat as it changes; the list alone means none.
+  void remember() {
+    final account = ref.read(activeAccountProvider);
+    final state = router.state;
+    final location = state.matchedLocation;
+    if (account == null) return;
+    if (location == Routes.chats) {
+      unawaited(prefs.setLastRoom(account, null));
+    } else if (state.pathParameters['roomId'] case final room?) {
+      unawaited(prefs.setLastRoom(account, room));
+    }
+  }
+
+  router.routerDelegate.addListener(remember);
+  ref.onDispose(() => router.routerDelegate.removeListener(remember));
+  return router;
 }

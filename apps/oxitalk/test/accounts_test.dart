@@ -131,7 +131,7 @@ void main() {
     expect(find.byKey(const Key('composer.text')), findsOneWidget);
 
     await _press(tester, LogicalKeyboardKey.digit2);
-    expect(find.text('Select a chat to start messaging'), findsOneWidget);
+    expect(find.byKey(const Key('welcome')), findsOneWidget);
 
     await _press(tester, LogicalKeyboardKey.digit1);
     expect(find.byKey(const Key('composer.text')), findsOneWidget);
@@ -172,18 +172,20 @@ void main() {
     expect(find.text('Acme team'), findsOneWidget);
   });
 
-  testWidgets('on a phone the header avatar opens the account list', (
+  testWidgets('on a phone the account dropdown switches accounts', (
     tester,
   ) async {
     final factory = await _twoAccounts(tester, size: const Size(400, 800));
     expect(find.byKey(const Key('account.$_acme')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('account.switcher')));
+    await tester.tap(find.byKey(const Key('account.dropdown')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('accountSheet.$_globex')), findsOneWidget);
+    expect(find.byKey(const Key('accountMenu.$_globex')), findsOneWidget);
     expect(find.text('Add account'), findsOneWidget);
+    // No rail on a phone: Settings and About are here.
+    expect(find.text('Settings'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('accountSheet.$_globex')));
+    await tester.tap(find.byKey(const Key('accountMenu.$_globex')));
     await tester.pumpAndSettle();
     expect(factory.active, _globex);
     expect(find.text('Globex board'), findsOneWidget);
@@ -193,10 +195,7 @@ void main() {
     final acme = _acmeSession();
     final factory = await _twoAccounts(tester, acme: acme);
 
-    await tester.tap(find.byTooltip('Menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Log out'));
-    await tester.pumpAndSettle();
+    await pickFromAccountMenu(tester, 'accountMenu.logout');
 
     expect(acme.loggedOut, isTrue);
     expect(factory.active, _globex);

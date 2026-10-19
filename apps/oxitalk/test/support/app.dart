@@ -8,6 +8,7 @@ import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
+import 'package:oxitalk/src/app/ui_prefs.dart';
 import 'package:oxitalk/src/app/window_controls.dart';
 import 'package:oxitalk/src/app/providers.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
@@ -24,6 +25,7 @@ Future<void> pumpApp(
   WindowControls? window,
   MemoryMediaPrefs? mediaPrefs,
   FakeFileActions? files,
+  MemoryUiPrefs? ui,
 }) async {
   tester.view
     ..physicalSize = size
@@ -44,6 +46,7 @@ Future<void> pumpApp(
         if (window != null) windowControlsProvider.overrideWithValue(window),
         mediaPrefsProvider.overrideWithValue(mediaPrefs ?? MemoryMediaPrefs()),
         fileActionsProvider.overrideWithValue(files ?? FakeFileActions()),
+        uiPrefsProvider.overrideWithValue(ui ?? MemoryUiPrefs()),
         collapsedSectionsStoreProvider.overrideWithValue(
           collapsed ?? MemoryCollapsedSections(),
         ),
@@ -51,5 +54,13 @@ Future<void> pumpApp(
       child: const OxiTalkApp(),
     ),
   );
+  await tester.pumpAndSettle();
+}
+
+/// Opens the account dropdown in the chat list's header and picks the entry with [key].
+Future<void> pickFromAccountMenu(WidgetTester tester, String key) async {
+  await tester.tap(find.byKey(const Key('account.dropdown')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(Key(key)));
   await tester.pumpAndSettle();
 }

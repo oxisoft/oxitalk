@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,62 +18,65 @@ import '../chat_info/chat_info.dart';
 import 'room_groups.dart';
 import 'section_actions.dart';
 
-/// The active account's chats: on a wide window the account rail, the list and the open chat
-/// side by side, otherwise the list with the account switcher in its header.
+/// The active account's chats: on a wide window the account rail (unless hidden), the list
+/// (perhaps narrowed) and the open chat or its info side by side; otherwise the list alone.
 class ChatsScreen extends ConsumerWidget {
   const ChatsScreen({this.roomId, this.showInfo = false, super.key});
 
   /// The open chat, if any.
   final String? roomId;
 
-  /// The open chat's info, beside it.
+  /// The open chat's info, in the chat's place.
   final bool showInfo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final account = ref.watch(activeAccountProvider);
     if (account == null) return const SizedBox.shrink();
+    final rooms = ref.watch(roomsProvider(account)).value;
+    // A remembered chat that is gone (left, or deleted) shows the welcome instead.
+    final roomId = switch (this.roomId) {
+      final id? when rooms == null || rooms.any((room) => room.id == id) => id,
+      _ => null,
+    };
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < wideLayoutBreakpoint) {
           return ChatListPane(
             account: account,
             selectedRoomId: roomId,
-            showSwitcher: true,
+            phone: true,
           );
         }
+        final narrow = ref.watch(narrowListProvider);
+        final railHidden = ref.watch(railHiddenProvider);
         return Row(
           children: [
-            const AccountRail(),
-            const VerticalDivider(width: 1),
+            if (!railHidden) ...[
+              const AccountRail(),
+              const VerticalDivider(width: 1),
+            ],
             SizedBox(
-              width: 360,
+              width: narrow ? 96 : 360,
               child: ChatListPane(account: account, selectedRoomId: roomId),
             ),
             const VerticalDivider(width: 1),
             Expanded(
               child: switch (roomId) {
+                final id? when showInfo => ChatInfoPane(
+                  key: ValueKey((account, id, 'info')),
+                  account: account,
+                  roomId: id,
+                ),
                 final id? => ChatPane(
                   key: ValueKey((account, id)),
                   account: account,
                   roomId: id,
                   showBack: false,
-                  leaveWindowButtonsSpace: !showInfo,
                 ),
-                null => const _NoChatSelected(),
+                null => WelcomePane(account: account),
               },
             ),
-            if (roomId case final id? when showInfo) ...[
-              const VerticalDivider(width: 1),
-              SizedBox(
-                width: 360,
-                child: ChatInfoPane(
-                  key: ValueKey((account, id, 'info')),
-                  account: account,
-                  roomId: id,
-                ),
-              ),
-            ],
           ],
         );
       },
@@ -80,35 +84,128 @@ class ChatsScreen extends ConsumerWidget {
   }
 }
 
-class _NoChatSelected extends StatelessWidget {
-  const _NoChatSelected();
+/// What shows where a chat would, before one is picked: a greeting by the time of day, one
+/// friendly line, and where to start.
+class WelcomePane extends ConsumerStatefulWidget {
+  const WelcomePane({required this.account, super.key});
+
+  final String account;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.isDark ? OxiColors.wallpaperDark : OxiColors.wallpaperLight,
-    child: Center(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.black26,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Text(
-            'Select a chat to start messaging',
-            style: TextStyle(color: Colors.white),
+  ConsumerState<WelcomePane> createState() => _WelcomePaneState();
+}
+
+const _smallTalk = [
+  'Your messages are end-to-end encrypted: only you and the people you talk to can read them.',
+  'Several accounts at once? Ctrl+1, Ctrl+2… switches between them.',
+  'Right-click a chat to make it a favorite, or to put it in a section of your own.',
+  'Click a chat’s name at the top to see its members, photos, files and links.',
+  'Matrix is an open network: you can talk to people on any server, like email.',
+  'Sections you make here show up in Element too, and the other way round.',
+  'Pictures and files are kept on this device for as long as Settings → Media says.',
+];
+
+/// `Good morning`, `Good afternoon`, `Good evening`, or `Good night`, for [hour].
+String greeting(int hour) => switch (hour) {
+  < 5 => 'Good night',
+  < 12 => 'Good morning',
+  < 18 => 'Good afternoon',
+  < 23 => 'Good evening',
+  _ => 'Good night',
+};
+
+class _WelcomePaneState extends ConsumerState<WelcomePane> {
+  /// Picked once, so it doesn't change while the pane shows.
+  final _line = _smallTalk[Random().nextInt(_smallTalk.length)];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final profile = ref.watch(profileProvider(widget.account)).value;
+    final name =
+        profile?.displayName ?? widget.account.substring(1).split(':').first;
+    return Scaffold(
+      backgroundColor: context.isDark
+          ? OxiColors.wallpaperDark
+          : OxiColors.wallpaperLight,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: const WindowDragArea(),
+        actions: const [WindowButtons.right()],
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Card(
+              key: const Key('welcome'),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircleAvatar(
+                      radius: 36,
+                      backgroundColor: OxiColors.accent,
+                      foregroundColor: Colors.white,
+                      child: Icon(Icons.forum_rounded, size: 36),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '${greeting(DateTime.now().hour)}, $name',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _line,
+                      key: const Key('welcome.line'),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.west_rounded,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Pick a chat on the left to start.',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
+/// The account's chats under a header with the account dropdown; on a wide window it can be
+/// narrowed to pictures and short names, and brings back a hidden account rail.
 class ChatListPane extends ConsumerWidget {
   const ChatListPane({
     required this.account,
     this.selectedRoomId,
-    this.showSwitcher = false,
+    this.phone = false,
     super.key,
   });
 
@@ -116,34 +213,81 @@ class ChatListPane extends ConsumerWidget {
   final String account;
   final String? selectedRoomId;
 
-  /// The account switcher in the header, where there is no rail.
-  final bool showSwitcher;
+  /// The whole window: no rail, no narrowing, and the window buttons in this header.
+  final bool phone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rooms = ref.watch(roomsProvider(account)).value;
+    final narrow = !phone && ref.watch(narrowListProvider);
+    final railHidden = phone || ref.watch(railHiddenProvider);
+    final narrowButton = IconButton(
+      key: Key(narrow ? 'list.widen' : 'list.narrow'),
+      tooltip: narrow ? 'Widen the list' : 'Narrow the list',
+      visualDensity: VisualDensity.compact,
+      onPressed: () => ref.read(narrowListProvider.notifier).toggle(),
+      icon: Icon(
+        narrow
+            ? Icons.keyboard_double_arrow_right_rounded
+            : Icons.keyboard_double_arrow_left_rounded,
+      ),
+    );
+    final showRail = IconButton(
+      key: const Key('rail.show'),
+      tooltip: 'Show accounts',
+      visualDensity: VisualDensity.compact,
+      onPressed: () => ref.read(railHiddenProvider.notifier).toggle(),
+      icon: const Icon(Icons.keyboard_double_arrow_right_rounded),
+    );
     return Scaffold(
       appBar: AppBar(
         // On a wide window the open chat is a route above the list; no back arrow there.
         automaticallyImplyLeading: false,
-        leading: showSwitcher ? AccountSwitcherButton(account: account) : null,
-        title: SyncTitle(account: account, roomsLoaded: rooms != null),
+        flexibleSpace: const WindowDragArea(),
+        titleSpacing: narrow ? 0 : 8,
+        centerTitle: narrow,
+        title: narrow
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AccountDropdown(
+                    account: account,
+                    compact: true,
+                    withAppItems: railHidden,
+                  ),
+                  narrowButton,
+                ],
+              )
+            : Row(
+                children: [
+                  if (!phone) const WindowButtons.left(),
+                  if (railHidden && !phone) showRail,
+                  Flexible(
+                    child: AccountDropdown(
+                      account: account,
+                      withAppItems: railHidden,
+                    ),
+                  ),
+                ],
+              ),
         actions: [
-          _AccountMenu(account: account, withAppItems: showSwitcher),
-          if (showSwitcher) const WindowButtonsSpace(),
+          if (!phone && !narrow) narrowButton,
+          if (phone) const WindowButtons.right(),
         ],
       ),
       body: switch (rooms) {
         null => const Center(child: CircularProgressIndicator()),
-        [] => const Center(child: Text('No chats yet')),
+        [] => Center(child: Text(narrow ? '—' : 'No chats yet')),
         final rooms => _RoomList(
           account: account,
           rooms: rooms,
           selectedRoomId: selectedRoomId,
+          narrow: narrow,
         ),
       },
       floatingActionButton: FloatingActionButton(
         tooltip: 'New chat',
+        mini: narrow,
         onPressed: () => unawaited(_newChat(context, ref)),
         child: const Icon(Icons.edit_rounded),
       ),
@@ -168,64 +312,6 @@ class ChatListPane extends ConsumerWidget {
   }
 }
 
-/// The app bar title: the app name, or what the connection is doing (as Telegram does).
-class SyncTitle extends ConsumerWidget {
-  const SyncTitle({
-    required this.account,
-    required this.roomsLoaded,
-    super.key,
-  });
-
-  final String account;
-  final bool roomsLoaded;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final status =
-        ref.watch(syncStatusProvider(account)).value ?? SyncStatus.connecting;
-    return Text(switch (status) {
-      SyncStatus.offline => 'Waiting for network…',
-      SyncStatus.connecting => 'Connecting…',
-      SyncStatus.online when !roomsLoaded => 'Updating…',
-      SyncStatus.online => 'OxiTalk',
-    });
-  }
-}
-
-class _AccountMenu extends ConsumerWidget {
-  const _AccountMenu({required this.account, required this.withAppItems});
-
-  final String account;
-
-  /// Settings and About, which are at the bottom of the rail where there is one.
-  final bool withAppItems;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) =>
-      PopupMenuButton<VoidCallback>(
-        tooltip: 'Menu',
-        onSelected: (action) => action(),
-        itemBuilder: (context) => [
-          PopupMenuItem(enabled: false, child: Text(account)),
-          if (withAppItems) ...[
-            PopupMenuItem(
-              value: () => context.go(Routes.settings),
-              child: const Text('Settings'),
-            ),
-            PopupMenuItem(
-              value: () => showOxiTalkAbout(context),
-              child: const Text('About'),
-            ),
-          ],
-          PopupMenuItem(
-            value: () =>
-                unawaited(ref.read(accountsProvider.notifier).logout(account)),
-            child: const Text('Log out'),
-          ),
-        ],
-      );
-}
-
 /// The rooms in their sections, each under a header that folds it; a plain list while every
 /// room is in Rooms, as in Element.
 class _RoomList extends ConsumerWidget {
@@ -233,11 +319,15 @@ class _RoomList extends ConsumerWidget {
     required this.account,
     required this.rooms,
     required this.selectedRoomId,
+    this.narrow = false,
   });
 
   final String account;
   final List<Room> rooms;
   final String? selectedRoomId;
+
+  /// Pictures and short names only: no section headers, every room in section order.
+  final bool narrow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -246,7 +336,9 @@ class _RoomList extends ConsumerWidget {
     final collapsed =
         ref.watch(collapsedSectionTagsProvider(account)).value ?? const {};
     final groups = groupRooms(rooms, sections);
-    final flat = groups.length == 1 && groups.single.tag == SectionTags.rooms;
+    final flat =
+        narrow ||
+        (groups.length == 1 && groups.single.tag == SectionTags.rooms);
     final movable = movableOrder(sections);
     final items = <Object>[
       for (final group in groups) ...[
@@ -269,6 +361,7 @@ class _RoomList extends ConsumerWidget {
         final Room room => RoomTile(
           account: account,
           room: room,
+          narrow: narrow,
           selected: room.id == selectedRoomId,
         ),
         _ => const SizedBox.shrink(),
@@ -374,12 +467,16 @@ class RoomTile extends ConsumerWidget {
     required this.account,
     required this.room,
     this.selected = false,
+    this.narrow = false,
     super.key,
   });
 
   final String account;
   final Room room;
   final bool selected;
+
+  /// The picture with the unread count, and the name's start under it.
+  final bool narrow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -458,6 +555,7 @@ class RoomTile extends ConsumerWidget {
     ThemeData theme,
     bool invited,
   ) {
+    if (narrow) return _narrowTile(context, ref, theme, invited);
     return ListTile(
       selected: selected,
       selectedTileColor: theme.colorScheme.primaryContainer,
@@ -506,6 +604,53 @@ class RoomTile extends ConsumerWidget {
       onTap: () => unawaited(_open(context, ref)),
     );
   }
+
+  Widget _narrowTile(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    bool invited,
+  ) => Tooltip(
+    message: room.name,
+    child: Material(
+      color: selected ? theme.colorScheme.primaryContainer : Colors.transparent,
+      child: InkWell(
+        onTap: () => unawaited(_open(context, ref)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Column(
+            children: [
+              Badge(
+                isLabelVisible: invited || room.unreadCount > 0,
+                backgroundColor: OxiColors.accent,
+                label: Text(
+                  invited
+                      ? '!'
+                      : room.unreadCount > 99
+                      ? '99+'
+                      : '${room.unreadCount}',
+                ),
+                child: MatrixAvatar(
+                  account: account,
+                  url: room.avatarUrl,
+                  name: room.name,
+                  seed: room.id,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                room.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {
     // Joining moves the room from Invites to its section, which replaces this tile; so the

@@ -298,6 +298,166 @@ final class PickImageProvider
 
 String _$pickImageHash() => r'd8c8d529428e93da90f3903ecdcc1306cc3492fe';
 
+/// Set by `main` (and by tests), next to the app's other data.
+
+@ProviderFor(uiPrefs)
+final uiPrefsProvider = UiPrefsProvider._();
+
+/// Set by `main` (and by tests), next to the app's other data.
+
+final class UiPrefsProvider
+    extends $FunctionalProvider<UiPrefs, UiPrefs, UiPrefs>
+    with $Provider<UiPrefs> {
+  /// Set by `main` (and by tests), next to the app's other data.
+  UiPrefsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'uiPrefsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$uiPrefsHash();
+
+  @$internal
+  @override
+  $ProviderElement<UiPrefs> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  UiPrefs create(Ref ref) {
+    return uiPrefs(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(UiPrefs value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<UiPrefs>(value),
+    );
+  }
+}
+
+String _$uiPrefsHash() => r'e6b1ef2897799025e1ddca5fa35cfee69d3eb77c';
+
+/// Whether the chat list is narrowed to pictures and short names.
+
+@ProviderFor(NarrowList)
+final narrowListProvider = NarrowListProvider._();
+
+/// Whether the chat list is narrowed to pictures and short names.
+final class NarrowListProvider extends $NotifierProvider<NarrowList, bool> {
+  /// Whether the chat list is narrowed to pictures and short names.
+  NarrowListProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'narrowListProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$narrowListHash();
+
+  @$internal
+  @override
+  NarrowList create() => NarrowList();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$narrowListHash() => r'a845f7a9f19625e5fe2bb3a4eab8832838cd736c';
+
+/// Whether the chat list is narrowed to pictures and short names.
+
+abstract class _$NarrowList extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// Whether the account rail is hidden.
+
+@ProviderFor(RailHidden)
+final railHiddenProvider = RailHiddenProvider._();
+
+/// Whether the account rail is hidden.
+final class RailHiddenProvider extends $NotifierProvider<RailHidden, bool> {
+  /// Whether the account rail is hidden.
+  RailHiddenProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'railHiddenProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$railHiddenHash();
+
+  @$internal
+  @override
+  RailHidden create() => RailHidden();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$railHiddenHash() => r'afde9cef7393203d2a851e7379701218314a6223';
+
+/// Whether the account rail is hidden.
+
+abstract class _$RailHidden extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// `main` sets the real window; tests and phones have none of the app's own.
 
 @ProviderFor(windowControls)

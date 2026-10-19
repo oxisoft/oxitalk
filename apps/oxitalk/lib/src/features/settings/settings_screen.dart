@@ -9,6 +9,7 @@ import '../../app/media_prefs.dart';
 import '../../app/pick_image.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
+import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -27,8 +28,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final diagnostics = ref.watch(diagnosticsProvider);
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(onPressed: () => context.go(Routes.chats)),
+        leading: BackButton(
+          onPressed: () => context.go(
+            homeLocation(
+              ref.read(uiPrefsProvider),
+              ref.read(activeAccountProvider),
+            ),
+          ),
+        ),
         title: const Text('Settings'),
+        flexibleSpace: const WindowDragArea(),
+        actions: const [WindowButtons.right()],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -178,6 +188,13 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
           leading: AccountPicture(account: _account, radius: 28),
           title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(_account),
+          trailing: OutlinedButton.icon(
+            key: const Key('settings.logout'),
+            onPressed: () =>
+                unawaited(ref.read(accountsProvider.notifier).logout(_account)),
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('Log out'),
+          ),
         ),
         ListTile(
           leading: MatrixAvatar(

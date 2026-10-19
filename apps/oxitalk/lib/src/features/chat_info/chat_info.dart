@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,31 +32,58 @@ class ChatInfoScreen extends ConsumerWidget {
 }
 
 /// A chat's picture, name, address, topic, members and encryption, and its members, media,
-/// files and links in tabs.
-class ChatInfoPane extends ConsumerWidget {
+/// files and links in tabs. In the chat's place; Back or Esc returns to the chat.
+class ChatInfoPane extends ConsumerStatefulWidget {
   const ChatInfoPane({required this.account, required this.roomId, super.key});
 
   final String account;
   final String roomId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatInfoPane> createState() => _ChatInfoPaneState();
+}
+
+class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
+  String get account => widget.account;
+  String get roomId => widget.roomId;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    super.dispose();
+  }
+
+  /// Esc returns to the chat, unless a dialog (like the image viewer) is over the info.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape ||
+        !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return false;
+    }
+    _back();
+    return true;
+  }
+
+  void _back() => context.go(Routes.room(roomId));
+
+  @override
+  Widget build(BuildContext context) {
     final details = ref.watch(roomDetailsProvider(account, roomId));
     return DefaultTabController(
       length: 5,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          leading: BackButton(key: const Key('info.back'), onPressed: _back),
           title: const Text('Chat info'),
-          actions: [
-            IconButton(
-              key: const Key('info.close'),
-              tooltip: 'Close',
-              icon: const Icon(Icons.close_rounded),
-              onPressed: () => context.go(Routes.room(roomId)),
-            ),
-            const WindowButtonsSpace(),
-          ],
+          flexibleSpace: const WindowDragArea(),
+          actions: const [WindowButtons.right()],
         ),
         body: NestedScrollView(
           headerSliverBuilder: (context, _) => [
