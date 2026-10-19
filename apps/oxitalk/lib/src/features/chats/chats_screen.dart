@@ -13,16 +13,20 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
+import '../chat_info/chat_info.dart';
 import 'room_groups.dart';
 import 'section_actions.dart';
 
 /// The active account's chats: on a wide window the account rail, the list and the open chat
 /// side by side, otherwise the list with the account switcher in its header.
 class ChatsScreen extends ConsumerWidget {
-  const ChatsScreen({this.roomId, super.key});
+  const ChatsScreen({this.roomId, this.showInfo = false, super.key});
 
   /// The open chat, if any.
   final String? roomId;
+
+  /// The open chat's info, beside it.
+  final bool showInfo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,10 +57,22 @@ class ChatsScreen extends ConsumerWidget {
                   account: account,
                   roomId: id,
                   showBack: false,
+                  leaveWindowButtonsSpace: !showInfo,
                 ),
                 null => const _NoChatSelected(),
               },
             ),
+            if (roomId case final id? when showInfo) ...[
+              const VerticalDivider(width: 1),
+              SizedBox(
+                width: 360,
+                child: ChatInfoPane(
+                  key: ValueKey((account, id, 'info')),
+                  account: account,
+                  roomId: id,
+                ),
+              ),
+            ],
           ],
         );
       },

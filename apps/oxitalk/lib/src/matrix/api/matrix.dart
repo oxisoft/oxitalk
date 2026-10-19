@@ -106,6 +106,31 @@ abstract interface class MatrixSession {
   /// Saves the user's sections and the order of the movable ones.
   Future<void> saveSections(List<CustomSection> custom, List<String> order);
 
+  /// The whole file of a message ([MediaInfo.source]), from the cache or the server.
+  Future<Uint8List> mediaContent(String source);
+
+  /// A picture of a message's file about [size] pixels wide, for showing it small.
+  Future<Uint8List> mediaThumbnail(String source, String? thumbnail, int size);
+
+  /// Writes a message's whole file to [path].
+  Future<void> saveMedia(String source, String path);
+
+  /// Keeps cached media until unused for [days], or forever with `null`.
+  Future<void> setMediaRetention(int? days);
+
+  /// The size of the media cache in bytes, if known.
+  Future<int?> mediaCacheSize();
+
+  Future<void> clearMediaCache();
+
+  Future<RoomDetails> roomDetails(String roomId);
+
+  /// Joined and invited members, admins first.
+  Future<List<RoomMember>> roomMembers(String roomId);
+
+  /// A timeline of only the room's files and messages with links.
+  Future<RoomTimeline> openMediaTimeline(String roomId);
+
   /// Creates an encrypted direct chat and invites [userId]. Returns the room ID.
   Future<String> createDm(String userId);
 

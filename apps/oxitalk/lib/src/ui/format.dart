@@ -44,3 +44,24 @@ String dayLabel(DateTime time, {DateTime? now}) {
   final label = '${time.day} ${_months[time.month - 1]}';
   return time.year == today.year ? label : '$label ${time.year}';
 }
+
+/// `820 B`, `14.2 KB`, `3.5 MB`, `1.2 GB`.
+String fileSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  var value = bytes / 1024;
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return '${value.toStringAsFixed(value < 10 ? 1 : 0)} ${units[unit]}';
+}
+
+/// `0:07`, `3:25`, `1:02:03`.
+String mediaDuration(Duration duration) {
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes % 60;
+  final seconds = _two(duration.inSeconds % 60);
+  return hours > 0 ? '$hours:${_two(minutes)}:$seconds' : '$minutes:$seconds';
+}

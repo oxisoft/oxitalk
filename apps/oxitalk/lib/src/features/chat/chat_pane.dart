@@ -12,6 +12,7 @@ import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
+import 'media_views.dart';
 
 /// A chat of the active account as a page of its own (narrow windows).
 class ChatScreen extends ConsumerWidget {
@@ -37,6 +38,7 @@ class ChatPane extends ConsumerWidget {
     required this.account,
     required this.roomId,
     required this.showBack,
+    this.leaveWindowButtonsSpace = true,
     super.key,
   });
 
@@ -44,6 +46,9 @@ class ChatPane extends ConsumerWidget {
   final String account;
   final String roomId;
   final bool showBack;
+
+  /// Whether the header is at the window's top right, under the window buttons.
+  final bool leaveWindowButtonsSpace;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -60,31 +65,37 @@ class ChatPane extends ConsumerWidget {
             ? BackButton(onPressed: () => context.go(Routes.chats))
             : null,
         titleSpacing: showBack ? 0 : null,
-        actions: const [WindowButtonsSpace()],
-        title: Row(
-          children: [
-            MatrixAvatar(
-              account: account,
-              url: room?.avatarUrl,
-              name: name,
-              seed: roomId,
-              radius: 18,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (room?.isEncrypted ?? false)
-                    Text(
-                      'end-to-end encrypted',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                ],
+        actions: [if (leaveWindowButtonsSpace) const WindowButtonsSpace()],
+        // The picture and name open the chat's info.
+        title: InkWell(
+          key: const Key('chat.title'),
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => context.go(Routes.roomInfo(roomId)),
+          child: Row(
+            children: [
+              MatrixAvatar(
+                account: account,
+                url: room?.avatarUrl,
+                name: name,
+                seed: roomId,
+                radius: 18,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (room?.isEncrypted ?? false)
+                      Text(
+                        'end-to-end encrypted',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       body: ColoredBox(
@@ -234,20 +245,33 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     // copies the whole message it was opened on.
     return SelectionArea(
       contextMenuBuilder: (context, region) {
-        final message = _messageAt(
+        final entry = _entryAt(
           region.contextMenuAnchors.primaryAnchor,
           entries,
         );
+        final text = switch (entry) {
+          MessageEntry(:final body) => body,
+          MediaEntry(:final media) => media.caption,
+          _ => null,
+        };
         return AdaptiveTextSelectionToolbar.buttonItems(
           anchors: region.contextMenuAnchors,
           buttonItems: [
             ...region.contextMenuButtonItems,
-            if (message != null)
+            if (text != null && text.isNotEmpty)
               ContextMenuButtonItem(
                 label: 'Copy message',
                 onPressed: () {
                   region.hideToolbar();
-                  unawaited(Clipboard.setData(ClipboardData(text: message)));
+                  unawaited(Clipboard.setData(ClipboardData(text: text)));
+                },
+              ),
+            if (entry case MediaEntry(:final media))
+              ContextMenuButtonItem(
+                label: 'Save as…',
+                onPressed: () {
+                  region.hideToolbar();
+                  unawaited(saveMediaAs(context, ref, widget.account, media));
                 },
               ),
           ],
@@ -257,15 +281,14 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     );
   }
 
-  /// The text of the message whose bubble is at [position] on screen.
-  String? _messageAt(Offset position, List<TimelineEntry> entries) {
+  /// The message whose bubble is at [position] on screen.
+  TimelineEntry? _entryAt(Offset position, List<TimelineEntry> entries) {
     for (final entry in entries) {
-      if (entry is! MessageEntry) continue;
       final box = _bubbleKeys[entry.id]?.currentContext?.findRenderObject();
       if (box is RenderBox &&
           box.attached &&
           (box.localToGlobal(Offset.zero) & box.size).contains(position)) {
-        return entry.body;
+        return entry;
       }
     }
     return null;
@@ -309,6 +332,30 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
               time: entry.time,
               sendState: entry.sendState,
               child: Text(entry.body),
+            ),
+            MediaEntry() => MessageBubble(
+              key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
+              isOwn: entry.isOwn,
+              sender: _senderLabel(
+                entry.sender,
+                entry.senderName,
+                entry.isOwn,
+                previous,
+              ),
+              avatar: _senderAvatar(
+                entry.id,
+                entry.sender,
+                entry.senderName,
+                entry.senderAvatarUrl,
+                entry.isOwn,
+                next,
+              ),
+              time: entry.time,
+              sendState: entry.sendState,
+              child: MediaMessageView(
+                account: widget.account,
+                media: entry.media,
+              ),
             ),
             UndecryptableEntry() => MessageBubble(
               key: ValueKey(entry.id),
@@ -369,6 +416,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   static bool _sameSender(TimelineEntry? entry, String sender) =>
       switch (entry) {
         MessageEntry(sender: final s) ||
+        MediaEntry(sender: final s) ||
         UndecryptableEntry(sender: final s) => s == sender,
         _ => false,
       };

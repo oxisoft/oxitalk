@@ -5,11 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/media_prefs.dart';
 import '../../app/pick_image.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
+import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -35,6 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               if (ref.watch(activeAccountProvider) case final account?)
                 _AccountPictures(account: account),
+              const _MediaSettings(),
               const _SectionTitle('Diagnostics'),
               SwitchListTile(
                 key: const Key('settings.collectLogs'),
@@ -234,6 +237,108 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
                   child: const Text('Reset'),
                 ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// How long pictures and files are kept, and the cache's size, for all accounts.
+class _MediaSettings extends ConsumerStatefulWidget {
+  const _MediaSettings();
+
+  @override
+  ConsumerState<_MediaSettings> createState() => _MediaSettingsState();
+}
+
+class _MediaSettingsState extends ConsumerState<_MediaSettings> {
+  /// The cache's size over all accounts; `null` while it is measured.
+  int? _size;
+  var _clearing = false;
+
+  List<MatrixSession> get _sessions =>
+      ref.read(accountsProvider).value?.sessions ?? const [];
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_measure());
+  }
+
+  Future<void> _measure() async {
+    var total = 0;
+    for (final session in _sessions) {
+      try {
+        total += await session.mediaCacheSize() ?? 0;
+      } on MatrixFailure {
+        // That account's cache counts as empty.
+      }
+    }
+    if (mounted) setState(() => _size = total);
+  }
+
+  Future<void> _clear() async {
+    setState(() => _clearing = true);
+    for (final session in _sessions) {
+      try {
+        await session.clearMediaCache();
+      } on MatrixFailure {
+        // What could be cleared is.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _clearing = false;
+      _size = null;
+    });
+    await _measure();
+  }
+
+  static String _label(int? days) => switch (days) {
+    null => 'Forever',
+    7 => '1 week',
+    30 => '1 month',
+    90 => '3 months',
+    365 => '1 year',
+    _ => '$days days',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final days = ref.watch(mediaRetentionProvider);
+    final size = _size;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionTitle('Media'),
+        ListTile(
+          title: const Text('Keep media for'),
+          subtitle: const Text(
+            'Pictures and files not opened for this long are removed from '
+            'this device; they download again when needed.',
+          ),
+          trailing: DropdownButton<int?>(
+            key: const Key('settings.retention'),
+            value: days,
+            onChanged: (days) =>
+                unawaited(ref.read(mediaRetentionProvider.notifier).set(days)),
+            items: [
+              for (final choice in retentionChoices)
+                DropdownMenuItem(value: choice, child: Text(_label(choice))),
+            ],
+          ),
+        ),
+        ListTile(
+          title: const Text('Media on this device'),
+          subtitle: Text(
+            size == null ? 'Measuring…' : fileSize(size),
+            key: const Key('settings.cacheSize'),
+          ),
+          trailing: TextButton(
+            key: const Key('settings.clearCache'),
+            onPressed: _clearing || size == 0 ? null : _clear,
+            child: const Text('Clear'),
           ),
         ),
       ],

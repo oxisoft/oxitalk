@@ -5,6 +5,8 @@ import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
 import 'package:oxitalk/src/app/collapsed_sections.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
+import 'package:oxitalk/src/app/file_actions.dart';
+import 'package:oxitalk/src/app/media_prefs.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/window_controls.dart';
 import 'package:oxitalk/src/app/providers.dart';
@@ -20,6 +22,8 @@ Future<void> pumpApp(
   PickImage? pickImage,
   MemoryCollapsedSections? collapsed,
   WindowControls? window,
+  MemoryMediaPrefs? mediaPrefs,
+  FakeFileActions? files,
 }) async {
   tester.view
     ..physicalSize = size
@@ -38,6 +42,8 @@ Future<void> pumpApp(
         ),
         pickImageProvider.overrideWithValue(pickImage ?? () async => null),
         if (window != null) windowControlsProvider.overrideWithValue(window),
+        mediaPrefsProvider.overrideWithValue(mediaPrefs ?? MemoryMediaPrefs()),
+        fileActionsProvider.overrideWithValue(files ?? FakeFileActions()),
         collapsedSectionsStoreProvider.overrideWithValue(
           collapsed ?? MemoryCollapsedSections(),
         ),

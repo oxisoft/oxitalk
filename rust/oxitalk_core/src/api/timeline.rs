@@ -6,8 +6,12 @@ use std::sync::{Arc, Mutex, PoisonError};
 use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
 use matrix_sdk::ruma::{
-    OwnedRoomId, api::client::receipt::create_receipt::v3::ReceiptType,
-    events::room::message::RoomMessageEventContent,
+    OwnedRoomId, UInt,
+    api::client::receipt::create_receipt::v3::ReceiptType,
+    events::room::{
+        MediaSource,
+        message::{MessageType, RoomMessageEventContent},
+    },
 };
 use matrix_sdk_ui::{
     eyeball_im::VectorDiff,
@@ -42,8 +46,13 @@ pub struct TimelineItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimelineItemContent {
-    /// A text message (for other message types, their fallback body).
+    /// A text message (for other message types without a file, their fallback body).
     Message { event: EventInfo, body: String },
+    /// An image, video, audio or other file.
+    Media {
+        event: EventInfo,
+        media: MediaMessage,
+    },
     /// An encrypted event whose key hasn't arrived (yet).
     UnableToDecrypt { event: EventInfo },
     /// Any other event; M0 doesn't show them.
@@ -67,6 +76,33 @@ pub struct EventInfo {
     pub timestamp_ms: i64,
     pub is_own: bool,
     pub send_state: SendState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MediaKind {
+    Image,
+    Video,
+    Audio,
+    File,
+}
+
+/// A file in a message. [`Session::media_content`] and [`Session::media_thumbnail`] fetch it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MediaMessage {
+    pub kind: MediaKind,
+    /// Where the file is (and its key, in an encrypted room), as JSON to hand back to the core.
+    pub source: String,
+    /// The same for a thumbnail the sender attached, if any.
+    pub thumbnail: Option<String>,
+    pub filename: String,
+    /// Text the sender wrote with the file.
+    pub caption: Option<String>,
+    pub mime_type: Option<String>,
+    /// In bytes.
+    pub size: Option<i64>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub duration_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,14 +142,18 @@ impl Session {
             .client
             .get_room(&id)
             .ok_or(CoreError::RoomNotFound { room_id })?;
-        Ok(Timeline {
-            inner: Arc::new(room.timeline().await?),
-            tasks: Mutex::default(),
-        })
+        Ok(Timeline::new(
+            Arc::new(room.timeline().await?),
+            Mutex::default(),
+        ))
     }
 }
 
 impl Timeline {
+    pub(crate) fn new(inner: Arc<timeline::Timeline>, tasks: Mutex<Vec<AbortHandle>>) -> Self {
+        Self { inner, tasks }
+    }
+
     /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
     /// loaded so far.
     pub async fn subscribe_items(&self, sink: StreamSink<Vec<TimelineDiff>>) {
@@ -276,7 +316,12 @@ fn event_content(event: &EventTimelineItem) -> TimelineItemContent {
         },
     };
     let content = event.content();
-    if let Some(message) = content.as_message() {
+    if let Some(media) = content
+        .as_message()
+        .and_then(|m| media_message(m.msgtype()))
+    {
+        TimelineItemContent::Media { event: info, media }
+    } else if let Some(message) = content.as_message() {
         TimelineItemContent::Message {
             event: info,
             body: message.body().to_owned(),
@@ -286,4 +331,101 @@ fn event_content(event: &EventTimelineItem) -> TimelineItemContent {
     } else {
         TimelineItemContent::OtherEvent { event: info }
     }
+}
+
+/// The file in a message, if it has one.
+pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
+    let media = |kind, source: &MediaSource, filename: &str, caption: Option<&str>| MediaMessage {
+        kind,
+        source: source_json(source),
+        thumbnail: None,
+        filename: filename.to_owned(),
+        caption: caption.map(ToOwned::to_owned),
+        mime_type: None,
+        size: None,
+        width: None,
+        height: None,
+        duration_ms: None,
+    };
+    Some(match msgtype {
+        MessageType::Image(image) => {
+            let mut m = media(
+                MediaKind::Image,
+                &image.source,
+                image.filename(),
+                image.caption(),
+            );
+            if let Some(info) = &image.info {
+                m.thumbnail = info.thumbnail_source.as_ref().map(source_json);
+                m.mime_type.clone_from(&info.mimetype);
+                m.size = info.size.map(int);
+                m.width = info.width.map(small);
+                m.height = info.height.map(small);
+            }
+            m
+        }
+        MessageType::Video(video) => {
+            let mut m = media(
+                MediaKind::Video,
+                &video.source,
+                video.filename(),
+                video.caption(),
+            );
+            if let Some(info) = &video.info {
+                m.thumbnail = info.thumbnail_source.as_ref().map(source_json);
+                m.mime_type.clone_from(&info.mimetype);
+                m.size = info.size.map(int);
+                m.width = info.width.map(small);
+                m.height = info.height.map(small);
+                m.duration_ms = info.duration.map(millis);
+            }
+            m
+        }
+        MessageType::Audio(audio) => {
+            let mut m = media(
+                MediaKind::Audio,
+                &audio.source,
+                audio.filename(),
+                audio.caption(),
+            );
+            if let Some(info) = &audio.info {
+                m.mime_type.clone_from(&info.mimetype);
+                m.size = info.size.map(int);
+                m.duration_ms = info.duration.map(millis);
+            }
+            m
+        }
+        MessageType::File(file) => {
+            let mut m = media(
+                MediaKind::File,
+                &file.source,
+                file.filename(),
+                file.caption(),
+            );
+            if let Some(info) = &file.info {
+                m.thumbnail = info.thumbnail_source.as_ref().map(source_json);
+                m.mime_type.clone_from(&info.mimetype);
+                m.size = info.size.map(int);
+            }
+            m
+        }
+        _ => return None,
+    })
+}
+
+fn source_json(source: &MediaSource) -> String {
+    // A media source is plain data; serializing it can't fail.
+    serde_json::to_string(source).unwrap_or_default()
+}
+
+fn int(value: UInt) -> i64 {
+    i64::from(value)
+}
+
+fn small(value: UInt) -> u32 {
+    u32::try_from(u64::from(value)).unwrap_or(u32::MAX)
+}
+
+fn millis(duration: std::time::Duration) -> i64 {
+    i64::try_from(duration.as_millis()).unwrap_or(i64::MAX)
 }

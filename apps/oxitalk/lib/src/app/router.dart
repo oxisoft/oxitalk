@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/auth/login_screen.dart';
 import '../features/chat/chat_pane.dart';
+import '../features/chat_info/chat_info.dart';
 import '../features/chats/chats_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/verify/verify_screen.dart';
@@ -25,6 +26,8 @@ abstract final class Routes {
   static const chats = '/';
 
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
+
+  static String roomInfo(String roomId) => '${room(roomId)}/info';
 }
 
 /// The active account's verification status, which decides whether it sees its chats.
@@ -114,6 +117,25 @@ GoRouter router(Ref ref) {
                       child: ChatScreen(roomId: roomId),
                     );
             },
+            routes: [
+              GoRoute(
+                path: 'info',
+                pageBuilder: (context, state) {
+                  final roomId = state.pathParameters['roomId']!;
+                  // Wide: next to the chat. Narrow: a page of its own over it.
+                  return MediaQuery.sizeOf(context).width >=
+                          wideLayoutBreakpoint
+                      ? NoTransitionPage(
+                          key: state.pageKey,
+                          child: ChatsScreen(roomId: roomId, showInfo: true),
+                        )
+                      : MaterialPage(
+                          key: state.pageKey,
+                          child: ChatInfoScreen(roomId: roomId),
+                        );
+                },
+              ),
+            ],
           ),
         ],
       ),

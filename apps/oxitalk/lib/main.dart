@@ -8,6 +8,7 @@ import 'src/app/account_pictures.dart';
 import 'src/app/app.dart';
 import 'src/app/collapsed_sections.dart';
 import 'src/app/diagnostics.dart';
+import 'src/app/media_prefs.dart';
 import 'src/app/providers.dart';
 import 'src/app/window_controls.dart';
 import 'src/rust/frb_generated.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   final window = await DrawnWindowControls.start();
   final dataDir = await getApplicationSupportDirectory();
   final diagnostics = await RustDiagnostics.start(dataDir);
+  final mediaPrefs = await FileMediaPrefs.load(dataDir);
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     appLog(LogLevel.error, 'flutter', details.toString());
@@ -32,6 +34,7 @@ Future<void> main() async {
       overrides: [
         diagnosticsProvider.overrideWithValue(diagnostics),
         windowControlsProvider.overrideWithValue(window),
+        mediaPrefsProvider.overrideWithValue(mediaPrefs),
         accountPicturesProvider.overrideWithValue(FileAccountPictures(dataDir)),
         collapsedSectionsStoreProvider.overrideWithValue(
           FileCollapsedSections(dataDir),

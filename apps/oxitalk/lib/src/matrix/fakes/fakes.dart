@@ -181,6 +181,66 @@ final class FakeSession implements MatrixSession {
   Future<Uint8List> thumbnail(String mxcUrl, int size) async =>
       pictures[mxcUrl] ?? (throw MatrixFailure(FailureKind.network, mxcUrl));
 
+  /// The cache's retention, as last set; `-1` until set.
+  int? retentionDays = -1;
+
+  /// What [mediaCacheSize] returns.
+  int? cacheSize = 1234;
+
+  /// What [saveMedia] wrote: path → source.
+  final saved = <String, String>{};
+
+  /// Chat details and members by room ID; a room without them gets a plain default.
+  final details = <String, RoomDetails>{};
+  final members = <String, List<RoomMember>>{};
+
+  /// The timelines [openMediaTimeline] returns, by room ID.
+  final mediaTimelines = <String, FakeTimeline>{};
+
+  @override
+  Future<Uint8List> mediaContent(String source) async =>
+      pictures[source] ?? (throw MatrixFailure(FailureKind.network, source));
+
+  @override
+  Future<Uint8List> mediaThumbnail(
+    String source,
+    String? thumbnail,
+    int size,
+  ) => mediaContent(thumbnail ?? source);
+
+  @override
+  Future<void> saveMedia(String source, String path) async {
+    await mediaContent(source);
+    saved[path] = source;
+  }
+
+  @override
+  Future<void> setMediaRetention(int? days) async => retentionDays = days;
+
+  @override
+  Future<int?> mediaCacheSize() async => cacheSize;
+
+  @override
+  Future<void> clearMediaCache() async => cacheSize = 0;
+
+  @override
+  Future<RoomDetails> roomDetails(String roomId) async =>
+      details[roomId] ??
+      RoomDetails(
+        roomId: roomId,
+        name:
+            roomList.where((room) => room.id == roomId).firstOrNull?.name ??
+            roomId,
+      );
+
+  @override
+  Future<List<RoomMember>> roomMembers(String roomId) async =>
+      members[roomId] ?? [RoomMember(userId: userId)];
+
+  @override
+  Future<RoomTimeline> openMediaTimeline(String roomId) async =>
+      mediaTimelines.putIfAbsent(roomId, () => FakeTimeline(ownUserId: userId));
+
   @override
   Stream<Sections> get sections => sectionState.stream;
 

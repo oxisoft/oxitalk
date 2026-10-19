@@ -364,6 +364,55 @@ final class RustMatrixSession implements MatrixSession {
       );
 
   @override
+  Future<Uint8List> mediaContent(String source) =>
+      guarded(() => _session.mediaContent(source: source));
+
+  @override
+  Future<Uint8List> mediaThumbnail(
+    String source,
+    String? thumbnail,
+    int size,
+  ) => guarded(
+    () => _session.mediaThumbnail(
+      source: source,
+      thumbnail: thumbnail,
+      size: size,
+    ),
+  );
+
+  @override
+  Future<void> saveMedia(String source, String path) =>
+      guarded(() => _session.saveMedia(source: source, path: path));
+
+  @override
+  Future<void> setMediaRetention(int? days) =>
+      guarded(() => _session.setMediaRetention(days: days));
+
+  @override
+  Future<int?> mediaCacheSize() => guarded(_session.mediaCacheSize);
+
+  @override
+  Future<void> clearMediaCache() => guarded(_session.clearMediaCache);
+
+  @override
+  Future<RoomDetails> roomDetails(String roomId) async =>
+      roomDetailsOf(await guarded(() => _session.roomDetails(roomId: roomId)));
+
+  @override
+  Future<List<RoomMember>> roomMembers(String roomId) async => [
+    for (final member in await guarded(
+      () => _session.roomMembers(roomId: roomId),
+    ))
+      roomMemberOf(member),
+  ];
+
+  @override
+  Future<RoomTimeline> openMediaTimeline(String roomId) async =>
+      RustRoomTimeline._(
+        await guarded(() => _session.mediaTimeline(roomId: roomId)),
+      );
+
+  @override
   Future<String> createDm(String userId) =>
       guarded(() => _session.createDm(userId: userId));
 

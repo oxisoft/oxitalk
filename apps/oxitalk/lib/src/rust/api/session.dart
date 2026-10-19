@@ -10,6 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 
 import 'profile.dart';
+import 'room_info.dart';
 import 'room_list.dart';
 import 'sections.dart';
 import 'sync.dart';
@@ -61,6 +62,13 @@ Future<Session> restore({
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Session>>
 abstract class Session implements RustOpaqueInterface {
+  /// Empties the media cache; the retention period stays.
+  ///
+  /// # Errors
+  ///
+  /// Only if the cache can't be written.
+  Future<void> clearMediaCache();
+
   /// Creates an encrypted direct chat with `user_id` and invites them. Returns the room ID.
   ///
   /// # Errors
@@ -82,6 +90,40 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers.
   Future<void> logout();
+
+  /// The size of the media cache on disk, in bytes, if it can be told.
+  ///
+  /// # Errors
+  ///
+  /// Only if the cache can't be read.
+  Future<PlatformInt64?> mediaCacheSize();
+
+  /// The whole file of a message, decrypted. `source` is a `MediaMessage`'s.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed source, otherwise as the server answers.
+  Future<Uint8List> mediaContent({required String source});
+
+  /// A picture of a message's file about `size` pixels wide: the thumbnail the sender
+  /// attached, else one the server makes of an unencrypted image, else the file itself.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::media_content`].
+  Future<Uint8List> mediaThumbnail({
+    required String source,
+    String? thumbnail,
+    required int size,
+  });
+
+  /// A timeline of only the room's files and the text messages with links, for the info
+  /// screen; it fills as it pages back. Encrypted events show until they are decrypted.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<Timeline> mediaTimeline({required String roomId});
 
   /// The user's profile as the server has it, or as last seen when the server can't be
   /// reached.
@@ -115,6 +157,28 @@ abstract class Session implements RustOpaqueInterface {
   /// server answers.
   Future<Verification> requestSelfVerification();
 
+  /// A room's details for its info screen.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<RoomDetails> roomDetails({required String roomId});
+
+  /// The room's joined and invited members, admins first, then by name. Fetched from the
+  /// server first if the store doesn't have them all; the stored ones when offline.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<List<RoomMember>> roomMembers({required String roomId});
+
+  /// Writes a message's whole file to `path`, to open it in another app or keep it.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::media_content`], or [`CoreError::Internal`] if the file can't be written.
+  Future<void> saveMedia({required String source, required String path});
+
   /// Saves the user's sections and their order, keeping every other Element setting and
   /// whatever else Element stores with a section.
   ///
@@ -139,6 +203,14 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::Internal`] for a malformed `mime_type`, otherwise as the server answers
   /// (it may refuse a file that is too large).
   Future<void> setAvatar({required List<int> data, required String mimeType});
+
+  /// Keeps cached media until it hasn't been used for `days`, or forever with `None`; no
+  /// limit on size.
+  ///
+  /// # Errors
+  ///
+  /// Only if the cache can't be written.
+  Future<void> setMediaRetention({int? days});
 
   /// Puts a room in the section with `tag` (`m.favourite`, `m.lowpriority` or a section the
   /// user made), or with `None` in its default section (People or Rooms). A room is in one
@@ -180,7 +252,7 @@ abstract class Session implements RustOpaqueInterface {
   Stream<VerificationStatus> subscribeVerificationStatus();
 
   /// A square thumbnail of the picture at `mxc_uri`, about `size` pixels wide, as encoded
-  /// image bytes. Kept in the account's store, so it is downloaded once.
+  /// image bytes.
   ///
   /// # Errors
   ///

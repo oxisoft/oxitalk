@@ -13,6 +13,8 @@ import '../util/log.dart';
 import 'account_pictures.dart';
 import 'collapsed_sections.dart';
 import 'diagnostics.dart';
+import 'file_actions.dart';
+import 'media_prefs.dart';
 import 'pick_image.dart';
 import 'window_controls.dart';
 import 'secure_secret_store.dart';
@@ -54,6 +56,39 @@ PickImage pickImage(Ref ref) => pickImageFile;
 @Riverpod(keepAlive: true)
 WindowControls windowControls(Ref ref) => const PlatformWindowControls();
 
+/// Set by `main` (and by tests), next to the app's other data.
+@Riverpod(keepAlive: true)
+MediaPrefs mediaPrefs(Ref ref) =>
+    throw UnimplementedError('mediaPrefsProvider is overridden in main');
+
+/// Tests override this: no file dialogs or other apps in a test.
+@Riverpod(keepAlive: true)
+FileActions fileActions(Ref ref) => const SystemFileActions();
+
+/// How long cached media is kept, in days (`null`: forever); applied to every account.
+@Riverpod(keepAlive: true)
+class MediaRetention extends _$MediaRetention {
+  @override
+  int? build() => ref.watch(mediaPrefsProvider).retentionDays;
+
+  Future<void> set(int? days) async {
+    state = days;
+    await ref.read(mediaPrefsProvider).setRetentionDays(days);
+    for (final session
+        in ref.read(accountsProvider).value?.sessions ??
+            const <MatrixSession>[]) {
+      _applyRetention(session, days);
+    }
+  }
+}
+
+/// A failure only leaves the cache's previous setting; the next start tries again.
+void _applyRetention(MatrixSession session, int? days) => unawaited(
+  session.setMediaRetention(days).catchError((Object error) {
+    appLog(LogLevel.warn, 'media', 'retention not set: $error');
+  }),
+);
+
 /// What the login form suggests.
 @Riverpod(keepAlive: true)
 String defaultServer(Ref ref) => 'matrix.org';
@@ -82,6 +117,10 @@ class Accounts extends _$Accounts {
     final factory = ref.watch(clientFactoryProvider);
     final sessions = await factory.restoreAll();
     sessions.forEach(_watchExpiry);
+    final days = ref.read(mediaPrefsProvider).retentionDays;
+    for (final session in sessions) {
+      _applyRetention(session, days);
+    }
     final saved = await factory.readActive();
     final active = sessions.any((session) => session.userId == saved)
         ? saved
@@ -102,6 +141,7 @@ class Accounts extends _$Accounts {
         .read(clientFactoryProvider)
         .login(server: server, username: username, password: password);
     _watchExpiry(session);
+    _applyRetention(session, ref.read(mediaRetentionProvider));
     // Right after login the status is unknown until the keys are fetched; waiting a moment
     // avoids showing the chats just before the verification screen.
     await session.verificationStatus
@@ -231,6 +271,78 @@ class CollapsedSectionTags extends _$CollapsedSectionTags {
     unawaited(ref.read(collapsedSectionsStoreProvider).write(account, tags));
   }
 }
+
+/// A picture of a message's file for showing it in the chat. Kept once loaded.
+@riverpod
+Future<Uint8List> mediaThumbnail(
+  Ref ref,
+  String account,
+  String source,
+  String? thumbnail,
+) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  final bytes = await session.mediaThumbnail(source, thumbnail, 640);
+  ref.keepAlive();
+  return bytes;
+}
+
+/// A message's whole file, while something shows it.
+@riverpod
+Future<Uint8List> mediaContent(Ref ref, String account, String source) {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.mediaContent(source);
+}
+
+@riverpod
+Future<RoomDetails> roomDetails(Ref ref, String account, String roomId) {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.roomDetails(roomId);
+}
+
+@riverpod
+Future<List<RoomMember>> roomMembers(Ref ref, String account, String roomId) {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.roomMembers(roomId);
+}
+
+/// The room's files and links, for its info screen; closed when no longer shown.
+@riverpod
+Future<RoomTimeline> mediaTimeline(
+  Ref ref,
+  String account,
+  String roomId,
+) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  RoomTimeline? timeline;
+  var disposed = false;
+  ref.onDispose(() {
+    disposed = true;
+    timeline?.close();
+  });
+  timeline = await session.openMediaTimeline(roomId);
+  if (disposed) timeline.close();
+  return timeline;
+}
+
+/// As [timelineEntries], for [mediaTimeline].
+@riverpod
+Stream<List<TimelineEntry>> mediaTimelineEntries(
+  Ref ref,
+  String account,
+  String roomId,
+) => switch (ref.watch(mediaTimelineProvider(account, roomId))) {
+  AsyncData(:final value) => value.entries,
+  AsyncError(:final error, :final stackTrace) => Stream.error(
+    error,
+    stackTrace,
+  ),
+  _ => const Stream.empty(),
+};
 
 /// `null` until the first room list has arrived.
 @riverpod

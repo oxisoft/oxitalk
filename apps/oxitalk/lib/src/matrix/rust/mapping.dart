@@ -1,4 +1,5 @@
 import '../../rust/api/error.dart';
+import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
@@ -91,6 +92,39 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
       rust.SendState.failed => SendState.failed,
     },
   ),
+  rust.TimelineItemContent_Media(:final event, :final media) => MediaEntry(
+    id: item.id,
+    sender: event.sender,
+    senderName: event.senderName,
+    senderAvatarUrl: event.senderAvatarUrl,
+    time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
+    isOwn: event.isOwn,
+    sendState: switch (event.sendState) {
+      rust.SendState.sending => SendState.sending,
+      rust.SendState.sent => SendState.sent,
+      rust.SendState.failed => SendState.failed,
+    },
+    media: MediaInfo(
+      kind: switch (media.kind) {
+        rust.MediaKind.image => MediaKind.image,
+        rust.MediaKind.video => MediaKind.video,
+        rust.MediaKind.audio => MediaKind.audio,
+        rust.MediaKind.file => MediaKind.file,
+      },
+      source: media.source,
+      thumbnail: media.thumbnail,
+      filename: media.filename,
+      caption: media.caption,
+      mimeType: media.mimeType,
+      size: media.size,
+      width: media.width,
+      height: media.height,
+      duration: switch (media.durationMs) {
+        final ms? => Duration(milliseconds: ms),
+        null => null,
+      },
+    ),
+  ),
   rust.TimelineItemContent_UnableToDecrypt(:final event) => UndecryptableEntry(
     id: item.id,
     sender: event.sender,
@@ -152,3 +186,27 @@ Sections applySectionsUpdate(Sections sections, rust.SectionsUpdate update) =>
         },
       ),
     };
+
+RoomDetails roomDetailsOf(rust.RoomDetails details) => RoomDetails(
+  roomId: details.roomId,
+  name: details.name,
+  avatarUrl: details.avatarUrl,
+  topic: details.topic,
+  alias: details.alias,
+  joinedMembers: details.joinedMembers,
+  isEncrypted: details.isEncrypted,
+  dmUserId: details.dmUserId,
+  dmUserVerified: details.dmUserVerified,
+);
+
+RoomMember roomMemberOf(rust.RoomMember member) => RoomMember(
+  userId: member.userId,
+  displayName: member.displayName,
+  avatarUrl: member.avatarUrl,
+  role: switch (member.role) {
+    rust.MemberRole.admin => MemberRole.admin,
+    rust.MemberRole.moderator => MemberRole.moderator,
+    rust.MemberRole.member => MemberRole.member,
+  },
+  invited: member.invited,
+);

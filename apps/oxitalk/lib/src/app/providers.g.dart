@@ -344,6 +344,156 @@ final class WindowControlsProvider
 
 String _$windowControlsHash() => r'246db448059665fbaf7cde179475521ceecc96bb';
 
+/// Set by `main` (and by tests), next to the app's other data.
+
+@ProviderFor(mediaPrefs)
+final mediaPrefsProvider = MediaPrefsProvider._();
+
+/// Set by `main` (and by tests), next to the app's other data.
+
+final class MediaPrefsProvider
+    extends $FunctionalProvider<MediaPrefs, MediaPrefs, MediaPrefs>
+    with $Provider<MediaPrefs> {
+  /// Set by `main` (and by tests), next to the app's other data.
+  MediaPrefsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'mediaPrefsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaPrefsHash();
+
+  @$internal
+  @override
+  $ProviderElement<MediaPrefs> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  MediaPrefs create(Ref ref) {
+    return mediaPrefs(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(MediaPrefs value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<MediaPrefs>(value),
+    );
+  }
+}
+
+String _$mediaPrefsHash() => r'65d023d886efd66c1f355c76e7dd14f74cb273cc';
+
+/// Tests override this: no file dialogs or other apps in a test.
+
+@ProviderFor(fileActions)
+final fileActionsProvider = FileActionsProvider._();
+
+/// Tests override this: no file dialogs or other apps in a test.
+
+final class FileActionsProvider
+    extends $FunctionalProvider<FileActions, FileActions, FileActions>
+    with $Provider<FileActions> {
+  /// Tests override this: no file dialogs or other apps in a test.
+  FileActionsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'fileActionsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$fileActionsHash();
+
+  @$internal
+  @override
+  $ProviderElement<FileActions> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  FileActions create(Ref ref) {
+    return fileActions(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(FileActions value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<FileActions>(value),
+    );
+  }
+}
+
+String _$fileActionsHash() => r'c270e8ecbb8d9ba4aa491959a66157880cb73109';
+
+/// How long cached media is kept, in days (`null`: forever); applied to every account.
+
+@ProviderFor(MediaRetention)
+final mediaRetentionProvider = MediaRetentionProvider._();
+
+/// How long cached media is kept, in days (`null`: forever); applied to every account.
+final class MediaRetentionProvider
+    extends $NotifierProvider<MediaRetention, int?> {
+  /// How long cached media is kept, in days (`null`: forever); applied to every account.
+  MediaRetentionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'mediaRetentionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaRetentionHash();
+
+  @$internal
+  @override
+  MediaRetention create() => MediaRetention();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int?>(value),
+    );
+  }
+}
+
+String _$mediaRetentionHash() => r'a6e1416f61816c9faa032399e51df718c3c199c8';
+
+/// How long cached media is kept, in days (`null`: forever); applied to every account.
+
+abstract class _$MediaRetention extends $Notifier<int?> {
+  int? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<int?, int?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<int?, int?>,
+              int?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// What the login form suggests.
 
 @ProviderFor(defaultServer)
@@ -418,7 +568,7 @@ final class AccountsProvider
   Accounts create() => Accounts();
 }
 
-String _$accountsHash() => r'a9570f2fed4dfb8dc4030f02e83284cca3a5bc1f';
+String _$accountsHash() => r'4a28d736c01abe339e9d1bafaedf8314202903e6';
 
 /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 
@@ -1216,6 +1366,511 @@ abstract class _$CollapsedSectionTags extends $AsyncNotifier<Set<String>> {
             >;
     return element.handleCreate(ref, () => build(_$args));
   }
+}
+
+/// A picture of a message's file for showing it in the chat. Kept once loaded.
+
+@ProviderFor(mediaThumbnail)
+final mediaThumbnailProvider = MediaThumbnailFamily._();
+
+/// A picture of a message's file for showing it in the chat. Kept once loaded.
+
+final class MediaThumbnailProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Uint8List>,
+          Uint8List,
+          FutureOr<Uint8List>
+        >
+    with $FutureModifier<Uint8List>, $FutureProvider<Uint8List> {
+  /// A picture of a message's file for showing it in the chat. Kept once loaded.
+  MediaThumbnailProvider._({
+    required MediaThumbnailFamily super.from,
+    required (String, String, String?) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mediaThumbnailProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaThumbnailHash();
+
+  @override
+  String toString() {
+    return r'mediaThumbnailProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Uint8List> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Uint8List> create(Ref ref) {
+    final argument = this.argument as (String, String, String?);
+    return mediaThumbnail(ref, argument.$1, argument.$2, argument.$3);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MediaThumbnailProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mediaThumbnailHash() => r'2e9d6294823e2a510b12d40081523f5d80f8df45';
+
+/// A picture of a message's file for showing it in the chat. Kept once loaded.
+
+final class MediaThumbnailFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<Uint8List>,
+          (String, String, String?)
+        > {
+  MediaThumbnailFamily._()
+    : super(
+        retry: null,
+        name: r'mediaThumbnailProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// A picture of a message's file for showing it in the chat. Kept once loaded.
+
+  MediaThumbnailProvider call(
+    String account,
+    String source,
+    String? thumbnail,
+  ) => MediaThumbnailProvider._(
+    argument: (account, source, thumbnail),
+    from: this,
+  );
+
+  @override
+  String toString() => r'mediaThumbnailProvider';
+}
+
+/// A message's whole file, while something shows it.
+
+@ProviderFor(mediaContent)
+final mediaContentProvider = MediaContentFamily._();
+
+/// A message's whole file, while something shows it.
+
+final class MediaContentProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Uint8List>,
+          Uint8List,
+          FutureOr<Uint8List>
+        >
+    with $FutureModifier<Uint8List>, $FutureProvider<Uint8List> {
+  /// A message's whole file, while something shows it.
+  MediaContentProvider._({
+    required MediaContentFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mediaContentProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaContentHash();
+
+  @override
+  String toString() {
+    return r'mediaContentProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Uint8List> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Uint8List> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return mediaContent(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MediaContentProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mediaContentHash() => r'a4afda7364212dea22c8a7f325fe96a3fad00901';
+
+/// A message's whole file, while something shows it.
+
+final class MediaContentFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Uint8List>, (String, String)> {
+  MediaContentFamily._()
+    : super(
+        retry: null,
+        name: r'mediaContentProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// A message's whole file, while something shows it.
+
+  MediaContentProvider call(String account, String source) =>
+      MediaContentProvider._(argument: (account, source), from: this);
+
+  @override
+  String toString() => r'mediaContentProvider';
+}
+
+@ProviderFor(roomDetails)
+final roomDetailsProvider = RoomDetailsFamily._();
+
+final class RoomDetailsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<RoomDetails>,
+          RoomDetails,
+          FutureOr<RoomDetails>
+        >
+    with $FutureModifier<RoomDetails>, $FutureProvider<RoomDetails> {
+  RoomDetailsProvider._({
+    required RoomDetailsFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'roomDetailsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$roomDetailsHash();
+
+  @override
+  String toString() {
+    return r'roomDetailsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<RoomDetails> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<RoomDetails> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return roomDetails(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomDetailsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$roomDetailsHash() => r'95b145362bd09fcf759bc3865efa699e58df6a86';
+
+final class RoomDetailsFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<RoomDetails>, (String, String)> {
+  RoomDetailsFamily._()
+    : super(
+        retry: null,
+        name: r'roomDetailsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  RoomDetailsProvider call(String account, String roomId) =>
+      RoomDetailsProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'roomDetailsProvider';
+}
+
+@ProviderFor(roomMembers)
+final roomMembersProvider = RoomMembersFamily._();
+
+final class RoomMembersProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<RoomMember>>,
+          List<RoomMember>,
+          FutureOr<List<RoomMember>>
+        >
+    with $FutureModifier<List<RoomMember>>, $FutureProvider<List<RoomMember>> {
+  RoomMembersProvider._({
+    required RoomMembersFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'roomMembersProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$roomMembersHash();
+
+  @override
+  String toString() {
+    return r'roomMembersProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<List<RoomMember>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<RoomMember>> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return roomMembers(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomMembersProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$roomMembersHash() => r'822502e9721ea0928a1023118958c3309bdc6ac6';
+
+final class RoomMembersFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<List<RoomMember>>,
+          (String, String)
+        > {
+  RoomMembersFamily._()
+    : super(
+        retry: null,
+        name: r'roomMembersProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  RoomMembersProvider call(String account, String roomId) =>
+      RoomMembersProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'roomMembersProvider';
+}
+
+/// The room's files and links, for its info screen; closed when no longer shown.
+
+@ProviderFor(mediaTimeline)
+final mediaTimelineProvider = MediaTimelineFamily._();
+
+/// The room's files and links, for its info screen; closed when no longer shown.
+
+final class MediaTimelineProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<RoomTimeline>,
+          RoomTimeline,
+          FutureOr<RoomTimeline>
+        >
+    with $FutureModifier<RoomTimeline>, $FutureProvider<RoomTimeline> {
+  /// The room's files and links, for its info screen; closed when no longer shown.
+  MediaTimelineProvider._({
+    required MediaTimelineFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mediaTimelineProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaTimelineHash();
+
+  @override
+  String toString() {
+    return r'mediaTimelineProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<RoomTimeline> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<RoomTimeline> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return mediaTimeline(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MediaTimelineProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mediaTimelineHash() => r'13caf66f2b7e3dad83e167f005ff11ff94b952b9';
+
+/// The room's files and links, for its info screen; closed when no longer shown.
+
+final class MediaTimelineFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<RoomTimeline>, (String, String)> {
+  MediaTimelineFamily._()
+    : super(
+        retry: null,
+        name: r'mediaTimelineProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The room's files and links, for its info screen; closed when no longer shown.
+
+  MediaTimelineProvider call(String account, String roomId) =>
+      MediaTimelineProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'mediaTimelineProvider';
+}
+
+/// As [timelineEntries], for [mediaTimeline].
+
+@ProviderFor(mediaTimelineEntries)
+final mediaTimelineEntriesProvider = MediaTimelineEntriesFamily._();
+
+/// As [timelineEntries], for [mediaTimeline].
+
+final class MediaTimelineEntriesProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<TimelineEntry>>,
+          List<TimelineEntry>,
+          Stream<List<TimelineEntry>>
+        >
+    with
+        $FutureModifier<List<TimelineEntry>>,
+        $StreamProvider<List<TimelineEntry>> {
+  /// As [timelineEntries], for [mediaTimeline].
+  MediaTimelineEntriesProvider._({
+    required MediaTimelineEntriesFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mediaTimelineEntriesProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaTimelineEntriesHash();
+
+  @override
+  String toString() {
+    return r'mediaTimelineEntriesProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<List<TimelineEntry>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<TimelineEntry>> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return mediaTimelineEntries(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MediaTimelineEntriesProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mediaTimelineEntriesHash() =>
+    r'a0f7968fe974dca9de82311e6d0203ae26d7e3db';
+
+/// As [timelineEntries], for [mediaTimeline].
+
+final class MediaTimelineEntriesFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          Stream<List<TimelineEntry>>,
+          (String, String)
+        > {
+  MediaTimelineEntriesFamily._()
+    : super(
+        retry: null,
+        name: r'mediaTimelineEntriesProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// As [timelineEntries], for [mediaTimeline].
+
+  MediaTimelineEntriesProvider call(String account, String roomId) =>
+      MediaTimelineEntriesProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'mediaTimelineEntriesProvider';
 }
 
 /// `null` until the first room list has arrived.

@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/profile.dart';
+import 'api/room_info.dart';
 import 'api/room_list.dart';
 import 'api/sections.dart';
 import 'api/session.dart';
@@ -139,6 +140,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
   CoreError dco_decode_box_autoadd_core_error(dynamic raw);
 
   @protected
@@ -146,6 +150,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  MediaMessage dco_decode_box_autoadd_media_message(dynamic raw);
 
   @protected
   RoomSummary dco_decode_box_autoadd_room_summary(dynamic raw);
@@ -158,6 +165,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TimelineItem dco_decode_box_autoadd_timeline_item(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   CoreError dco_decode_core_error(dynamic raw);
@@ -193,6 +203,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomListDiff> dco_decode_list_room_list_diff(dynamic raw);
 
   @protected
+  List<RoomMember> dco_decode_list_room_member(dynamic raw);
+
+  @protected
   List<RoomSummary> dco_decode_list_room_summary(dynamic raw);
 
   @protected
@@ -211,13 +224,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LogLevel dco_decode_log_level(dynamic raw);
 
   @protected
+  MediaKind dco_decode_media_kind(dynamic raw);
+
+  @protected
+  MediaMessage dco_decode_media_message(dynamic raw);
+
+  @protected
+  MemberRole dco_decode_member_role(dynamic raw);
+
+  @protected
   Membership dco_decode_membership(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw);
@@ -226,7 +254,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Profile dco_decode_profile(dynamic raw);
 
   @protected
+  RoomDetails dco_decode_room_details(dynamic raw);
+
+  @protected
   RoomListDiff dco_decode_room_list_diff(dynamic raw);
+
+  @protected
+  RoomMember dco_decode_room_member(dynamic raw);
 
   @protected
   RoomSummary dco_decode_room_summary(dynamic raw);
@@ -391,6 +425,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   CoreError sse_decode_box_autoadd_core_error(SseDeserializer deserializer);
 
   @protected
@@ -398,6 +435,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MediaMessage sse_decode_box_autoadd_media_message(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RoomSummary sse_decode_box_autoadd_room_summary(SseDeserializer deserializer);
@@ -414,6 +456,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TimelineItem sse_decode_box_autoadd_timeline_item(
     SseDeserializer deserializer,
   );
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   CoreError sse_decode_core_error(SseDeserializer deserializer);
@@ -453,6 +498,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<RoomMember> sse_decode_list_room_member(SseDeserializer deserializer);
+
+  @protected
   List<RoomSummary> sse_decode_list_room_summary(SseDeserializer deserializer);
 
   @protected
@@ -477,13 +525,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LogLevel sse_decode_log_level(SseDeserializer deserializer);
 
   @protected
+  MediaKind sse_decode_media_kind(SseDeserializer deserializer);
+
+  @protected
+  MediaMessage sse_decode_media_message(SseDeserializer deserializer);
+
+  @protected
+  MemberRole sse_decode_member_role(SseDeserializer deserializer);
+
+  @protected
   Membership sse_decode_membership(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   List<VerificationEmoji>? sse_decode_opt_list_verification_emoji(
@@ -494,7 +557,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Profile sse_decode_profile(SseDeserializer deserializer);
 
   @protected
+  RoomDetails sse_decode_room_details(SseDeserializer deserializer);
+
+  @protected
   RoomListDiff sse_decode_room_list_diff(SseDeserializer deserializer);
+
+  @protected
+  RoomMember sse_decode_room_member(SseDeserializer deserializer);
 
   @protected
   RoomSummary sse_decode_room_summary(SseDeserializer deserializer);
@@ -688,6 +757,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_core_error(
     CoreError self,
     SseSerializer serializer,
@@ -702,6 +774,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_media_message(
+    MediaMessage self,
     SseSerializer serializer,
   );
 
@@ -728,6 +806,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     TimelineItem self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_core_error(CoreError self, SseSerializer serializer);
@@ -775,6 +856,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_room_member(
+    List<RoomMember> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_room_summary(
     List<RoomSummary> self,
     SseSerializer serializer,
@@ -805,16 +892,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_log_level(LogLevel self, SseSerializer serializer);
 
   @protected
+  void sse_encode_media_kind(MediaKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_media_message(MediaMessage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_member_role(MemberRole self, SseSerializer serializer);
+
+  @protected
   void sse_encode_membership(Membership self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_list_verification_emoji(
@@ -826,7 +928,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_profile(Profile self, SseSerializer serializer);
 
   @protected
+  void sse_encode_room_details(RoomDetails self, SseSerializer serializer);
+
+  @protected
   void sse_encode_room_list_diff(RoomListDiff self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_member(RoomMember self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_summary(RoomSummary self, SseSerializer serializer);

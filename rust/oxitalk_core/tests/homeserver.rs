@@ -16,7 +16,9 @@ use futures_util::{Stream, StreamExt};
 
 use matrix_sdk::{
     Client,
+    attachment::{AttachmentConfig, AttachmentInfo, BaseFileInfo},
     ruma::{
+        OwnedRoomId,
         api::client::{account::register::v3::Request as RegistrationRequest, uiaa},
         serde::Raw,
     },
@@ -24,10 +26,11 @@ use matrix_sdk::{
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
+    room_info::MemberRole,
     room_list::{Membership, RoomSummary},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
     session::{Session, login, restore},
-    timeline::{SendState, TimelineItemContent},
+    timeline::{MediaKind, MediaMessage, SendState, TimelineItem, TimelineItemContent},
     verification::{Verification, VerificationFlowState, VerificationStatus},
 };
 use serde_json::json;
@@ -406,6 +409,161 @@ async fn marking_a_chat_read_clears_its_unread_count() -> TestResult {
         .await?;
     // Again, with nothing new: nothing to send, no error.
     bob_timeline.mark_as_read().await?;
+    Ok(())
+}
+
+/// Alice and Bob in an encrypted DM that Bob has joined, with the room ID.
+async fn joined_dm() -> Result<(Session, Session, String, Vec<tempfile::TempDir>), Box<dyn Error>> {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let stores = vec![tempfile::tempdir()?, tempfile::tempdir()?];
+    let alice = alice_user
+        .login(&stores[0].path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&stores[1].path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    bob.join(room_id.clone()).await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.membership == Membership::Joined)
+        })
+        .await?;
+    Ok((alice, bob, room_id, stores))
+}
+
+/// The media message of `kind` in `items`, once there is one.
+fn media_of(items: &[TimelineItem], kind: MediaKind) -> Option<MediaMessage> {
+    items.iter().find_map(|item| match &item.content {
+        TimelineItemContent::Media { media, .. } if media.kind == kind => Some(media.clone()),
+        _ => None,
+    })
+}
+
+/// Pictures and files arrive decrypted, are cached, and can be saved; the media timeline
+/// keeps only them and the links.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn pictures_and_files_arrive_and_are_cached() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let room = alice
+        .sdk()
+        .get_room(&room_id.parse::<OwnedRoomId>()?)
+        .ok_or("no room")?;
+    let notes = b"meeting notes".to_vec();
+    room.send_attachment(
+        "pic.png",
+        &mime::IMAGE_PNG,
+        AVATAR_PNG.to_vec(),
+        AttachmentConfig::new(),
+    )
+    .await?;
+    room.send_attachment(
+        "notes.txt",
+        &mime::TEXT_PLAIN,
+        notes.clone(),
+        AttachmentConfig::new().info(AttachmentInfo::File(BaseFileInfo {
+            size: Some(13_u32.into()),
+        })),
+    )
+    .await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    alice_timeline.send_text("no link".to_owned()).await?;
+    alice_timeline
+        .send_text("see https://oxisoft.io/docs".to_owned())
+        .await?;
+
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut items = watch_timeline(&bob_timeline).await;
+    bob_timeline.paginate_back(20).await?;
+    items
+        .wait_until(|items| {
+            media_of(items, MediaKind::Image).is_some()
+                && media_of(items, MediaKind::File).is_some()
+        })
+        .await?;
+    let image = media_of(&items.items, MediaKind::Image).ok_or("no image")?;
+    let file = media_of(&items.items, MediaKind::File).ok_or("no file")?;
+    assert_eq!(
+        (image.filename.as_str(), file.filename.as_str()),
+        ("pic.png", "notes.txt")
+    );
+    assert_eq!(image.mime_type.as_deref(), Some("image/png"));
+    assert_eq!(file.size, Some(13));
+    // Encrypted on the server, decrypted here.
+    assert!(image.source.contains("\"key\""));
+    assert_eq!(bob.media_content(image.source.clone()).await?, AVATAR_PNG);
+    let thumbnail = bob
+        .media_thumbnail(image.source.clone(), image.thumbnail.clone(), 96)
+        .await?;
+    assert!(thumbnail.starts_with(b"\x89PNG") || thumbnail.starts_with(b"\xff\xd8"));
+    let saved = tempfile::tempdir()?.keep().join("notes.txt");
+    bob.save_media(file.source.clone(), saved.to_string_lossy().into_owned())
+        .await?;
+    assert_eq!(std::fs::read(&saved)?, notes);
+    assert!(matches!(
+        bob.media_content("{}".to_owned()).await,
+        Err(CoreError::InvalidId { .. })
+    ));
+
+    // Cached: the size shows; cleared, it is fetched again.
+    bob.set_media_retention(Some(7)).await?;
+    assert!(bob.media_cache_size().await?.unwrap_or_default() > 0);
+    bob.clear_media_cache().await?;
+    bob.set_media_retention(None).await?;
+    assert_eq!(bob.media_content(image.source).await?, AVATAR_PNG);
+
+    let gallery = bob.media_timeline(room_id).await?;
+    let mut gallery_items = watch_timeline(&gallery).await;
+    gallery.paginate_back(50).await?;
+    gallery_items
+        .wait_until(|items| {
+            media_of(items, MediaKind::Image).is_some()
+                && media_of(items, MediaKind::File).is_some()
+                && messages(items)
+                    .iter()
+                    .any(|(body, _)| body.contains("https://"))
+        })
+        .await?;
+    assert!(
+        !messages(&gallery_items.items)
+            .iter()
+            .any(|(body, _)| *body == "no link")
+    );
+    Ok(())
+}
+
+/// The info screen's details and members of a direct chat.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn a_direct_chat_shows_its_details_and_members() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    // Alice made the DM, so she knows it as one at once.
+    let details = alice.room_details(room_id.clone()).await?;
+    assert!(details.is_encrypted);
+    assert_eq!(details.dm_user_id.as_deref(), Some(bob.user_id().as_str()));
+    // Alice hasn't verified Bob.
+    assert_eq!(details.dm_user_verified, Some(false));
+    let members = alice.room_members(room_id.clone()).await?;
+    let ids: Vec<_> = members.iter().map(|m| m.user_id.clone()).collect();
+    assert_eq!(members.len(), 2, "{ids:?}");
+    assert!(ids.contains(&alice.user_id()) && ids.contains(&bob.user_id()));
+    // Alice made the room.
+    let alice_member = members
+        .iter()
+        .find(|m| m.user_id == alice.user_id())
+        .ok_or("no Alice")?;
+    assert_eq!(alice_member.role, MemberRole::Admin);
+    assert!(matches!(
+        bob.room_details("!nowhere:localhost".to_owned()).await,
+        Err(CoreError::RoomNotFound { .. })
+    ));
     Ok(())
 }
 

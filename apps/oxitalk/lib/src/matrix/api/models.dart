@@ -80,6 +80,67 @@ final class MessageEntry extends TimelineEntry {
   final SendState sendState;
 }
 
+enum MediaKind { image, video, audio, file }
+
+/// A file in a message.
+final class MediaInfo {
+  const MediaInfo({
+    required this.kind,
+    required this.source,
+    required this.filename,
+    this.thumbnail,
+    this.caption,
+    this.mimeType,
+    this.size,
+    this.width,
+    this.height,
+    this.duration,
+  });
+
+  final MediaKind kind;
+
+  /// Where the file is, opaque; the session fetches it.
+  final String source;
+
+  /// The same for a thumbnail the sender attached.
+  final String? thumbnail;
+  final String filename;
+
+  /// Text the sender wrote with the file.
+  final String? caption;
+  final String? mimeType;
+
+  /// In bytes.
+  final int? size;
+  final int? width;
+  final int? height;
+  final Duration? duration;
+}
+
+/// A message with an image, video, audio or other file.
+final class MediaEntry extends TimelineEntry {
+  const MediaEntry({
+    required String id,
+    required this.sender,
+    required this.time,
+    required this.media,
+    this.senderName,
+    this.senderAvatarUrl,
+    this.isOwn = false,
+    this.sendState = SendState.sent,
+  }) : super(id);
+
+  final String sender;
+  final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
+  final DateTime time;
+  final MediaInfo media;
+  final bool isOwn;
+  final SendState sendState;
+}
+
 /// An encrypted message whose key hasn't arrived (yet).
 final class UndecryptableEntry extends TimelineEntry {
   const UndecryptableEntry({
@@ -148,6 +209,61 @@ abstract final class SectionTags {
   /// A tag that puts a room in a section.
   static bool isSection(String tag) =>
       tag == favourites || tag == lowPriority || isCustom(tag);
+}
+
+/// What a chat's info screen shows about it.
+final class RoomDetails {
+  const RoomDetails({
+    required this.roomId,
+    required this.name,
+    this.avatarUrl,
+    this.topic,
+    this.alias,
+    this.joinedMembers = 0,
+    this.isEncrypted = false,
+    this.dmUserId,
+    this.dmUserVerified,
+  });
+
+  final String roomId;
+  final String name;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+  final String? topic;
+
+  /// The room's main address, like `#team:example.org`.
+  final String? alias;
+  final int joinedMembers;
+  final bool isEncrypted;
+
+  /// The other person of a direct chat.
+  final String? dmUserId;
+
+  /// Whether the user verified [dmUserId]; `null` if unknown.
+  final bool? dmUserVerified;
+}
+
+enum MemberRole { admin, moderator, member }
+
+final class RoomMember {
+  const RoomMember({
+    required this.userId,
+    this.displayName,
+    this.avatarUrl,
+    this.role = MemberRole.member,
+    this.invited = false,
+  });
+
+  final String userId;
+  final String? displayName;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+  final MemberRole role;
+
+  /// Invited, not joined yet.
+  final bool invited;
 }
 
 /// The user's own profile.

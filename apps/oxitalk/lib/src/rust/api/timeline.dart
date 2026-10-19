@@ -10,8 +10,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `item`, `timeline_diff`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `int`, `item`, `media_message`, `millis`, `new`, `small`, `source_json`, `timeline_diff`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Timeline>>
@@ -91,6 +91,72 @@ class EventInfo {
           sendState == other.sendState;
 }
 
+enum MediaKind { image, video, audio, file }
+
+/// A file in a message. [`Session::media_content`] and [`Session::media_thumbnail`] fetch it.
+class MediaMessage {
+  final MediaKind kind;
+
+  /// Where the file is (and its key, in an encrypted room), as JSON to hand back to the core.
+  final String source;
+
+  /// The same for a thumbnail the sender attached, if any.
+  final String? thumbnail;
+  final String filename;
+
+  /// Text the sender wrote with the file.
+  final String? caption;
+  final String? mimeType;
+
+  /// In bytes.
+  final PlatformInt64? size;
+  final int? width;
+  final int? height;
+  final PlatformInt64? durationMs;
+
+  const MediaMessage({
+    required this.kind,
+    required this.source,
+    this.thumbnail,
+    required this.filename,
+    this.caption,
+    this.mimeType,
+    this.size,
+    this.width,
+    this.height,
+    this.durationMs,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      source.hashCode ^
+      thumbnail.hashCode ^
+      filename.hashCode ^
+      caption.hashCode ^
+      mimeType.hashCode ^
+      size.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      durationMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MediaMessage &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          source == other.source &&
+          thumbnail == other.thumbnail &&
+          filename == other.filename &&
+          caption == other.caption &&
+          mimeType == other.mimeType &&
+          size == other.size &&
+          width == other.width &&
+          height == other.height &&
+          durationMs == other.durationMs;
+}
+
 enum SendState { sending, sent, failed }
 
 @freezed
@@ -145,11 +211,17 @@ class TimelineItem {
 sealed class TimelineItemContent with _$TimelineItemContent {
   const TimelineItemContent._();
 
-  /// A text message (for other message types, their fallback body).
+  /// A text message (for other message types without a file, their fallback body).
   const factory TimelineItemContent.message({
     required EventInfo event,
     required String body,
   }) = TimelineItemContent_Message;
+
+  /// An image, video, audio or other file.
+  const factory TimelineItemContent.media({
+    required EventInfo event,
+    required MediaMessage media,
+  }) = TimelineItemContent_Media;
 
   /// An encrypted event whose key hasn't arrived (yet).
   const factory TimelineItemContent.unableToDecrypt({

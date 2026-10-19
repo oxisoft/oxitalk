@@ -12,8 +12,11 @@ import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
 import 'package:oxitalk/src/app/collapsed_sections.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
+import 'package:oxitalk/src/app/file_actions.dart';
+import 'package:oxitalk/src/app/media_prefs.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/providers.dart';
+import 'package:oxitalk/src/features/chat/media_views.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 import 'package:oxitalk/src/matrix/rust/rust_matrix.dart';
@@ -69,6 +72,8 @@ void main() {
           ),
           defaultServerProvider.overrideWithValue(_homeserver),
           diagnosticsProvider.overrideWithValue(MemoryDiagnostics()),
+          mediaPrefsProvider.overrideWithValue(MemoryMediaPrefs()),
+          fileActionsProvider.overrideWithValue(FakeFileActions()),
           accountPicturesProvider.overrideWithValue(MemoryAccountPictures()),
           collapsedSectionsStoreProvider.overrideWithValue(
             MemoryCollapsedSections(),
@@ -180,6 +185,20 @@ void main() {
       gone: true,
     );
 
+    // Bob posts a picture in a new room (over plain HTTP: the app can't send files yet);
+    // Alice joins, and the picture shows through the core.
+    await _postPicture(bob, invite: '@${alice.name}:localhost');
+    await _pumpUntil(tester, find.text('Pictures'));
+    await tester.tap(find.text('Pictures'));
+    await _pumpUntil(tester, find.text('office.png caption'));
+    await _pumpUntil(
+      tester,
+      find.descendant(
+        of: find.byType(MediaPreview),
+        matching: find.byType(Image),
+      ),
+    );
+
     // A second account, for another customer: added from the rail, both stay online.
     final carol = await _registerUser();
     await tester.tap(find.byKey(const Key('account.add')));
@@ -261,6 +280,77 @@ Future<void> _type(WidgetTester tester, Finder field, String text) async {
 /// Runs a teardown [body], failing instead of hanging if it never completes.
 Future<void> _bounded(FutureOr<void> Function() body) =>
     Future.sync(body).timeout(_timeout);
+
+/// Logs [user] in over HTTP and makes a room named Pictures with [invite] in it, holding a
+/// picture with a caption.
+Future<void> _postPicture(
+  ({String name, String password}) user, {
+  required String invite,
+}) async {
+  final login = await _http('POST', '/_matrix/client/v3/login', {
+    'type': 'm.login.password',
+    'identifier': {'type': 'm.id.user', 'user': user.name},
+    'password': user.password,
+  });
+  final token = login['access_token']! as String;
+  final room = await _http('POST', '/_matrix/client/v3/createRoom', {
+    'name': 'Pictures',
+    'invite': [invite],
+  }, token: token);
+  final upload = await _http(
+    'POST',
+    '/_matrix/media/v3/upload?filename=office.png',
+    png,
+    token: token,
+    contentType: ContentType('image', 'png'),
+  );
+  await _http(
+    'PUT',
+    '/_matrix/client/v3/rooms/${Uri.encodeComponent(room['room_id']! as String)}'
+        '/send/m.room.message/picture1',
+    {
+      'msgtype': 'm.image',
+      'body': 'office.png caption',
+      'filename': 'office.png',
+      'url': upload['content_uri'],
+      'info': {'mimetype': 'image/png', 'w': 64, 'h': 64, 'size': png.length},
+    },
+    token: token,
+  );
+}
+
+/// One request to the test server; [body] is JSON, or raw bytes with [contentType].
+Future<Map<String, Object?>> _http(
+  String method,
+  String path,
+  Object body, {
+  String? token,
+  ContentType? contentType,
+}) async {
+  final client = HttpClient();
+  try {
+    final request = await client.openUrl(
+      method,
+      Uri.parse('$_homeserver$path'),
+    );
+    if (token != null) {
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    }
+    request.headers.contentType = contentType ?? ContentType.json;
+    final bytes = body is List<int> ? body : utf8.encode(jsonEncode(body));
+    request
+      ..contentLength = bytes.length
+      ..add(bytes);
+    final response = await request.close();
+    final text = await response.transform(utf8.decoder).join();
+    if (response.statusCode != HttpStatus.ok) {
+      throw StateError('$method $path: ${response.statusCode} $text');
+    }
+    return jsonDecode(text) as Map<String, Object?>;
+  } finally {
+    client.close();
+  }
+}
 
 /// Registers a fresh user (open registration on the test server only).
 Future<({String name, String password})> _registerUser() async {
