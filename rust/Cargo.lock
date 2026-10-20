@@ -2687,7 +2687,7 @@ dependencies = [
 
 [[package]]
 name = "oxitalk_core"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "flutter_rust_bridge",
  "futures-util",
