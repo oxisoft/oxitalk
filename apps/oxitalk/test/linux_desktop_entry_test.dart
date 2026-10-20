@@ -37,6 +37,12 @@ void main() {
         contains('StartupWMClass=io.oxisoft.oxitalk'),
       );
       expect(icon().readAsBytesSync(), [1, 2, 3]);
+      final theme = Directory('$dataHome/icons/hicolor');
+      expect(
+        theme.statSync().modified.isBefore(icon().statSync().modified),
+        isFalse,
+      );
+      expect(theme.listSync().map((e) => e.path.split('/').last), ['256x256']);
 
       final moved = '${root.path}/elsewhere/oxitalk';
       await registerLinuxDesktopEntry(
@@ -47,6 +53,25 @@ void main() {
       expect(entry().readAsStringSync(), contains('Exec="$moved" %U'));
     },
   );
+
+  test('an icon installed earlier is announced once more', () async {
+    await registerLinuxDesktopEntry(
+      executable: executable,
+      dataHome: dataHome,
+      dataDirs: const [],
+    );
+    // As left by the first version: the theme folder older than the icon in it.
+    final theme = Directory('$dataHome/icons/hicolor');
+    final old = DateTime(2026, 10, 13);
+    Process.runSync('touch', ['-d', old.toIso8601String(), theme.path]);
+    expect(theme.statSync().modified, old);
+    await registerLinuxDesktopEntry(
+      executable: executable,
+      dataHome: dataHome,
+      dataDirs: const [],
+    );
+    expect(theme.statSync().modified.isAfter(old), isTrue);
+  });
 
   test('nothing is written when a package installed the entry, or in a '
       'Flatpak', () async {

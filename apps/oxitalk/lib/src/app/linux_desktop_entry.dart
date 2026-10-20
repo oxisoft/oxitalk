@@ -47,6 +47,7 @@ Future<void> registerLinuxDesktopEntry({
         await icon.parent.create(recursive: true);
         await icon.writeAsBytes(bytes, flush: true);
       }
+      await _announceIcons(Directory('$dataHome/icons/hicolor'), icon);
     }
     final entry = File('$dataHome/applications/$linuxAppId.desktop');
     final text = desktopEntry(executable);
@@ -72,6 +73,16 @@ Future<void> registerThisLinuxApp() {
         : env['XDG_DATA_DIRS']!.split(':'),
     flatpak: env.containsKey('FLATPAK_ID'),
   );
+}
+
+/// Tells a running desktop that [theme] has a new [icon]: icon themes (GNOME Shell's among
+/// them) look for new icons only when the theme's own folder changed, so it is touched
+/// whenever it is older than the icon — also for an icon installed before this was done.
+Future<void> _announceIcons(Directory theme, File icon) async {
+  if (!theme.statSync().modified.isBefore(icon.statSync().modified)) return;
+  final marker = File('${theme.path}/.oxitalk-icon-update');
+  await marker.writeAsString('');
+  await marker.delete();
 }
 
 bool _same(List<int> a, List<int> b) {
