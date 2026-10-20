@@ -25,8 +25,12 @@ abstract final class OxiColors {
 /// From this width on, the chat list and the chat sit side by side.
 const wideLayoutBreakpoint = 840.0;
 
+/// The bundled colour emoji font, for every emoji the text font lacks.
+const emojiFont = 'Noto Color Emoji';
+
 ThemeData oxiTheme(Brightness brightness) => ThemeData(
   useMaterial3: true,
+  fontFamilyFallback: const [emojiFont],
   colorScheme: ColorScheme.fromSeed(
     seedColor: OxiColors.accent,
     brightness: brightness,

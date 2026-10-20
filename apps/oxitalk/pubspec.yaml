@@ -94,6 +94,15 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
+  # Colour emoji the same on every platform (the systems' own may be black-and-white).
+  # Noto Color Emoji, SIL OFL 1.1: assets/fonts/NotoColorEmoji-LICENSE.txt.
+  assets:
+    - assets/fonts/NotoColorEmoji-LICENSE.txt
+  fonts:
+    - family: Noto Color Emoji
+      fonts:
+        - asset: assets/fonts/NotoColorEmoji.ttf
+
   # fonts:
   #   - family: Schyler
   #     fonts:

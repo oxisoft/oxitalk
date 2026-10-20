@@ -1,6 +1,6 @@
-import 'dart:ui';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -17,6 +17,12 @@ import 'src/util/log.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The bundled emoji font's licence, in About → View licenses.
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(const [
+      'Noto Color Emoji',
+    ], await rootBundle.loadString('assets/fonts/NotoColorEmoji-LICENSE.txt'));
+  });
   await RustLib.init();
   final window = await DrawnWindowControls.start();
   final dataDir = await getApplicationSupportDirectory();
