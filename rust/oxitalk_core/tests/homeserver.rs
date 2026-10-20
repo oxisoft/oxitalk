@@ -1022,7 +1022,13 @@ async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
     };
 
     let details = alice.room_details(room.clone()).await?;
-    assert_eq!(details.own_power_level, Some(100));
+    // The creator: 100 in rooms before version 12, above every number (`None`) from it on,
+    // which depends on the server's default room version.
+    assert!(
+        details.own_power_level.is_none_or(|level| level >= 100),
+        "{:?}",
+        details.own_power_level
+    );
     let plain = member_of(&alice, bob.user_id(), |m| !m.invited).await?;
     assert_eq!(plain.role, MemberRole::Member);
     assert!(plain.can_change_role && plain.can_remove && plain.can_ban && !plain.can_unban);

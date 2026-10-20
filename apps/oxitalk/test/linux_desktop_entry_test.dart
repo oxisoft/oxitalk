@@ -1,3 +1,7 @@
+// The desktop entry is Linux's: its paths and line endings are too.
+@TestOn('linux')
+library;
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
