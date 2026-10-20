@@ -1,4 +1,6 @@
-# Synapse test homeserver for integration tests. Local only, throwaway data.
+# Test homeservers for integration tests, Synapse (:8008) and Tuwunel (:8009); every test runs
+# on both (scripts/ci.sh).
+# Local only, throwaway data.
 # Start with `podman compose` (here) or `docker compose` (CI): see scripts/ci.sh.
 services:
   synapse:
@@ -12,6 +14,16 @@ services:
       - synapse-data:/data
     ports:
       - 127.0.0.1:8008:8008
+  tuwunel:
+    image: docker.io/jevolk/tuwunel:v1.9.4@sha256:0e86c6164d6c9f5b60291938eb61ad8395021c37fe58d47a963ea7edddbedaec
+    environment:
+      TUWUNEL_CONFIG: /conf/tuwunel.toml
+    volumes:
+      - ./tuwunel.toml:/conf/tuwunel.toml:ro,z
+      - tuwunel-data:/var/lib/tuwunel
+    ports:
+      - 127.0.0.1:8009:8008
 
 volumes:
   synapse-data:
+  tuwunel-data:

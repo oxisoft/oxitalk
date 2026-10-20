@@ -3,9 +3,10 @@
 
 #![allow(dead_code, reason = "each test crate uses only some of the helpers")]
 
-use std::{error::Error, time::Duration};
+use std::{error::Error, future::Future, time::Duration};
 
 use oxitalk_core::api::{
+    error::CoreError,
     room_list::{RoomListDiff, RoomSummary},
     session::Session,
     timeline::{Timeline, TimelineDiff, TimelineItem, TimelineItemContent},
@@ -64,6 +65,25 @@ impl<T, D> Watched<T, D> {
         .await
         .map_err(|_| "timed out waiting for the list")?
     }
+}
+
+/// Calls `check` until it returns a value: for state that reaches the store with a later sync.
+pub(crate) async fn poll_until<T, F, Fut>(what: &str, mut check: F) -> Result<T, Box<dyn Error>>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<Option<T>, CoreError>>,
+{
+    tokio::time::timeout(TIMEOUT, async {
+        loop {
+            if let Some(value) = check().await? {
+                return Ok::<_, CoreError>(value);
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+    })
+    .await
+    .map_err(|_| format!("timed out waiting until {what}"))?
+    .map_err(Into::into)
 }
 
 pub(crate) async fn watch_rooms(

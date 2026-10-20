@@ -26,7 +26,7 @@ import 'package:oxitalk/src/ui/avatar.dart';
 
 import '../test/support/png.dart';
 
-/// The Synapse test homeserver from `test-infra/`, which `scripts/ci.sh` starts.
+/// A test homeserver from `test-infra/` (Synapse by default; ci.sh also runs it on Tuwunel).
 final _homeserver =
     Platform.environment['OXITALK_TEST_HOMESERVER'] ?? 'http://localhost:8008';
 

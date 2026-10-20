@@ -1,5 +1,6 @@
-//! Tests against the Synapse test homeserver in `test-infra/`. They are ignored by a plain
-//! `cargo test`; `scripts/ci.sh` starts the server and runs them with `--ignored`.
+//! Tests against a test homeserver in `test-infra/`, Synapse or Tuwunel (`OXITALK_TEST_HOMESERVER`).
+//! They are ignored by a plain `cargo test`; `scripts/ci.sh` starts both servers and runs them
+//! with `--ignored` on each.
 
 // The futures of matrix-sdk-ui (the timeline in particular) are deeply nested.
 #![recursion_limit = "256"]
@@ -18,7 +19,7 @@ use matrix_sdk::{
     Client,
     attachment::{AttachmentConfig, AttachmentInfo, BaseFileInfo},
     ruma::{
-        OwnedRoomId,
+        OwnedDeviceId, OwnedRoomId, OwnedUserId,
         api::client::{
             account::register::v3::Request as RegistrationRequest,
             room::{
@@ -43,7 +44,7 @@ use oxitalk_core::api::{
     verification::{Verification, VerificationFlowState, VerificationStatus},
 };
 use serde_json::json;
-use support::{TIMEOUT, TestResult, messages, watch_rooms, watch_timeline};
+use support::{TIMEOUT, TestResult, messages, poll_until, watch_rooms, watch_timeline};
 use tokio::sync::mpsc;
 
 const PASSPHRASE: &str = "store passphrase";
@@ -95,7 +96,7 @@ impl TestUser {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn logs_in_and_rejects_a_wrong_password() -> TestResult {
     let user = TestUser::register().await?;
     let store = tempfile::tempdir()?;
@@ -117,7 +118,7 @@ async fn logs_in_and_rejects_a_wrong_password() -> TestResult {
 
 /// The M0.3 exit test: an encrypted DM in both directions, then one side restarts on its store.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
     let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -209,7 +210,7 @@ async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
 /// A profile picture shows on the user's DM in the other side's room list and on their
 /// messages, and downloads as a thumbnail.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
     let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -275,7 +276,7 @@ async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
 /// Sections as Element keeps them: a room moves between sections by its tags, one at a time,
 /// and the user's sections are saved in Element's settings without losing the rest of them.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn rooms_move_between_sections_as_in_element() -> TestResult {
     const ACME: &str = "element.io.section.acme";
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
@@ -312,7 +313,7 @@ async fn rooms_move_between_sections_as_in_element() -> TestResult {
             .map(|room| room.tags.clone())
     };
 
-    wait_for_sections(&mut sections, |update| {
+    wait_for_sections(&mut sections, "the Acme section", |update| {
         matches!(update, SectionsUpdate::Settings { settings }
             if settings.sections.iter().any(|s| s.tag == ACME && s.name == "Acme"))
     })
@@ -321,7 +322,7 @@ async fn rooms_move_between_sections_as_in_element() -> TestResult {
     alice
         .set_room_section(room_id.clone(), Some("m.favourite".to_owned()))
         .await?;
-    wait_for_sections(&mut sections, |update| {
+    wait_for_sections(&mut sections, "the room in Favourites", |update| {
         matches!(update, SectionsUpdate::Rooms { rooms }
             if tags_of(rooms) == Some(vec!["m.favourite".to_owned()]))
     })
@@ -329,13 +330,13 @@ async fn rooms_move_between_sections_as_in_element() -> TestResult {
     alice
         .set_room_section(room_id.clone(), Some(ACME.to_owned()))
         .await?;
-    wait_for_sections(&mut sections, |update| {
+    wait_for_sections(&mut sections, "the room in Acme", |update| {
         matches!(update, SectionsUpdate::Rooms { rooms }
             if tags_of(rooms) == Some(vec![ACME.to_owned()]))
     })
     .await?;
     alice.set_room_section(room_id.clone(), None).await?;
-    wait_for_sections(&mut sections, |update| {
+    wait_for_sections(&mut sections, "the room in no section", |update| {
         matches!(update, SectionsUpdate::Rooms { rooms } if tags_of(rooms) == Some(vec![]))
     })
     .await?;
@@ -361,7 +362,7 @@ async fn rooms_move_between_sections_as_in_element() -> TestResult {
             order: order.clone(),
         })
         .await?;
-    wait_for_sections(&mut sections, |update| {
+    wait_for_sections(&mut sections, "the renamed, reordered settings", |update| {
         matches!(update, SectionsUpdate::Settings { settings }
             if settings.order == order && settings.sections[0].name == "Acme Corp")
     })
@@ -383,7 +384,7 @@ async fn rooms_move_between_sections_as_in_element() -> TestResult {
 
 /// Reading a chat clears its unread count, here and for the user's other devices.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn marking_a_chat_read_clears_its_unread_count() -> TestResult {
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
     let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -464,7 +465,7 @@ fn media_of(items: &[TimelineItem], kind: MediaKind) -> Option<MediaMessage> {
 /// Pictures and files arrive decrypted, are cached, and can be saved; the media timeline
 /// keeps only them and the links.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn pictures_and_files_arrive_and_are_cached() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     let room = alice
@@ -498,13 +499,23 @@ async fn pictures_and_files_arrive_and_are_cached() -> TestResult {
 
     let bob_timeline = bob.timeline(room_id.clone()).await?;
     let mut items = watch_timeline(&bob_timeline).await;
-    bob_timeline.paginate_back(20).await?;
-    items
-        .wait_until(|items| {
+    // Paging back as the app does while the user scrolls up: a sync that arrives later can put
+    // the newest messages after a gap, with the files behind it.
+    let paging = async {
+        loop {
+            if let Err(error) = bob_timeline.paginate_back(20).await {
+                return error;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    };
+    tokio::select! {
+        found = items.wait_until(|items| {
             media_of(items, MediaKind::Image).is_some()
                 && media_of(items, MediaKind::File).is_some()
-        })
-        .await?;
+        }) => found?,
+        error = paging => return Err(error.into()),
+    }
     let image = media_of(&items.items, MediaKind::Image).ok_or("no image")?;
     let file = media_of(&items.items, MediaKind::File).ok_or("no file")?;
     assert_eq!(
@@ -558,11 +569,16 @@ async fn pictures_and_files_arrive_and_are_cached() -> TestResult {
 
 /// The info screen's details and members of a direct chat.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn a_direct_chat_shows_its_details_and_members() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
-    // Alice made the DM, so she knows it as one at once.
-    let details = alice.room_details(room_id.clone()).await?;
+    // The SDK marks the DM in account data (m.direct), which Alice's store has after a sync;
+    // Bob's identity (cross-signing) is uploaded by his client after login.
+    let details = poll_until("Alice knows the room as a DM with Bob", || async {
+        let details = alice.room_details(room_id.clone()).await?;
+        Ok((details.dm_user_id.is_some() && details.dm_user_verified.is_some()).then_some(details))
+    })
+    .await?;
     assert!(details.is_encrypted);
     assert_eq!(details.dm_user_id.as_deref(), Some(bob.user_id().as_str()));
     // Alice hasn't verified Bob.
@@ -594,7 +610,7 @@ fn event_of<'a>(items: &'a [TimelineItem], body: &str) -> Option<&'a EventInfo> 
 
 /// Reactions, replies, edits and deletions reach the other side.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     let alice_timeline = alice.timeline(room_id.clone()).await?;
@@ -665,7 +681,7 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
 /// A big photo goes compressed with its caption; forwarding sends the same file again
 /// without uploading; recent emojis are kept in the account.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn photos_go_compressed_with_a_caption_and_forward() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     let photo = noise_png(2600, 1300)?;
@@ -736,7 +752,7 @@ fn noise_png(width: u32, height: u32) -> Result<Vec<u8>, Box<dyn Error>> {
 
 /// Markdown goes as Element sends it, and arrives as formatted blocks; plain text stays plain.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn markdown_arrives_formatted() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     let alice_timeline = alice.timeline(room_id.clone()).await?;
@@ -794,7 +810,7 @@ async fn markdown_arrives_formatted() -> TestResult {
 
 /// The other side sees the user typing, and stopping.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn typing_shows_on_the_other_side() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     // The room list subscribes the rooms whose typing comes with the sync.
@@ -828,7 +844,7 @@ async fn typing_shows_on_the_other_side() -> TestResult {
 /// A private room is made encrypted, with its topic and picture, and someone invited joins;
 /// a public one with an address is joined by that address.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn rooms_are_created_joined_and_invited_to() -> TestResult {
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
     let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -859,11 +875,15 @@ async fn rooms_are_created_joined_and_invited_to() -> TestResult {
         .wait_until(|rooms| rooms.iter().any(|r| r.room_id == private))
         .await?;
     bob.join(private.clone()).await?;
-    let details = alice.room_details(private).await?;
+    // The picture is set after the room is created; it reaches Alice's store with a sync.
+    let details = poll_until("the room's picture is in Alice's store", || async {
+        let details = alice.room_details(private.clone()).await?;
+        Ok(details.avatar_url.is_some().then_some(details))
+    })
+    .await?;
     assert_eq!(details.name, "Team");
     assert_eq!(details.topic.as_deref(), Some("Where the team talks"));
     assert!(details.is_encrypted);
-    assert!(details.avatar_url.is_some());
 
     let alias = format!("pub{}", alice_user.name);
     let public = alice
@@ -901,14 +921,18 @@ async fn rooms_are_created_joined_and_invited_to() -> TestResult {
 /// People known from shared chats and from the server's directory; public rooms the most
 /// joined first, the ones already joined last.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn people_and_public_rooms_are_found() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
-    let known = alice.known_people(50).await?;
-    assert!(
-        known.iter().any(|p| p.user_id == bob.user_id()),
-        "{known:?}"
-    );
+    // The DM's members and its partner (m.direct) reach Alice's store with a sync.
+    let known = poll_until("Bob is among Alice's known people", || async {
+        let known = alice.known_people(50).await?;
+        Ok(known
+            .iter()
+            .any(|p| p.user_id == bob.user_id())
+            .then_some(known))
+    })
+    .await?;
     assert!(!known.iter().any(|p| p.user_id == alice.user_id()));
     assert_eq!(alice.dm_with(bob.user_id())?, Some(room_id));
 
@@ -977,7 +1001,7 @@ async fn people_and_public_rooms_are_found() -> TestResult {
 /// The room's creator makes a member a moderator, the moderator may not touch the admin,
 /// and members are removed, banned and unbanned.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
     let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -1007,7 +1031,8 @@ async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
     // Waits until `session` sees `user` in the room as `wanted` says.
     let member_of = async |session: &Session,
                            user: String,
-                           wanted: fn(&RoomMember) -> bool|
+                           wanted: fn(&RoomMember) -> bool,
+                           what: &str|
            -> Result<RoomMember, Box<dyn Error>> {
         Ok(tokio::time::timeout(TIMEOUT, async {
             loop {
@@ -1018,10 +1043,16 @@ async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
                 tokio::time::sleep(std::time::Duration::from_millis(300)).await;
             }
         })
-        .await??)
+        .await
+        .map_err(|_| format!("timed out waiting until {what}"))??)
     };
 
-    let details = alice.room_details(room.clone()).await?;
+    // The room's power levels reach Alice's store with a sync; until then she shows as 0.
+    let details = poll_until("the room's power levels are in Alice's store", || async {
+        let details = alice.room_details(room.clone()).await?;
+        Ok((details.own_power_level != Some(0)).then_some(details))
+    })
+    .await?;
     // The creator: 100 in rooms before version 12, above every number (`None`) from it on,
     // which depends on the server's default room version.
     assert!(
@@ -1029,17 +1060,29 @@ async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
         "{:?}",
         details.own_power_level
     );
-    let plain = member_of(&alice, bob.user_id(), |m| !m.invited).await?;
+    let plain = member_of(
+        &alice,
+        bob.user_id(),
+        |m| !m.invited,
+        "Alice sees Bob joined",
+    )
+    .await?;
     assert_eq!(plain.role, MemberRole::Member);
     assert!(plain.can_change_role && plain.can_remove && plain.can_ban && !plain.can_unban);
 
     alice
         .set_power_level(room.clone(), bob.user_id(), 50)
         .await?;
-    let moderator = member_of(&bob, bob.user_id(), |m| m.power_level == Some(50)).await?;
+    let moderator = member_of(
+        &bob,
+        bob.user_id(),
+        |m| m.power_level == Some(50),
+        "Bob sees himself a moderator",
+    )
+    .await?;
     assert_eq!(moderator.role, MemberRole::Moderator);
     // A moderator may not change, remove or ban the admin above them.
-    let admin = member_of(&bob, alice.user_id(), |_| true).await?;
+    let admin = member_of(&bob, alice.user_id(), |_| true, "Bob sees Alice").await?;
     assert!(!admin.can_change_role && !admin.can_remove && !admin.can_ban);
     assert!(
         bob.set_power_level(room.clone(), alice.user_id(), 0)
@@ -1050,41 +1093,45 @@ async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
     alice
         .ban_member(room.clone(), bob.user_id(), Some("testing".to_owned()))
         .await?;
-    let banned = member_of(&alice, bob.user_id(), |m| m.banned).await?;
+    let banned = member_of(&alice, bob.user_id(), |m| m.banned, "Alice sees Bob banned").await?;
     assert!(banned.can_unban && !banned.can_ban && !banned.can_remove);
     alice.unban_member(room.clone(), bob.user_id()).await?;
-    tokio::time::timeout(TIMEOUT, async {
-        loop {
-            let members = alice.room_members(room.clone()).await?;
-            if !members.iter().any(|m| m.user_id == bob.user_id()) {
-                return Ok::<_, CoreError>(());
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-        }
-    })
-    .await??;
+    wait_until_gone(&alice, &room, &bob.user_id(), "after the unban").await?;
 
     // An invite is withdrawn by removing the invited person.
     alice.invite(room.clone(), bob.user_id()).await?;
-    member_of(&alice, bob.user_id(), |m| m.invited).await?;
+    member_of(
+        &alice,
+        bob.user_id(),
+        |m| m.invited,
+        "Alice sees Bob invited",
+    )
+    .await?;
     alice
         .remove_member(room.clone(), bob.user_id(), None)
         .await?;
+    wait_until_gone(&alice, &room, &bob.user_id(), "after the removal").await?;
+    Ok(())
+}
+
+/// Waits until `user` is no longer among the members `session` lists for `room`.
+async fn wait_until_gone(session: &Session, room: &str, user: &str, when: &str) -> TestResult {
     tokio::time::timeout(TIMEOUT, async {
         loop {
-            let members = alice.room_members(room.clone()).await?;
-            if !members.iter().any(|m| m.user_id == bob.user_id()) {
+            let members = session.room_members(room.to_owned()).await?;
+            if !members.iter().any(|m| m.user_id == user) {
                 return Ok::<_, CoreError>(());
             }
             tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         }
     })
-    .await??;
+    .await
+    .map_err(|_| format!("{user} still listed {when}"))??;
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {
     let user = TestUser::register().await?;
     let (first_store, second_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -1096,6 +1143,7 @@ async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {
     let second = user.login(&second_store.path().to_string_lossy()).await?;
     second.start_sync().await;
     wait_for_status(&second, VerificationStatus::Unverified).await?;
+    wait_until_known(&first, &second).await?;
 
     // The new device asks; the first one gets the request and accepts it.
     let mut requests = first.verification_requests();
@@ -1142,7 +1190,7 @@ async fn a_new_device_is_verified_with_emoji_by_another() -> TestResult {
 /// Both devices start the emoji at the same moment, as OxiTalk and Fractal do: the SDK keeps
 /// one start, and the side whose start was dropped follows the one kept.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn both_devices_starting_the_emoji_still_verify() -> TestResult {
     let user = TestUser::register().await?;
     let (first_store, second_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -1152,6 +1200,7 @@ async fn both_devices_starting_the_emoji_still_verify() -> TestResult {
     let second = user.login(&second_store.path().to_string_lossy()).await?;
     second.start_sync().await;
     wait_for_status(&second, VerificationStatus::Unverified).await?;
+    wait_until_known(&first, &second).await?;
 
     let mut requests = first.verification_requests();
     let asking = Arc::new(second.request_self_verification().await?);
@@ -1191,7 +1240,7 @@ async fn both_devices_starting_the_emoji_still_verify() -> TestResult {
 
 /// The recovery key verifies a new device, and its history decrypts from the key backup.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+#[ignore = "needs a test homeserver (test-infra/)"]
 async fn the_recovery_key_verifies_and_restores_history() -> TestResult {
     let (user, other) = (TestUser::register().await?, TestUser::register().await?);
     let (first_store, second_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
@@ -1239,6 +1288,7 @@ async fn the_recovery_key_verifies_and_restores_history() -> TestResult {
 /// Takes section updates until one satisfies `done`.
 async fn wait_for_sections(
     updates: &mut (impl Stream<Item = SectionsUpdate> + Unpin),
+    what: &str,
     done: impl Fn(&SectionsUpdate) -> bool,
 ) -> TestResult {
     tokio::time::timeout(TIMEOUT, async {
@@ -1250,7 +1300,7 @@ async fn wait_for_sections(
         Err("the stream ended".into())
     })
     .await
-    .map_err(|_| "timed out waiting for sections")?
+    .map_err(|_| format!("timed out waiting for sections: {what}"))?
 }
 
 async fn wait_for_status(session: &Session, wanted: VerificationStatus) -> TestResult {
@@ -1265,6 +1315,30 @@ async fn wait_for_status(session: &Session, wanted: VerificationStatus) -> TestR
     })
     .await
     .map_err(|_| format!("timed out waiting for {wanted:?}"))??;
+    Ok(())
+}
+
+/// Waits until `session` has the keys of `other`, another device of the same user. The SDK
+/// ignores a verification request from a device whose keys it doesn't have yet; a person takes
+/// long enough to ask that it always has them, a test may not.
+async fn wait_until_known(session: &Session, other: &Session) -> TestResult {
+    let user_id = OwnedUserId::try_from(other.user_id())?;
+    let device_id = OwnedDeviceId::from(other.session_data()?.device_id);
+    tokio::time::timeout(TIMEOUT, async {
+        loop {
+            let device = session
+                .sdk()
+                .encryption()
+                .get_device(&user_id, &device_id)
+                .await?;
+            if device.is_some() {
+                return Ok::<_, Box<dyn Error>>(());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    })
+    .await
+    .map_err(|_| "the other device's keys never arrived")??;
     Ok(())
 }
 

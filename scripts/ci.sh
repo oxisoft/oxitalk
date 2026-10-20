@@ -40,25 +40,31 @@ CC_aarch64_linux_android=$ndk_bin/aarch64-linux-android36-clang \
   cargo clippy --workspace --locked --target aarch64-linux-android -- -D warnings
 cargo test --workspace --locked
 
-step "rust: all tests with the Synapse test homeserver, coverage (not a gate)"
+step "rust: all tests with the test homeservers (Synapse, then Tuwunel), coverage (not a gate)"
 if [ -n "${CI:-}" ]; then compose=(docker compose); else compose=(podman compose); fi
 compose+=(--file "$root/test-infra/compose.yaml")
 "${compose[@]}" down --volumes --timeout 1 >/dev/null 2>&1 || true
 trap '"${compose[@]}" down --volumes --timeout 1 >/dev/null 2>&1 || true' EXIT
 "${compose[@]}" up --detach
-for _ in $(seq 60); do
-  curl --silent --fail http://localhost:8008/health >/dev/null && break
-  sleep 1
+# Every test runs on both; Tuwunel has no /health, so both are asked for their versions.
+homeservers=(http://localhost:8008 http://localhost:8009)
+for homeserver in "${homeservers[@]}"; do
+  for _ in $(seq 60); do
+    curl --silent --fail "$homeserver/_matrix/client/versions" >/dev/null && break
+    sleep 1
+  done
+  curl --silent --show-error --fail "$homeserver/_matrix/client/versions" >/dev/null \
+    || { "${compose[@]}" logs; exit 1; }
 done
-curl --silent --show-error --fail http://localhost:8008/health >/dev/null \
-  || { "${compose[@]}" logs; exit 1; }
-coverage=$(cargo llvm-cov --workspace --locked --summary-only \
-  --ignore-filename-regex 'frb_generated\.rs' -- --include-ignored)
+coverage=$(OXITALK_TEST_HOMESERVER=${homeservers[0]} cargo llvm-cov --workspace --locked \
+  --summary-only --ignore-filename-regex 'frb_generated\.rs' -- --include-ignored)
 printf '%s\n' "$coverage"
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   printf '### Rust coverage\n\n```\n%s\n```\n' "$coverage" >>"$GITHUB_STEP_SUMMARY"
 fi
 cargo llvm-cov clean --workspace
+OXITALK_TEST_HOMESERVER=${homeservers[1]} cargo test --locked -p oxitalk_core --test homeserver \
+  -- --ignored
 
 step "dart: format, analyze, tests"
 cd "$app"
@@ -73,13 +79,16 @@ flutter build linux --debug
 flutter build apk --debug
 
 # A hung test must fail the run, not stall it.
-step "integration test (linux)"
+step "integration test (linux), on both test homeservers"
 # In a virtual display when there is one, so no window opens on a developer's desktop. GTK
 # would still pick a Wayland session's display, so it is kept to X11.
-if [ -n "${CI:-}" ] || command -v xvfb-run >/dev/null; then
-  timeout 600 env -u WAYLAND_DISPLAY GDK_BACKEND=x11 xvfb-run -a flutter test integration_test -d linux
-else
-  timeout 600 flutter test integration_test -d linux
-fi
+for homeserver in "${homeservers[@]}"; do
+  if [ -n "${CI:-}" ] || command -v xvfb-run >/dev/null; then
+    OXITALK_TEST_HOMESERVER=$homeserver timeout 600 env -u WAYLAND_DISPLAY GDK_BACKEND=x11 \
+      xvfb-run -a flutter test integration_test -d linux
+  else
+    OXITALK_TEST_HOMESERVER=$homeserver timeout 600 flutter test integration_test -d linux
+  fi
+done
 
 printf '\nCI OK\n'

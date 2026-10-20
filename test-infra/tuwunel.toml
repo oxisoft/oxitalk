@@ -1,0 +1,23 @@
+# Tuwunel test homeserver for integration tests, beside Synapse. Local only, throwaway data.
+# Same server name as Synapse, so tests address users as @name:localhost on either.
+[global]
+server_name = "localhost"
+database_path = "/var/lib/tuwunel"
+address = ["0.0.0.0"]
+port = 8008
+
+allow_registration = true
+yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = true
+allow_federation = false
+trusted_servers = []
+
+# As Synapse has it: no admin room, no admin, no suffix on display names.
+create_admin_room = false
+grant_admin_to_first_user = false
+new_user_displayname_suffix = ""
+
+# Podman and Docker allow a container 2048 tasks; the default pool alone can reach that.
+db_pool_max_workers = 64
+
+# The database on a copy-on-write filesystem (btrfs here) would pin disk for preallocated logs.
+rocksdb_allow_fallocate = false
