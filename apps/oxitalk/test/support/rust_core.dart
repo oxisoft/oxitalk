@@ -20,7 +20,11 @@ Future<void> initRustCore() {
   final assets =
       (targets[Abi.current().toString()] ?? targets.values.first)!
           as Map<String, Object?>;
-  final location = assets.values.single! as List<Object?>;
+  // Other packages (on macOS, objective_c) bring native code of their own; ours is the
+  // bridge's.
+  final location =
+      assets['package:oxitalk/src/rust/frb_generated.io.dart']!
+          as List<Object?>;
   return RustLib.init(
     externalLibrary: ExternalLibrary.open(location.last! as String),
   );
