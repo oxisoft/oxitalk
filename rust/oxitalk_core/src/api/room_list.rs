@@ -3,7 +3,14 @@
 
 use flutter_rust_bridge::frb;
 use futures_util::{StreamExt, future::join_all};
-use matrix_sdk::RoomState;
+use matrix_sdk::{
+    Room, RoomState,
+    ruma::events::{
+        AnySyncMessageLikeEvent, AnySyncTimelineEvent, SyncMessageLikeEvent,
+        room::message::Relation,
+    },
+    serde_helpers::extract_thread_root,
+};
 use matrix_sdk_ui::{
     eyeball_im::VectorDiff,
     room_list_service::{RoomListItem, filters::new_filter_non_left},
@@ -13,7 +20,7 @@ use matrix_sdk_ui::{
 use super::{
     error::CoreError,
     session::Session,
-    timeline::{dart_int, preview_text},
+    timeline::{dart_int, msgtype_preview, preview_text},
 };
 use crate::frb_generated::StreamSink;
 
@@ -149,6 +156,52 @@ async fn summaries(rooms: impl IntoIterator<Item = RoomListItem>) -> Vec<RoomSum
     join_all(rooms.into_iter().map(summary)).await
 }
 
+/// When the newest message the SDK has loaded is a reply in a thread: the newest message
+/// outside threads and its time (`None` inside if there is none loaded). `None` otherwise: the
+/// SDK's latest event is what the list shows.
+///
+/// The one piece of logic of ours in the core (bkv, 2026-10-20): replies in a thread stay in
+/// it, as Telegram's comments do, so the chat list never shows one. The SDK's latest event
+/// includes them and doesn't say it is in a thread; only the core can read the SDK's event
+/// cache to tell and to look further back. A thread reply of the user's that is still being
+/// sent isn't in the cache yet, so it shows until the server has it.
+async fn thread_free_preview(room: &Room) -> Option<Option<(String, i64)>> {
+    let (cache, _handles) = room
+        .client()
+        .event_cache()?
+        .room(room.room_id())
+        .await
+        .ok()?;
+    let events = cache.events().await.ok()?;
+    let mut messages = events.iter().rev().filter_map(|event| {
+        let Ok(AnySyncTimelineEvent::MessageLike(AnySyncMessageLikeEvent::RoomMessage(
+            SyncMessageLikeEvent::Original(message),
+        ))) = event.raw().deserialize()
+        else {
+            return None;
+        };
+        // An edit changes an older message; that message is what the list shows.
+        if matches!(message.content.relates_to, Some(Relation::Replacement(_))) {
+            return None;
+        }
+        Some((extract_thread_root(event.raw()).is_some(), message))
+    });
+    let (newest_in_thread, _) = messages.next()?;
+    if !newest_in_thread {
+        return None;
+    }
+    Some(
+        messages
+            .find(|(in_thread, _)| !in_thread)
+            .map(|(_, message)| {
+                (
+                    msgtype_preview(&message.content.msgtype),
+                    message.origin_server_ts.0.into(),
+                )
+            }),
+    )
+}
+
 async fn summary(room: RoomListItem) -> RoomSummary {
     let room = room.into_inner();
     let (last_message, last_activity_ms) = match RoomExt::latest_event(&room).await {
@@ -157,10 +210,14 @@ async fn summary(room: RoomListItem) -> RoomSummary {
         }
         | LatestEventValue::Local {
             timestamp, content, ..
-        } => (
-            content.as_message().map(preview_text),
-            Some(timestamp.0.into()),
-        ),
+        } => match thread_free_preview(&room).await {
+            Some(Some((text, at))) => (Some(text), Some(at)),
+            Some(None) => (None, Some(timestamp.0.into())),
+            None => (
+                content.as_message().map(preview_text),
+                Some(timestamp.0.into()),
+            ),
+        },
         LatestEventValue::RemoteInvite { timestamp, .. } => (None, Some(timestamp.0.into())),
         LatestEventValue::None => (None, None),
     };

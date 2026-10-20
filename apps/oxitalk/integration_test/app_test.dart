@@ -11,7 +11,6 @@ import 'package:integration_test/integration_test.dart';
 import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
 import 'package:oxitalk/src/app/collapsed_sections.dart';
-import 'package:oxitalk/src/features/chat/chat_pane.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
@@ -220,14 +219,8 @@ void main() {
       tester,
       find.descendant(of: threadBar, matching: find.text('1 reply')),
     );
-    // Not in the chat (the chat list's preview may show it).
-    expect(
-      find.descendant(
-        of: find.byType(TimelineView),
-        matching: find.text('Thread from Bob'),
-      ),
-      findsNothing,
-    );
+    // Neither in the chat nor as the chat list's last message.
+    expect(find.text('Thread from Bob'), findsNothing);
     await tester.tap(threadBar);
     await _pumpUntil(tester, find.text('Thread from Bob'));
     await _type(

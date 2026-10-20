@@ -695,6 +695,40 @@ async fn replies_in_a_thread_stay_in_it() -> TestResult {
     Ok(())
 }
 
+/// The chat list shows the newest message outside threads, even under a newer reply in one.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn the_chat_list_shows_no_thread_replies() -> TestResult {
+    let (alice, _bob, room_id, _stores) = joined_dm().await?;
+    let timeline = alice.timeline(room_id.clone()).await?;
+    let mut items = watch_timeline(&timeline).await;
+    timeline.send_text("lunch?".to_owned(), false).await?;
+    items
+        .wait_until(|items| event_of(items, "lunch?").is_some_and(|e| e.event_id.is_some()))
+        .await?;
+    let root = event_of(&items.items, "lunch?")
+        .and_then(|e| e.event_id.clone())
+        .ok_or("no event ID")?;
+    let thread = alice.thread_timeline(room_id.clone(), root).await?;
+    timeline.send_text("main after".to_owned(), false).await?;
+    thread.send_text("late in thread".to_owned(), false).await?;
+    items
+        .wait_until(|items| {
+            event_of(items, "lunch?")
+                .is_some_and(|e| e.thread.as_ref().is_some_and(|t| t.reply_count == 1))
+        })
+        .await?;
+    let mut rooms = watch_rooms(&alice).await?;
+    rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.last_message.as_deref() == Some("main after"))
+        })
+        .await?;
+    Ok(())
+}
+
 /// Reactions, replies, edits and deletions reach the other side.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a test homeserver (test-infra/)"]

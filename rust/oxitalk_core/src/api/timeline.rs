@@ -814,11 +814,16 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
 /// A message as one line of plain text, for the chat list: its formatted text (or a file's
 /// formatted caption) without the markup, else its body.
 pub(crate) fn preview_text(message: &timeline::Message) -> String {
-    let blocks = formatted_text(message.msgtype())
-        .or_else(|| media_message(message.msgtype()).and_then(|media| media.formatted_caption));
+    msgtype_preview(message.msgtype())
+}
+
+/// As [`preview_text`], for a message's type.
+pub(crate) fn msgtype_preview(msgtype: &MessageType) -> String {
+    let blocks = formatted_text(msgtype)
+        .or_else(|| media_message(msgtype).and_then(|media| media.formatted_caption));
     match blocks {
         Some(blocks) => plain_line(&blocks),
-        None => message.body().to_owned(),
+        None => msgtype.body().to_owned(),
     }
 }
 
