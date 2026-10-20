@@ -71,6 +71,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onChanged: (on) =>
                     ref.read(sendTypingProvider.notifier).set(on: on),
               ),
+              SwitchListTile(
+                key: const Key('settings.replaceEmoticons'),
+                title: const Text('Replace emoticons with emoji'),
+                subtitle: const Text(
+                  'Typing :) ;) :D <3 and the like turns them into 🙂 😉 😃 ❤️. '
+                  'Ctrl+Z brings the text back.',
+                ),
+                value: ref.watch(replaceEmoticonsProvider),
+                onChanged: (on) =>
+                    ref.read(replaceEmoticonsProvider.notifier).set(on: on),
+              ),
               const _MediaSettings(),
               const _SectionTitle('Diagnostics'),
               SwitchListTile(

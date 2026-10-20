@@ -13,6 +13,9 @@ abstract interface class UiPrefs {
   /// Whether the user's typing is shown to the others; on unless turned off.
   bool get sendTyping;
 
+  /// Whether typed emoticons like `:)` become emoji; on unless turned off.
+  bool get replaceEmoticons;
+
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
@@ -20,6 +23,7 @@ abstract interface class UiPrefs {
   Future<void> setRailHidden({required bool hidden});
   Future<void> setUseMarkdown({required bool on});
   Future<void> setSendTyping({required bool on});
+  Future<void> setReplaceEmoticons({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
 }
 
@@ -62,6 +66,9 @@ final class FileUiPrefs implements UiPrefs {
   bool get sendTyping => _json['sendTyping'] != false;
 
   @override
+  bool get replaceEmoticons => _json['replaceEmoticons'] != false;
+
+  @override
   String? lastRoom(String account) => _rooms[account] as String?;
 
   @override
@@ -79,6 +86,10 @@ final class FileUiPrefs implements UiPrefs {
   @override
   Future<void> setSendTyping({required bool on}) =>
       _save(() => _json['sendTyping'] = on);
+
+  @override
+  Future<void> setReplaceEmoticons({required bool on}) =>
+      _save(() => _json['replaceEmoticons'] = on);
 
   @override
   Future<void> setLastRoom(String account, String? roomId) => _save(() {
@@ -105,6 +116,7 @@ final class MemoryUiPrefs implements UiPrefs {
     this.railHidden = false,
     this.useMarkdown = true,
     this.sendTyping = true,
+    this.replaceEmoticons = true,
     Map<String, String>? lastRooms,
   }) : lastRooms = {...?lastRooms};
 
@@ -119,6 +131,9 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   bool sendTyping;
+
+  @override
+  bool replaceEmoticons;
 
   final Map<String, String> lastRooms;
 
@@ -138,6 +153,10 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   Future<void> setSendTyping({required bool on}) async => sendTyping = on;
+
+  @override
+  Future<void> setReplaceEmoticons({required bool on}) async =>
+      replaceEmoticons = on;
 
   @override
   Future<void> setLastRoom(String account, String? roomId) async {

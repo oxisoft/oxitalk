@@ -16,6 +16,7 @@ import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../app/file_actions.dart';
 import 'emoji.dart';
+import 'emoticons.dart';
 import 'media_views.dart';
 import 'message_actions.dart';
 import 'send_files.dart';
@@ -854,6 +855,9 @@ class Composer extends ConsumerStatefulWidget {
 
 class _ComposerState extends ConsumerState<Composer> {
   final _text = TextEditingController();
+  late final _emoticons = EmoticonFormatter(
+    enabled: () => ref.read(replaceEmoticonsProvider),
+  );
   final _focus = FocusNode();
 
   /// Ends the user's typing after a pause.
@@ -914,7 +918,10 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.read(composerModeProvider(_chat).notifier).set(mode);
 
   Future<void> _send() async {
-    final text = _text.text.trim();
+    final typed = _text.text.trim();
+    final text = ref.read(replaceEmoticonsProvider)
+        ? withTrailingEmoticon(typed)
+        : typed;
     final mode = ref.read(composerModeProvider(_chat));
     final timeline = ref
         .read(roomTimelineProvider(widget.account, widget.roomId))
@@ -1088,6 +1095,7 @@ class _ComposerState extends ConsumerState<Composer> {
                         minLines: 1,
                         maxLines: 6,
                         textCapitalization: TextCapitalization.sentences,
+                        inputFormatters: [_emoticons],
                         decoration: const InputDecoration(
                           hintText: 'Message',
                           border: InputBorder.none,

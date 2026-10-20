@@ -106,6 +106,18 @@ class SendTyping extends _$SendTyping {
   }
 }
 
+/// Whether typed emoticons like `:)` become emoji.
+@Riverpod(keepAlive: true)
+class ReplaceEmoticons extends _$ReplaceEmoticons {
+  @override
+  bool build() => ref.watch(uiPrefsProvider).replaceEmoticons;
+
+  void set({required bool on}) {
+    state = on;
+    unawaited(ref.read(uiPrefsProvider).setReplaceEmoticons(on: on));
+  }
+}
+
 /// Who is typing in [account]'s rooms: room ID → names.
 @riverpod
 Stream<Map<String, List<String>>> typing(Ref ref, String account) =>

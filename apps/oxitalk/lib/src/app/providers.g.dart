@@ -572,6 +572,64 @@ abstract class _$SendTyping extends $Notifier<bool> {
   }
 }
 
+/// Whether typed emoticons like `:)` become emoji.
+
+@ProviderFor(ReplaceEmoticons)
+final replaceEmoticonsProvider = ReplaceEmoticonsProvider._();
+
+/// Whether typed emoticons like `:)` become emoji.
+final class ReplaceEmoticonsProvider
+    extends $NotifierProvider<ReplaceEmoticons, bool> {
+  /// Whether typed emoticons like `:)` become emoji.
+  ReplaceEmoticonsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'replaceEmoticonsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$replaceEmoticonsHash();
+
+  @$internal
+  @override
+  ReplaceEmoticons create() => ReplaceEmoticons();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$replaceEmoticonsHash() => r'dea53c9fc385e1ef096955b5466cd631a2a7e665';
+
+/// Whether typed emoticons like `:)` become emoji.
+
+abstract class _$ReplaceEmoticons extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Who is typing in [account]'s rooms: room ID → names.
 
 @ProviderFor(typing)
