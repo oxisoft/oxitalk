@@ -16,6 +16,9 @@ abstract interface class UiPrefs {
   /// Whether typed emoticons like `:)` become emoji; on unless turned off.
   bool get replaceEmoticons;
 
+  /// `light` or `dark`; anything else follows the system.
+  String get theme;
+
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
@@ -24,6 +27,7 @@ abstract interface class UiPrefs {
   Future<void> setUseMarkdown({required bool on});
   Future<void> setSendTyping({required bool on});
   Future<void> setReplaceEmoticons({required bool on});
+  Future<void> setTheme(String theme);
   Future<void> setLastRoom(String account, String? roomId);
 }
 
@@ -69,6 +73,9 @@ final class FileUiPrefs implements UiPrefs {
   bool get replaceEmoticons => _json['replaceEmoticons'] != false;
 
   @override
+  String get theme => _json['theme'] as String? ?? 'system';
+
+  @override
   String? lastRoom(String account) => _rooms[account] as String?;
 
   @override
@@ -90,6 +97,9 @@ final class FileUiPrefs implements UiPrefs {
   @override
   Future<void> setReplaceEmoticons({required bool on}) =>
       _save(() => _json['replaceEmoticons'] = on);
+
+  @override
+  Future<void> setTheme(String theme) => _save(() => _json['theme'] = theme);
 
   @override
   Future<void> setLastRoom(String account, String? roomId) => _save(() {
@@ -117,6 +127,7 @@ final class MemoryUiPrefs implements UiPrefs {
     this.useMarkdown = true,
     this.sendTyping = true,
     this.replaceEmoticons = true,
+    this.theme = 'system',
     Map<String, String>? lastRooms,
   }) : lastRooms = {...?lastRooms};
 
@@ -134,6 +145,9 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   bool replaceEmoticons;
+
+  @override
+  String theme;
 
   final Map<String, String> lastRooms;
 
@@ -157,6 +171,9 @@ final class MemoryUiPrefs implements UiPrefs {
   @override
   Future<void> setReplaceEmoticons({required bool on}) async =>
       replaceEmoticons = on;
+
+  @override
+  Future<void> setTheme(String theme) async => this.theme = theme;
 
   @override
   Future<void> setLastRoom(String account, String? roomId) async {

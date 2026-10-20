@@ -298,6 +298,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('rail.settings')));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings.clearCache')),
+      200,
+    );
     expect(find.text('1 month'), findsOneWidget);
     expect(find.text('1.2 KB'), findsOneWidget);
 
@@ -308,8 +312,6 @@ void main() {
     expect(prefs.retentionDays, isNull);
     expect(session.retentionDays, isNull);
 
-    await tester.ensureVisible(find.byKey(const Key('settings.clearCache')));
-    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings.clearCache')));
     await tester.pumpAndSettle();
     expect(session.cacheSize, 0);

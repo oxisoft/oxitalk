@@ -572,6 +572,63 @@ abstract class _$SendTyping extends $Notifier<bool> {
   }
 }
 
+/// Light, dark, or as the system has it (the default).
+
+@ProviderFor(AppTheme)
+final appThemeProvider = AppThemeProvider._();
+
+/// Light, dark, or as the system has it (the default).
+final class AppThemeProvider extends $NotifierProvider<AppTheme, ThemeMode> {
+  /// Light, dark, or as the system has it (the default).
+  AppThemeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appThemeProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$appThemeHash();
+
+  @$internal
+  @override
+  AppTheme create() => AppTheme();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ThemeMode value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ThemeMode>(value),
+    );
+  }
+}
+
+String _$appThemeHash() => r'2eb3f71ed96246679fb4f16132ddc71245053064';
+
+/// Light, dark, or as the system has it (the default).
+
+abstract class _$AppTheme extends $Notifier<ThemeMode> {
+  ThemeMode build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<ThemeMode, ThemeMode>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<ThemeMode, ThemeMode>,
+              ThemeMode,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Whether typed emoticons like `:)` become emoji.
 
 @ProviderFor(ReplaceEmoticons)

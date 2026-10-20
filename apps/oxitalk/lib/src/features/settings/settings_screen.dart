@@ -47,6 +47,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               if (ref.watch(activeAccountProvider) case final account?)
                 _AccountPictures(account: account),
+              const _SectionTitle('Appearance'),
+              ListTile(
+                title: const Text('Theme'),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SegmentedButton<ThemeMode>(
+                        key: const Key('settings.theme'),
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                            value: ThemeMode.system,
+                            icon: Icon(Icons.brightness_auto_rounded),
+                            label: Text('Automatic'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.light,
+                            icon: Icon(Icons.light_mode_rounded),
+                            label: Text('Light'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.dark,
+                            icon: Icon(Icons.dark_mode_rounded),
+                            label: Text('Dark'),
+                          ),
+                        ],
+                        selected: {ref.watch(appThemeProvider)},
+                        onSelectionChanged: (choice) => ref
+                            .read(appThemeProvider.notifier)
+                            .set(choice.single),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('Automatic follows your system.'),
+                    ],
+                  ),
+                ),
+              ),
               const _SectionTitle('Messages'),
               SwitchListTile(
                 key: const Key('settings.markdown'),

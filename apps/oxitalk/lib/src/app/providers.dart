@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderListenableSelect;
 import 'package:path_provider/path_provider.dart';
@@ -103,6 +104,22 @@ class SendTyping extends _$SendTyping {
   void set({required bool on}) {
     state = on;
     unawaited(ref.read(uiPrefsProvider).setSendTyping(on: on));
+  }
+}
+
+/// Light, dark, or as the system has it (the default).
+@Riverpod(keepAlive: true)
+class AppTheme extends _$AppTheme {
+  @override
+  ThemeMode build() => switch (ref.watch(uiPrefsProvider).theme) {
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
+
+  void set(ThemeMode mode) {
+    state = mode;
+    unawaited(ref.read(uiPrefsProvider).setTheme(mode.name));
   }
 }
 
