@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -15,7 +16,10 @@ Future<void> initRustCore() {
   );
   final json = jsonDecode(manifest.readAsStringSync()) as Map<String, Object?>;
   final targets = json['native-assets']! as Map<String, Object?>;
-  final assets = targets.values.single! as Map<String, Object?>;
+  // A macOS build has one library per architecture; this machine's is named after its ABI.
+  final assets =
+      (targets[Abi.current().toString()] ?? targets.values.first)!
+          as Map<String, Object?>;
   final location = assets.values.single! as List<Object?>;
   return RustLib.init(
     externalLibrary: ExternalLibrary.open(location.last! as String),

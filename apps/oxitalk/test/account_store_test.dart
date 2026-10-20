@@ -41,7 +41,7 @@ void main() {
       await session.close();
     }
     sessions.clear();
-    await dataDir.delete(recursive: true);
+    await _deleteWhenClosed(dataDir);
   });
 
   test('every saved account comes back, in order', () async {
@@ -87,4 +87,18 @@ void main() {
     ]);
     sessions.addAll(again);
   });
+}
+
+/// Deletes [dir] once the stores in it have closed: they close in the background after their
+/// session, and Windows won't delete a file that is still open.
+Future<void> _deleteWhenClosed(Directory dir) async {
+  for (var attempt = 1; ; attempt++) {
+    try {
+      await dir.delete(recursive: true);
+      return;
+    } on FileSystemException {
+      if (attempt == 50) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+  }
 }

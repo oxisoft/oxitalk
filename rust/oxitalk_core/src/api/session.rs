@@ -3,6 +3,7 @@
 use std::{
     fmt,
     sync::{Mutex, PoisonError},
+    time::Duration,
 };
 
 use flutter_rust_bridge::frb;
@@ -15,7 +16,7 @@ use matrix_sdk::{
     store::RoomLoadSettings,
 };
 use matrix_sdk_ui::sync_service::SyncService;
-use tokio::task::AbortHandle;
+use tokio::{runtime::Handle, task::AbortHandle};
 
 use super::{
     error::{CoreError, parse_id},
@@ -52,6 +53,8 @@ pub struct Session {
     pub(crate) sync: SyncService,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
+    /// The runtime the session was made on, where its stores close when it is dropped.
+    runtime: Handle,
 }
 
 /// Logs in with a user name and password. `server` is a server name (`matrix.org`, found
@@ -137,6 +140,7 @@ impl Session {
             client,
             sync,
             tasks: Mutex::default(),
+            runtime: Handle::current(),
         })
     }
 
@@ -240,12 +244,24 @@ impl fmt::Debug for Session {
     }
 }
 
+/// How long the dropped session's client is kept, so that it outlives the session's fields.
+const CLOSE_DELAY: Duration = Duration::from_secs(1);
+
 impl Drop for Session {
     fn drop(&mut self) {
         let tasks = self.tasks.get_mut().unwrap_or_else(PoisonError::into_inner);
         for task in tasks.drain(..) {
             task.abort();
         }
+        // The app drops sessions from a thread without a Tokio runtime, but the SDK's stores
+        // need one to close (their connection pool spawns blocking tasks). A copy of the
+        // client, held a moment on the session's runtime, is the last to go, so the stores
+        // close there.
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            tokio::time::sleep(CLOSE_DELAY).await;
+            drop(client);
+        });
     }
 }
 

@@ -75,11 +75,32 @@ async fn an_expired_sync_position_recovers_by_itself() -> TestResult {
     let mut states = session.sync_states();
     session.start_sync().await;
 
+    // Recovered: the sync asked again after the rejected position and runs. It may or may
+    // not show Offline in between, depending on how fast it restarts.
+    let asked_again = || async {
+        server
+            .server()
+            .received_requests()
+            .await
+            .is_some_and(|requests| {
+                requests
+                    .iter()
+                    .filter(|r| r.url.path().contains("simplified_msc3575"))
+                    .count()
+                    >= 2
+            })
+    };
     let mut seen = Vec::new();
     tokio::time::timeout(TIMEOUT, async {
-        while let Some(state) = states.next().await {
-            seen.push(state);
-            if seen.contains(&SyncState::Offline) && seen.last() == Some(&SyncState::Running) {
+        loop {
+            tokio::select! {
+                state = states.next() => match state {
+                    Some(state) => seen.push(state),
+                    None => break,
+                },
+                () = tokio::time::sleep(Duration::from_millis(100)) => {}
+            }
+            if seen.last() == Some(&SyncState::Running) && asked_again().await {
                 break;
             }
         }
@@ -87,6 +108,10 @@ async fn an_expired_sync_position_recovers_by_itself() -> TestResult {
     .await
     .map_err(|_| format!("never recovered; states: {seen:?}"))?;
     assert_eq!(seen.first(), Some(&SyncState::Idle));
+    assert!(
+        !seen.iter().any(|s| matches!(s, SyncState::Error { .. })),
+        "{seen:?}"
+    );
     Ok(())
 }
 
@@ -167,5 +192,40 @@ async fn ids_are_checked_before_anything_is_sent() -> TestResult {
             room_id: "!unknown:example.org".to_owned()
         })
     );
+    Ok(())
+}
+
+/// The app drops a session from a thread of its own, without a Tokio runtime; the SDK's stores
+/// still close on the runtime, instead of panicking.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_session_can_be_dropped_outside_the_runtime() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    server.mock_versions().ok().mount().await;
+    let store = tempfile::tempdir()?;
+    server
+        .mock_sliding_sync()
+        .respond_with(sync_ok())
+        .mount()
+        .await;
+    let session = restored_session(&server, &store.path().to_string_lossy()).await?;
+    // Syncing, as in the app: the stores have connections open.
+    let mut states = session.sync_states();
+    session.start_sync().await;
+    tokio::time::timeout(TIMEOUT, async {
+        while let Some(state) = states.next().await {
+            if state == SyncState::Running {
+                break;
+            }
+        }
+    })
+    .await?;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    drop(states);
+    // As the app closes an account: sync stopped, then the session freed from its thread.
+    session.stop_sync().await;
+    let dropped = std::thread::spawn(move || drop(session)).join();
+    assert!(dropped.is_ok(), "dropping the session panicked");
+    // Time for the stores to close on the runtime.
+    tokio::time::sleep(Duration::from_secs(2)).await;
     Ok(())
 }
