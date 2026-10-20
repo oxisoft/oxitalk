@@ -399,6 +399,7 @@ final class RoomDetails {
     this.isEncrypted = false,
     this.dmUserId,
     this.dmUserVerified,
+    this.ownPowerLevel = 0,
   });
 
   final String roomId;
@@ -418,6 +419,9 @@ final class RoomDetails {
 
   /// Whether the user verified [dmUserId]; `null` if unknown.
   final bool? dmUserVerified;
+
+  /// The user's own power level; `null` for a room creator who is above every number.
+  final int? ownPowerLevel;
 }
 
 enum MemberRole { admin, moderator, member }
@@ -428,7 +432,13 @@ final class RoomMember {
     this.displayName,
     this.avatarUrl,
     this.role = MemberRole.member,
+    this.powerLevel = 0,
     this.invited = false,
+    this.banned = false,
+    this.canChangeRole = false,
+    this.canRemove = false,
+    this.canBan = false,
+    this.canUnban = false,
   });
 
   final String userId;
@@ -438,8 +448,44 @@ final class RoomMember {
   final String? avatarUrl;
   final MemberRole role;
 
+  /// 100 is Admin, 50 Moderator, 0 a plain member; `null` for a room creator who is above
+  /// every number.
+  final int? powerLevel;
+
   /// Invited, not joined yet.
   final bool invited;
+
+  /// Banned: listed so they can be unbanned.
+  final bool banned;
+
+  /// What the user may do to them.
+  final bool canChangeRole;
+  final bool canRemove;
+  final bool canBan;
+  final bool canUnban;
+
+  RoomMember copyWith({
+    MemberRole? role,
+    int? powerLevel,
+    bool? invited,
+    bool? banned,
+    bool? canChangeRole,
+    bool? canRemove,
+    bool? canBan,
+    bool? canUnban,
+  }) => RoomMember(
+    userId: userId,
+    displayName: displayName,
+    avatarUrl: avatarUrl,
+    role: role ?? this.role,
+    powerLevel: powerLevel ?? this.powerLevel,
+    invited: invited ?? this.invited,
+    banned: banned ?? this.banned,
+    canChangeRole: canChangeRole ?? this.canChangeRole,
+    canRemove: canRemove ?? this.canRemove,
+    canBan: canBan ?? this.canBan,
+    canUnban: canUnban ?? this.canUnban,
+  );
 }
 
 /// Someone to chat with.

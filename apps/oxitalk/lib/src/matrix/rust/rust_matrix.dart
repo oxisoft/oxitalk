@@ -509,6 +509,37 @@ final class RustMatrixSession implements MatrixSession {
   ];
 
   @override
+  Future<void> setPowerLevel(String roomId, String userId, int level) =>
+      guarded(
+        () => _session.setPowerLevel(
+          roomId: roomId,
+          userId: userId,
+          level: level,
+        ),
+      );
+
+  @override
+  Future<void> removeMember(String roomId, String userId, {String? reason}) =>
+      guarded(
+        () => _session.removeMember(
+          roomId: roomId,
+          userId: userId,
+          reason: reason,
+        ),
+      );
+
+  @override
+  Future<void> banMember(String roomId, String userId, {String? reason}) =>
+      guarded(
+        () =>
+            _session.banMember(roomId: roomId, userId: userId, reason: reason),
+      );
+
+  @override
+  Future<void> unbanMember(String roomId, String userId) =>
+      guarded(() => _session.unbanMember(roomId: roomId, userId: userId));
+
+  @override
   Future<String> joinByAddress(String address) =>
       guarded(() => _session.joinByAddress(address: address));
 

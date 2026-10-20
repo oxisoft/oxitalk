@@ -6,10 +6,14 @@ use std::sync::{Arc, Mutex};
 use matrix_sdk::{
     RoomMemberships,
     ruma::{
-        Int, OwnedRoomId,
+        Int, OwnedRoomId, UserId,
         events::{
             AnySyncMessageLikeEvent, AnySyncTimelineEvent, SyncMessageLikeEvent,
-            room::{member::MembershipState, message::MessageType, power_levels::UserPowerLevel},
+            room::{
+                member::MembershipState,
+                message::MessageType,
+                power_levels::{RoomPowerLevels, UserPowerLevel},
+            },
         },
     },
 };
@@ -37,6 +41,9 @@ pub struct RoomDetails {
     pub dm_user_id: Option<String>,
     /// Whether the user verified the other person of a direct chat; `None` if unknown.
     pub dm_user_verified: Option<bool>,
+    /// The user's own power level; `None` for a creator of a room version 12 or later, who
+    /// is above every number.
+    pub own_power_level: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +53,10 @@ pub enum MemberRole {
     Member,
 }
 
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent flags, one per action the member list offers"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoomMember {
     pub user_id: String,
@@ -53,8 +64,17 @@ pub struct RoomMember {
     /// An `mxc://` URI.
     pub avatar_url: Option<String>,
     pub role: MemberRole,
+    /// Their power level; `None` for a creator of a room version 12 or later.
+    pub power_level: Option<i64>,
     /// Invited, not joined yet.
     pub invited: bool,
+    /// Banned: listed so they can be unbanned.
+    pub banned: bool,
+    /// What the user may do to them, by the room's power levels.
+    pub can_change_role: bool,
+    pub can_remove: bool,
+    pub can_ban: bool,
+    pub can_unban: bool,
 }
 
 impl Session {
@@ -98,10 +118,18 @@ impl Session {
             is_encrypted: room.encryption_state().is_encrypted(),
             dm_user_id: dm_user.map(|user| user.to_string()),
             dm_user_verified,
+            own_power_level: match self.client.user_id() {
+                Some(own) => room
+                    .power_levels()
+                    .await
+                    .map_or(Some(0), |levels| level_number(levels.for_user(own))),
+                None => Some(0),
+            },
         })
     }
 
-    /// The room's joined and invited members, admins first, then by name. Fetched from the
+    /// The room's joined, invited and banned members, admins first, then by name, the banned
+    /// last; each with what the user may do to them. Fetched from the
     /// server first if the store doesn't have them all; the stored ones when offline.
     ///
     /// # Errors
@@ -112,15 +140,39 @@ impl Session {
         // Offline: what the store has.
         let _ = room.sync_members().await;
         let members = room
-            .members_no_sync(RoomMemberships::JOIN | RoomMemberships::INVITE)
+            .members_no_sync(RoomMemberships::JOIN | RoomMemberships::INVITE | RoomMemberships::BAN)
             .await
             .map_err(|error| CoreError::internal(&error))?;
+        let levels = room.power_levels().await.ok();
+        let own = self.client.user_id().map(ToOwned::to_owned);
+        // What the user may do to `target`; nothing without power levels or a user ID.
+        let may = |check: fn(&RoomPowerLevels, &UserId, &UserId) -> bool, target: &UserId| {
+            levels
+                .as_ref()
+                .zip(own.as_deref())
+                .is_some_and(|(levels, own)| check(levels, own, target))
+        };
         let mut members: Vec<RoomMember> = members
             .iter()
             .map(|member| RoomMember {
                 user_id: member.user_id().to_string(),
                 display_name: member.display_name().map(ToOwned::to_owned),
                 avatar_url: member.avatar_url().map(ToString::to_string),
+                power_level: level_number(member.power_level()),
+                banned: *member.membership() == MembershipState::Ban,
+                can_change_role: may(
+                    RoomPowerLevels::user_can_change_user_power_level,
+                    member.user_id(),
+                ),
+                // Not oneself: that is leaving.
+                can_remove: own.as_deref() != Some(member.user_id())
+                    && *member.membership() != MembershipState::Ban
+                    && may(RoomPowerLevels::user_can_kick_user, member.user_id()),
+                can_ban: own.as_deref() != Some(member.user_id())
+                    && *member.membership() != MembershipState::Ban
+                    && may(RoomPowerLevels::user_can_ban_user, member.user_id()),
+                can_unban: *member.membership() == MembershipState::Ban
+                    && may(RoomPowerLevels::user_can_unban_user, member.user_id()),
                 role: match member.power_level() {
                     UserPowerLevel::Infinite => MemberRole::Admin,
                     UserPowerLevel::Int(level) if level >= Int::from(100) => MemberRole::Admin,
@@ -132,6 +184,7 @@ impl Session {
             .collect();
         members.sort_by_cached_key(|member| {
             (
+                member.banned,
                 member.role as u8,
                 member.invited,
                 member
@@ -160,7 +213,7 @@ impl Session {
         Ok(Timeline::new(Arc::new(timeline), Mutex::default()))
     }
 
-    fn room(&self, room_id: &str) -> Result<matrix_sdk::Room, CoreError> {
+    pub(crate) fn room(&self, room_id: &str) -> Result<matrix_sdk::Room, CoreError> {
         let id: OwnedRoomId = parse_id(room_id)?;
         self.client
             .get_room(&id)
@@ -190,6 +243,15 @@ fn is_media_or_link(event: &AnySyncTimelineEvent) -> bool {
 
 fn has_link(text: &str) -> bool {
     text.contains("https://") || text.contains("http://")
+}
+
+/// A power level as a number; `None` for a room creator's unlimited one.
+fn level_number(level: UserPowerLevel) -> Option<i64> {
+    match level {
+        UserPowerLevel::Int(level) => Some(level.into()),
+        // `Infinite`, and whatever above-all level comes later.
+        _ => None,
+    }
 }
 
 #[cfg(test)]

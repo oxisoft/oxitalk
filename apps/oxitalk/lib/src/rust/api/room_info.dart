@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `has_link`, `is_media_or_link`, `room`
+// These functions are ignored because they are not marked as `pub`: `has_link`, `is_media_or_link`, `level_number`, `room`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 
 enum MemberRole { admin, moderator, member }
@@ -32,6 +32,10 @@ class RoomDetails {
   /// Whether the user verified the other person of a direct chat; `None` if unknown.
   final bool? dmUserVerified;
 
+  /// The user's own power level; `None` for a creator of a room version 12 or later, who
+  /// is above every number.
+  final PlatformInt64? ownPowerLevel;
+
   const RoomDetails({
     required this.roomId,
     required this.name,
@@ -42,6 +46,7 @@ class RoomDetails {
     required this.isEncrypted,
     this.dmUserId,
     this.dmUserVerified,
+    this.ownPowerLevel,
   });
 
   @override
@@ -54,7 +59,8 @@ class RoomDetails {
       joinedMembers.hashCode ^
       isEncrypted.hashCode ^
       dmUserId.hashCode ^
-      dmUserVerified.hashCode;
+      dmUserVerified.hashCode ^
+      ownPowerLevel.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -69,7 +75,8 @@ class RoomDetails {
           joinedMembers == other.joinedMembers &&
           isEncrypted == other.isEncrypted &&
           dmUserId == other.dmUserId &&
-          dmUserVerified == other.dmUserVerified;
+          dmUserVerified == other.dmUserVerified &&
+          ownPowerLevel == other.ownPowerLevel;
 }
 
 class RoomMember {
@@ -80,15 +87,33 @@ class RoomMember {
   final String? avatarUrl;
   final MemberRole role;
 
+  /// Their power level; `None` for a creator of a room version 12 or later.
+  final PlatformInt64? powerLevel;
+
   /// Invited, not joined yet.
   final bool invited;
+
+  /// Banned: listed so they can be unbanned.
+  final bool banned;
+
+  /// What the user may do to them, by the room's power levels.
+  final bool canChangeRole;
+  final bool canRemove;
+  final bool canBan;
+  final bool canUnban;
 
   const RoomMember({
     required this.userId,
     this.displayName,
     this.avatarUrl,
     required this.role,
+    this.powerLevel,
     required this.invited,
+    required this.banned,
+    required this.canChangeRole,
+    required this.canRemove,
+    required this.canBan,
+    required this.canUnban,
   });
 
   @override
@@ -97,7 +122,13 @@ class RoomMember {
       displayName.hashCode ^
       avatarUrl.hashCode ^
       role.hashCode ^
-      invited.hashCode;
+      powerLevel.hashCode ^
+      invited.hashCode ^
+      banned.hashCode ^
+      canChangeRole.hashCode ^
+      canRemove.hashCode ^
+      canBan.hashCode ^
+      canUnban.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -108,5 +139,11 @@ class RoomMember {
           displayName == other.displayName &&
           avatarUrl == other.avatarUrl &&
           role == other.role &&
-          invited == other.invited;
+          powerLevel == other.powerLevel &&
+          invited == other.invited &&
+          banned == other.banned &&
+          canChangeRole == other.canChangeRole &&
+          canRemove == other.canRemove &&
+          canBan == other.canBan &&
+          canUnban == other.canUnban;
 }

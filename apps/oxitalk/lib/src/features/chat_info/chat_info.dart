@@ -13,6 +13,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../chat/media_views.dart';
 import '../chats/new_room.dart';
+import 'member_actions.dart';
 
 /// A chat's info of the active account as a page of its own (narrow windows).
 class ChatInfoScreen extends ConsumerWidget {
@@ -240,54 +241,68 @@ class _Members extends ConsumerWidget {
   final String roomId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) =>
-      switch (ref.watch(roomMembersProvider(account, roomId))) {
-        AsyncData(:final value) => ListView.builder(
-          // The first row invites someone.
-          itemCount: value.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return ListTile(
-                key: const Key('info.invite'),
-                leading: const CircleAvatar(
-                  radius: 20,
-                  child: Icon(Icons.person_add_alt_rounded),
-                ),
-                title: const Text('Invite people'),
-                onTap: () =>
-                    unawaited(inviteToRoom(context, ref, account, roomId)),
-              );
-            }
-            final member = value[index - 1];
-            final name = member.displayName ?? member.userId;
-            final role = switch (member.role) {
-              MemberRole.admin => 'Admin',
-              MemberRole.moderator => 'Moderator',
-              MemberRole.member => null,
-            };
-            final label = [?role, if (member.invited) 'Invited'].join(' · ');
-            return ListTile(
-              key: Key('member.${member.userId}'),
-              leading: MatrixAvatar(
-                account: account,
-                url: member.avatarUrl,
-                name: name,
-                seed: member.userId,
-                radius: 20,
-              ),
-              title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                member.userId,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: label.isEmpty ? null : Text(label),
-            );
+  Widget build(BuildContext context, WidgetRef ref) => switch (ref.watch(
+    roomMembersProvider(account, roomId),
+  )) {
+    AsyncData(:final value) => ListView.builder(
+      // The first row invites someone.
+      itemCount: value.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return ListTile(
+            key: const Key('info.invite'),
+            leading: const CircleAvatar(
+              radius: 20,
+              child: Icon(Icons.person_add_alt_rounded),
+            ),
+            title: const Text('Invite people'),
+            onTap: () => unawaited(inviteToRoom(context, ref, account, roomId)),
+          );
+        }
+        final member = value[index - 1];
+        final name = member.displayName ?? member.userId;
+        final level = member.powerLevel;
+        final role = switch (level) {
+          null => 'Creator',
+          adminLevel || moderatorLevel || memberLevel => switch (member.role) {
+            MemberRole.admin => 'Admin',
+            MemberRole.moderator => 'Moderator',
+            MemberRole.member => null,
           },
-        ),
-        AsyncError() => const Center(child: Text('Can’t load the members.')),
-        _ => const Center(child: CircularProgressIndicator()),
-      };
+          _ => roleName(level),
+        };
+        final label = [
+          if (member.banned) 'Banned' else ?role,
+          if (member.invited) 'Invited',
+        ].join(' · ');
+        return ListTile(
+          key: Key('member.${member.userId}'),
+          leading: MatrixAvatar(
+            account: account,
+            url: member.avatarUrl,
+            name: name,
+            seed: member.userId,
+            radius: 20,
+          ),
+          title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            member.userId,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (label.isNotEmpty) Text(label),
+              MemberMenu(account: account, roomId: roomId, member: member),
+            ],
+          ),
+        );
+      },
+    ),
+    AsyncError() => const Center(child: Text('Can’t load the members.')),
+    _ => const Center(child: CircularProgressIndicator()),
+  };
 }
 
 /// Pages back through the chat's files and links while a tab shows them: at first, and

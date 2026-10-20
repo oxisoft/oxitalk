@@ -34,7 +34,7 @@ use oxitalk_core::api::{
     error::CoreError,
     init_app,
     rich_text::BlockKind,
-    room_info::MemberRole,
+    room_info::{MemberRole, RoomMember},
     room_list::{Membership, RoomSummary},
     rooms::{NewRoom, RoomAvatar},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
@@ -971,6 +971,109 @@ async fn people_and_public_rooms_are_found() -> TestResult {
         only.iter().map(|r| r.room_id.clone()).collect::<Vec<_>>(),
         vec![small]
     );
+    Ok(())
+}
+
+/// The room's creator makes a member a moderator, the moderator may not touch the admin,
+/// and members are removed, banned and unbanned.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice = alice_user
+        .login(&alice_store.path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room = alice
+        .create_room(NewRoom {
+            name: "Staff".to_owned(),
+            topic: None,
+            public: false,
+            alias: None,
+            encrypted: true,
+            avatar: None,
+        })
+        .await?;
+    alice.invite(room.clone(), bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room))
+        .await?;
+    bob.join(room.clone()).await?;
+
+    // Waits until `session` sees `user` in the room as `wanted` says.
+    let member_of = async |session: &Session,
+                           user: String,
+                           wanted: fn(&RoomMember) -> bool|
+           -> Result<RoomMember, Box<dyn Error>> {
+        Ok(tokio::time::timeout(TIMEOUT, async {
+            loop {
+                let members = session.room_members(room.clone()).await?;
+                if let Some(member) = members.iter().find(|m| m.user_id == user && wanted(m)) {
+                    return Ok::<_, CoreError>(member.clone());
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            }
+        })
+        .await??)
+    };
+
+    let details = alice.room_details(room.clone()).await?;
+    assert_eq!(details.own_power_level, Some(100));
+    let plain = member_of(&alice, bob.user_id(), |m| !m.invited).await?;
+    assert_eq!(plain.role, MemberRole::Member);
+    assert!(plain.can_change_role && plain.can_remove && plain.can_ban && !plain.can_unban);
+
+    alice
+        .set_power_level(room.clone(), bob.user_id(), 50)
+        .await?;
+    let moderator = member_of(&bob, bob.user_id(), |m| m.power_level == Some(50)).await?;
+    assert_eq!(moderator.role, MemberRole::Moderator);
+    // A moderator may not change, remove or ban the admin above them.
+    let admin = member_of(&bob, alice.user_id(), |_| true).await?;
+    assert!(!admin.can_change_role && !admin.can_remove && !admin.can_ban);
+    assert!(
+        bob.set_power_level(room.clone(), alice.user_id(), 0)
+            .await
+            .is_err()
+    );
+
+    alice
+        .ban_member(room.clone(), bob.user_id(), Some("testing".to_owned()))
+        .await?;
+    let banned = member_of(&alice, bob.user_id(), |m| m.banned).await?;
+    assert!(banned.can_unban && !banned.can_ban && !banned.can_remove);
+    alice.unban_member(room.clone(), bob.user_id()).await?;
+    tokio::time::timeout(TIMEOUT, async {
+        loop {
+            let members = alice.room_members(room.clone()).await?;
+            if !members.iter().any(|m| m.user_id == bob.user_id()) {
+                return Ok::<_, CoreError>(());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    })
+    .await??;
+
+    // An invite is withdrawn by removing the invited person.
+    alice.invite(room.clone(), bob.user_id()).await?;
+    member_of(&alice, bob.user_id(), |m| m.invited).await?;
+    alice
+        .remove_member(room.clone(), bob.user_id(), None)
+        .await?;
+    tokio::time::timeout(TIMEOUT, async {
+        loop {
+            let members = alice.room_members(room.clone()).await?;
+            if !members.iter().any(|m| m.user_id == bob.user_id()) {
+                return Ok::<_, CoreError>(());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    })
+    .await??;
     Ok(())
 }
 

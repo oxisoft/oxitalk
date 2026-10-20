@@ -373,6 +373,67 @@ final class FakeSession implements MatrixSession {
     return room.id;
   }
 
+  /// What the member menu did: `setPowerLevel roomId userId level`, `remove …`, `ban …`,
+  /// `unban …`, with the reason after a `:` when there was one.
+  final moderated = <String>[];
+
+  void _changeMember(
+    String roomId,
+    String userId,
+    RoomMember? Function(RoomMember member) change,
+  ) => members[roomId] = [
+    for (final member in members[roomId] ?? const <RoomMember>[])
+      if (member.userId != userId) member else ?change(member),
+  ];
+
+  @override
+  Future<void> setPowerLevel(String roomId, String userId, int level) async {
+    moderated.add('setPowerLevel $roomId $userId $level');
+    _changeMember(
+      roomId,
+      userId,
+      (member) => member.copyWith(
+        powerLevel: level,
+        role: level >= 100
+            ? MemberRole.admin
+            : level >= 50
+            ? MemberRole.moderator
+            : MemberRole.member,
+      ),
+    );
+  }
+
+  @override
+  Future<void> removeMember(
+    String roomId,
+    String userId, {
+    String? reason,
+  }) async {
+    moderated.add('remove $roomId $userId${reason == null ? '' : ':$reason'}');
+    _changeMember(roomId, userId, (_) => null);
+  }
+
+  @override
+  Future<void> banMember(String roomId, String userId, {String? reason}) async {
+    moderated.add('ban $roomId $userId${reason == null ? '' : ':$reason'}');
+    _changeMember(
+      roomId,
+      userId,
+      (member) => member.copyWith(
+        banned: true,
+        canBan: false,
+        canRemove: false,
+        canUnban: true,
+      ),
+    );
+  }
+
+  @override
+  Future<void> unbanMember(String roomId, String userId) async {
+    moderated.add('unban $roomId $userId');
+    _changeMember(roomId, userId, (_) => null);
+  }
+
   @override
   Future<void> invite(String roomId, String userId) async {
     if (!userId.startsWith('@') || !userId.contains(':')) {

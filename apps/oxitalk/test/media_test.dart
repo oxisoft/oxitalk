@@ -308,6 +308,8 @@ void main() {
     expect(prefs.retentionDays, isNull);
     expect(session.retentionDays, isNull);
 
+    await tester.ensureVisible(find.byKey(const Key('settings.clearCache')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings.clearCache')));
     await tester.pumpAndSettle();
     expect(session.cacheSize, 0);

@@ -72,6 +72,17 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> addRecentEmoji({required String emoji});
 
+  /// Bans `user_id` from the room.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::set_power_level`].
+  Future<void> banMember({
+    required String roomId,
+    required String userId,
+    String? reason,
+  });
+
   /// Empties the media cache; the retention period stays.
   ///
   /// # Errors
@@ -213,6 +224,17 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> removeAvatar();
 
+  /// Removes `user_id` from the room, or withdraws their invite.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::set_power_level`].
+  Future<void> removeMember({
+    required String roomId,
+    required String userId,
+    String? reason,
+  });
+
   /// Asks the user's other devices to verify this one.
   ///
   /// # Errors
@@ -228,7 +250,8 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<RoomDetails> roomDetails({required String roomId});
 
-  /// The room's joined and invited members, admins first, then by name. Fetched from the
+  /// The room's joined, invited and banned members, admins first, then by name, the banned
+  /// last; each with what the user may do to them. Fetched from the
   /// server first if the store doesn't have them all; the stored ones when offline.
   ///
   /// # Errors
@@ -284,6 +307,20 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// Only if the cache can't be written.
   Future<void> setMediaRetention({int? days});
+
+  /// Gives `user_id` the power level `level` in the room: 100 is Admin, 50 Moderator,
+  /// 0 a plain member.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`]; [`CoreError::Internal`] for a
+  /// level out of range; otherwise as the server answers (e.g. [`CoreError::Forbidden`]
+  /// without the right).
+  Future<void> setPowerLevel({
+    required String roomId,
+    required String userId,
+    required PlatformInt64 level,
+  });
 
   /// Puts a room in the section with `tag` (`m.favourite`, `m.lowpriority` or a section the
   /// user made), or with `None` in its default section (People or Rooms). A room is in one
@@ -342,6 +379,13 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`], or [`CoreError::RoomNotFound`] for a room the session doesn't
   /// know.
   Future<Timeline> timeline({required String roomId});
+
+  /// Lifts `user_id`'s ban; they can join again when invited or the room is public.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::set_power_level`].
+  Future<void> unbanMember({required String roomId, required String userId});
 
   /// The logged-in user's Matrix ID.
   String userId();

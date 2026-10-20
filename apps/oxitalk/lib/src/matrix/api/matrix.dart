@@ -178,6 +178,16 @@ abstract interface class MatrixSession {
   /// Invites [userId] to the room [roomId].
   Future<void> invite(String roomId, String userId);
 
+  /// Gives [userId] the power level [level] in the room: 100 Admin, 50 Moderator, 0 member.
+  Future<void> setPowerLevel(String roomId, String userId, int level);
+
+  /// Removes [userId] from the room, or withdraws their invite.
+  Future<void> removeMember(String roomId, String userId, {String? reason});
+
+  Future<void> banMember(String roomId, String userId, {String? reason});
+
+  Future<void> unbanMember(String roomId, String userId);
+
   Future<RoomTimeline> openTimeline(String roomId);
 
   /// Logs out on the server and deletes everything stored for this account; the other

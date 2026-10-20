@@ -212,6 +212,7 @@ RoomDetails roomDetailsOf(rust.RoomDetails details) => RoomDetails(
   isEncrypted: details.isEncrypted,
   dmUserId: details.dmUserId,
   dmUserVerified: details.dmUserVerified,
+  ownPowerLevel: details.ownPowerLevel,
 );
 
 RoomMember roomMemberOf(rust.RoomMember member) => RoomMember(
@@ -223,7 +224,13 @@ RoomMember roomMemberOf(rust.RoomMember member) => RoomMember(
     rust.MemberRole.moderator => MemberRole.moderator,
     rust.MemberRole.member => MemberRole.member,
   },
+  powerLevel: member.powerLevel,
   invited: member.invited,
+  banned: member.banned,
+  canChangeRole: member.canChangeRole,
+  canRemove: member.canRemove,
+  canBan: member.canBan,
+  canUnban: member.canUnban,
 );
 
 SendState sendStateOf(rust.SendState state) => switch (state) {
