@@ -12,6 +12,7 @@ import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../chat/media_views.dart';
+import '../chats/new_room.dart';
 
 /// A chat's info of the active account as a page of its own (narrow windows).
 class ChatInfoScreen extends ConsumerWidget {
@@ -242,9 +243,22 @@ class _Members extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) =>
       switch (ref.watch(roomMembersProvider(account, roomId))) {
         AsyncData(:final value) => ListView.builder(
-          itemCount: value.length,
+          // The first row invites someone.
+          itemCount: value.length + 1,
           itemBuilder: (context, index) {
-            final member = value[index];
+            if (index == 0) {
+              return ListTile(
+                key: const Key('info.invite'),
+                leading: const CircleAvatar(
+                  radius: 20,
+                  child: Icon(Icons.person_add_alt_rounded),
+                ),
+                title: const Text('Invite people'),
+                onTap: () =>
+                    unawaited(inviteToRoom(context, ref, account, roomId)),
+              );
+            }
+            final member = value[index - 1];
             final name = member.displayName ?? member.userId;
             final role = switch (member.role) {
               MemberRole.admin => 'Admin',

@@ -145,6 +145,26 @@ abstract interface class MatrixSession {
 
   Future<void> join(String roomId);
 
+  /// Creates a room and returns its ID. Private rooms are invite-only and always encrypted;
+  /// a public one anyone can join, at `#alias:server` if [alias] is given, encrypted unless
+  /// [encrypted] is off. [avatar] is an image of type [avatarMimeType].
+  Future<String> createRoom({
+    required String name,
+    String? topic,
+    bool public = false,
+    String? alias,
+    bool encrypted = true,
+    Uint8List? avatar,
+    String? avatarMimeType,
+  });
+
+  /// Joins a room by its address, ID, or a link to it; returns its ID. Throws
+  /// [MatrixFailure] with [FailureKind.invalidId] for anything else.
+  Future<String> joinByAddress(String address);
+
+  /// Invites [userId] to the room [roomId].
+  Future<void> invite(String roomId, String userId);
+
   Future<RoomTimeline> openTimeline(String roomId);
 
   /// Logs out on the server and deletes everything stored for this account; the other

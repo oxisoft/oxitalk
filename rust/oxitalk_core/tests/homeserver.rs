@@ -29,6 +29,7 @@ use oxitalk_core::api::{
     rich_text::BlockKind,
     room_info::MemberRole,
     room_list::{Membership, RoomSummary},
+    rooms::{NewRoom, RoomAvatar},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
     session::{Session, login, restore},
     timeline::{EventInfo, MediaKind, MediaMessage, SendState, TimelineItem, TimelineItemContent},
@@ -814,6 +815,79 @@ async fn typing_shows_on_the_other_side() -> TestResult {
     wait_for(true).await?;
     alice_timeline.set_typing(false).await?;
     wait_for(false).await?;
+    Ok(())
+}
+
+/// A private room is made encrypted, with its topic and picture, and someone invited joins;
+/// a public one with an address is joined by that address.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn rooms_are_created_joined_and_invited_to() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice = alice_user
+        .login(&alice_store.path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+
+    let private = alice
+        .create_room(NewRoom {
+            name: "Team".to_owned(),
+            topic: Some("Where the team talks".to_owned()),
+            public: false,
+            alias: None,
+            // Ignored: a private room is always encrypted.
+            encrypted: false,
+            avatar: Some(RoomAvatar {
+                data: AVATAR_PNG.to_vec(),
+                mime_type: "image/png".to_owned(),
+            }),
+        })
+        .await?;
+    alice.invite(private.clone(), bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == private))
+        .await?;
+    bob.join(private.clone()).await?;
+    let details = alice.room_details(private).await?;
+    assert_eq!(details.name, "Team");
+    assert_eq!(details.topic.as_deref(), Some("Where the team talks"));
+    assert!(details.is_encrypted);
+    assert!(details.avatar_url.is_some());
+
+    let alias = format!("pub{}", alice_user.name);
+    let public = alice
+        .create_room(NewRoom {
+            name: "Open".to_owned(),
+            topic: None,
+            public: true,
+            alias: Some(alias.clone()),
+            encrypted: false,
+            avatar: None,
+        })
+        .await?;
+    let joined = bob.join_by_address(format!("#{alias}:localhost")).await?;
+    assert_eq!(joined, public);
+    // The room's state reaches Bob's store with the next sync.
+    let details = tokio::time::timeout(TIMEOUT, async {
+        loop {
+            let details = bob.room_details(public.clone()).await?;
+            if details.alias.is_some() {
+                return Ok::<_, CoreError>(details);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    })
+    .await??;
+    assert_eq!(details.alias, Some(format!("#{alias}:localhost")));
+    assert!(!details.is_encrypted);
+    assert!(matches!(
+        bob.join_by_address("not a room".to_owned()).await,
+        Err(CoreError::InvalidId { .. })
+    ));
     Ok(())
 }
 

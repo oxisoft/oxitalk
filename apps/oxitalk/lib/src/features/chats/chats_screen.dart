@@ -15,6 +15,7 @@ import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
 import '../chat_info/chat_info.dart';
+import 'new_room.dart';
 import 'room_groups.dart';
 import 'section_actions.dart';
 
@@ -289,13 +290,65 @@ class ChatListPane extends ConsumerWidget {
           narrow: narrow,
         ),
       },
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'New chat',
-        mini: narrow,
-        onPressed: () => unawaited(_newChat(context, ref)),
-        child: const Icon(Icons.edit_rounded),
+      floatingActionButton: Builder(
+        builder: (context) => FloatingActionButton(
+          key: const Key('newMenu'),
+          tooltip: 'New chat or room',
+          mini: narrow,
+          onPressed: () => unawaited(_newMenu(context, ref)),
+          child: const Icon(Icons.edit_rounded),
+        ),
       ),
     );
+  }
+
+  /// What ✏️ offers: a chat with a person, a new room, or joining one.
+  Future<void> _newMenu(BuildContext context, WidgetRef ref) async {
+    final button = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        button.localToGlobal(Offset.zero, ancestor: overlay) & button.size,
+        Offset.zero & overlay.size,
+      ),
+      items: const [
+        PopupMenuItem(
+          key: Key('newMenu.chat'),
+          value: 'chat',
+          child: ListTile(
+            leading: Icon(Icons.person_add_alt_rounded),
+            title: Text('New chat'),
+          ),
+        ),
+        PopupMenuItem(
+          key: Key('newMenu.room'),
+          value: 'room',
+          child: ListTile(
+            leading: Icon(Icons.group_add_rounded),
+            title: Text('New room'),
+          ),
+        ),
+        PopupMenuItem(
+          key: Key('newMenu.join'),
+          value: 'join',
+          child: ListTile(
+            leading: Icon(Icons.login_rounded),
+            title: Text('Join a room'),
+          ),
+        ),
+      ],
+    );
+    if (!context.mounted) return;
+    switch (choice) {
+      case 'chat':
+        await _newChat(context, ref);
+      case 'room':
+        await createRoom(context, ref, account);
+      case 'join':
+        await joinRoom(context, ref, account);
+    }
   }
 
   Future<void> _newChat(BuildContext context, WidgetRef ref) async {

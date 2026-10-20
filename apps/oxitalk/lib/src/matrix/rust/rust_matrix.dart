@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../../rust/api/room_list.dart' as rust;
+import '../../rust/api/rooms.dart' as rust;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/session.dart' as rust;
 import '../../rust/api/timeline.dart' as rust;
@@ -435,6 +436,38 @@ final class RustMatrixSession implements MatrixSession {
   @override
   Future<String> createDm(String userId) =>
       guarded(() => _session.createDm(userId: userId));
+
+  @override
+  Future<String> createRoom({
+    required String name,
+    String? topic,
+    bool public = false,
+    String? alias,
+    bool encrypted = true,
+    Uint8List? avatar,
+    String? avatarMimeType,
+  }) => guarded(
+    () => _session.createRoom(
+      room: rust.NewRoom(
+        name: name,
+        topic: topic,
+        public: public,
+        alias: alias,
+        encrypted: encrypted,
+        avatar: avatar == null || avatarMimeType == null
+            ? null
+            : rust.RoomAvatar(data: avatar, mimeType: avatarMimeType),
+      ),
+    ),
+  );
+
+  @override
+  Future<String> joinByAddress(String address) =>
+      guarded(() => _session.joinByAddress(address: address));
+
+  @override
+  Future<void> invite(String roomId, String userId) =>
+      guarded(() => _session.invite(roomId: roomId, userId: userId));
 
   @override
   Future<void> join(String roomId) =>

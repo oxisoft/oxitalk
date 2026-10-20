@@ -12,6 +12,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'profile.dart';
 import 'room_info.dart';
 import 'room_list.dart';
+import 'rooms.dart';
 import 'sections.dart';
 import 'sync.dart';
 import 'timeline.dart';
@@ -84,12 +85,35 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] for a malformed user ID, otherwise as the server answers.
   Future<String> createDm({required String userId});
 
+  /// Creates a room as [`NewRoom`] describes and returns its ID.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers: [`CoreError::Internal`] if the address is taken or malformed.
+  Future<String> createRoom({required NewRoom room});
+
+  /// Invites `user_id` to the room.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`], otherwise as the server
+  /// answers (e.g. [`CoreError::Forbidden`] without the right to invite).
+  Future<void> invite({required String roomId, required String userId});
+
   /// Joins a room, typically one the user was invited to.
   ///
   /// # Errors
   ///
   /// [`CoreError::InvalidId`] for a malformed room ID, otherwise as the server answers.
   Future<void> join({required String roomId});
+
+  /// Joins a room by its address (`#room:server`), ID (`!id:server`), or a `matrix.to` or
+  /// `matrix:` link to either, and returns its ID.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for anything else, otherwise as the server answers.
+  Future<String> joinByAddress({required String address});
 
   /// Stops syncing and logs this device out on the server. The store stays; the app deletes
   /// it.

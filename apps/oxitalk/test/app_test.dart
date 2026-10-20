@@ -106,14 +106,18 @@ void main() {
       final session = _session();
       await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
-      await tester.tap(find.byTooltip('New chat'));
+      await tester.tap(find.byKey(const Key('newMenu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('newMenu.chat')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('newChat.userId')), 'dave');
       await tester.tap(find.text('Start'));
       await tester.pumpAndSettle();
       expect(find.textContaining('invalid ID “dave”'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('New chat'));
+      await tester.tap(find.byKey(const Key('newMenu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('newMenu.chat')));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('newChat.userId')),

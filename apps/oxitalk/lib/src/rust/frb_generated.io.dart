@@ -10,6 +10,7 @@ import 'api/profile.dart';
 import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
+import 'api/rooms.dart';
 import 'api/sections.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
@@ -163,7 +164,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MediaMessage dco_decode_box_autoadd_media_message(dynamic raw);
 
   @protected
+  NewRoom dco_decode_box_autoadd_new_room(dynamic raw);
+
+  @protected
   ReplyQuote dco_decode_box_autoadd_reply_quote(dynamic raw);
+
+  @protected
+  RoomAvatar dco_decode_box_autoadd_room_avatar(dynamic raw);
 
   @protected
   RoomSummary dco_decode_box_autoadd_room_summary(dynamic raw);
@@ -256,6 +263,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Membership dco_decode_membership(dynamic raw);
 
   @protected
+  NewRoom dco_decode_new_room(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -266,6 +276,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReplyQuote? dco_decode_opt_box_autoadd_reply_quote(dynamic raw);
+
+  @protected
+  RoomAvatar? dco_decode_opt_box_autoadd_room_avatar(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -290,6 +303,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RichSpan dco_decode_rich_span(dynamic raw);
+
+  @protected
+  RoomAvatar dco_decode_room_avatar(dynamic raw);
 
   @protected
   RoomDetails dco_decode_room_details(dynamic raw);
@@ -491,7 +507,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  NewRoom sse_decode_box_autoadd_new_room(SseDeserializer deserializer);
+
+  @protected
   ReplyQuote sse_decode_box_autoadd_reply_quote(SseDeserializer deserializer);
+
+  @protected
+  RoomAvatar sse_decode_box_autoadd_room_avatar(SseDeserializer deserializer);
 
   @protected
   RoomSummary sse_decode_box_autoadd_room_summary(SseDeserializer deserializer);
@@ -598,6 +620,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Membership sse_decode_membership(SseDeserializer deserializer);
 
   @protected
+  NewRoom sse_decode_new_room(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -608,6 +633,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReplyQuote? sse_decode_opt_box_autoadd_reply_quote(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RoomAvatar? sse_decode_opt_box_autoadd_room_avatar(
     SseDeserializer deserializer,
   );
 
@@ -636,6 +666,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RichSpan sse_decode_rich_span(SseDeserializer deserializer);
+
+  @protected
+  RoomAvatar sse_decode_room_avatar(SseDeserializer deserializer);
 
   @protected
   RoomDetails sse_decode_room_details(SseDeserializer deserializer);
@@ -877,8 +910,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_new_room(NewRoom self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_reply_quote(
     ReplyQuote self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_room_avatar(
+    RoomAvatar self,
     SseSerializer serializer,
   );
 
@@ -1015,6 +1057,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_membership(Membership self, SseSerializer serializer);
 
   @protected
+  void sse_encode_new_room(NewRoom self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1029,6 +1074,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_reply_quote(
     ReplyQuote? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_room_avatar(
+    RoomAvatar? self,
     SseSerializer serializer,
   );
 
@@ -1061,6 +1112,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rich_span(RichSpan self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_avatar(RoomAvatar self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_details(RoomDetails self, SseSerializer serializer);

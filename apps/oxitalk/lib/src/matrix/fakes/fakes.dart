@@ -302,6 +302,50 @@ final class FakeSession implements MatrixSession {
   }
 
   /// Like the server's answer, it arrives after the room list has changed.
+  /// What [createRoom] was asked: name → (public, alias, encrypted, has avatar).
+  final created = <String, (bool, String?, bool, bool)>{};
+
+  /// Room addresses [joinByAddress] knows: address → room.
+  final addresses = <String, Room>{};
+
+  /// What [invite] was asked: `roomId userId`.
+  final invited = <String>[];
+
+  @override
+  Future<String> createRoom({
+    required String name,
+    String? topic,
+    bool public = false,
+    String? alias,
+    bool encrypted = true,
+    Uint8List? avatar,
+    String? avatarMimeType,
+  }) async {
+    created[name] = (public, alias, encrypted || !public, avatar != null);
+    final id = '!room${roomList.length}:example.org';
+    roomList = [
+      Room(id: id, name: name, isEncrypted: encrypted || !public),
+      ...roomList,
+    ];
+    return id;
+  }
+
+  @override
+  Future<String> joinByAddress(String address) async {
+    final room = addresses[address.trim()];
+    if (room == null) throw MatrixFailure(FailureKind.invalidId, address);
+    roomList = [room, ...roomList];
+    return room.id;
+  }
+
+  @override
+  Future<void> invite(String roomId, String userId) async {
+    if (!userId.startsWith('@') || !userId.contains(':')) {
+      throw MatrixFailure(FailureKind.invalidId, userId);
+    }
+    invited.add('$roomId $userId');
+  }
+
   @override
   Future<void> join(String roomId) async {
     roomList = [
