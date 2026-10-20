@@ -86,11 +86,8 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
     body: body,
     isOwn: event.isOwn,
-    sendState: switch (event.sendState) {
-      rust.SendState.sending => SendState.sending,
-      rust.SendState.sent => SendState.sent,
-      rust.SendState.failed => SendState.failed,
-    },
+    sendState: sendStateOf(event.sendState),
+    meta: metaOf(event),
   ),
   rust.TimelineItemContent_Media(:final event, :final media) => MediaEntry(
     id: item.id,
@@ -99,11 +96,8 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     senderAvatarUrl: event.senderAvatarUrl,
     time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
     isOwn: event.isOwn,
-    sendState: switch (event.sendState) {
-      rust.SendState.sending => SendState.sending,
-      rust.SendState.sent => SendState.sent,
-      rust.SendState.failed => SendState.failed,
-    },
+    sendState: sendStateOf(event.sendState),
+    meta: metaOf(event),
     media: MediaInfo(
       kind: switch (media.kind) {
         rust.MediaKind.image => MediaKind.image,
@@ -132,6 +126,16 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     senderAvatarUrl: event.senderAvatarUrl,
     time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
     isOwn: event.isOwn,
+    meta: metaOf(event),
+  ),
+  rust.TimelineItemContent_Redacted(:final event) => RedactedEntry(
+    id: item.id,
+    sender: event.sender,
+    senderName: event.senderName,
+    senderAvatarUrl: event.senderAvatarUrl,
+    time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
+    isOwn: event.isOwn,
+    meta: metaOf(event),
   ),
   rust.TimelineItemContent_DateDivider(:final timestampMs) => DayDivider(
     id: item.id,
@@ -209,4 +213,31 @@ RoomMember roomMemberOf(rust.RoomMember member) => RoomMember(
     rust.MemberRole.member => MemberRole.member,
   },
   invited: member.invited,
+);
+
+SendState sendStateOf(rust.SendState state) => switch (state) {
+  rust.SendState.sending => SendState.sending,
+  rust.SendState.sent => SendState.sent,
+  rust.SendState.failed => SendState.failed,
+};
+
+EventMeta metaOf(rust.EventInfo event) => EventMeta(
+  eventId: event.eventId,
+  transactionId: event.transactionId,
+  reactions: [
+    for (final reaction in event.reactions)
+      Reaction(reaction.key, reaction.senders, mine: reaction.mine),
+  ],
+  inReplyTo: switch (event.inReplyTo) {
+    final quote? => ReplyQuote(
+      eventId: quote.eventId,
+      sender: quote.sender,
+      senderName: quote.senderName,
+      text: quote.text,
+    ),
+    null => null,
+  },
+  isEdited: event.isEdited,
+  isEditable: event.isEditable,
+  uploadPercent: event.uploadPercent,
 );

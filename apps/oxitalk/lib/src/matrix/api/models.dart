@@ -49,6 +49,68 @@ final class Room {
 
 enum SendState { sending, sent, failed }
 
+/// One emoji (or other key) given to a message, and by whom.
+final class Reaction {
+  const Reaction(this.key, this.senders, {this.mine = false});
+
+  final String key;
+
+  /// User IDs, first given first.
+  final List<String> senders;
+
+  /// Whether the user is among them.
+  final bool mine;
+}
+
+/// What a reply shows of the message it answers.
+final class ReplyQuote {
+  const ReplyQuote({
+    required this.eventId,
+    this.sender,
+    this.senderName,
+    this.text,
+  });
+
+  final String eventId;
+
+  /// `null` until the original is loaded.
+  final String? sender;
+  final String? senderName;
+  final String? text;
+}
+
+/// What every message has besides its content: how to name it for actions, its reactions,
+/// what it answers, and whether it was edited.
+final class EventMeta {
+  const EventMeta({
+    this.eventId,
+    this.transactionId,
+    this.reactions = const [],
+    this.inReplyTo,
+    this.isEdited = false,
+    this.isEditable = false,
+    this.uploadPercent,
+  });
+
+  /// `null` until the server has accepted a local echo.
+  final String? eventId;
+
+  /// A local echo's ID until then.
+  final String? transactionId;
+  final List<Reaction> reactions;
+  final ReplyQuote? inReplyTo;
+  final bool isEdited;
+
+  /// The user's own text message or caption.
+  final bool isEditable;
+
+  /// While an attachment uploads, 0–100.
+  final int? uploadPercent;
+
+  /// What names the message in the timeline's actions.
+  String? get ref => eventId ?? transactionId;
+}
+
 /// One visible line of a timeline, oldest first.
 sealed class TimelineEntry {
   const TimelineEntry(this.id);
@@ -67,7 +129,10 @@ final class MessageEntry extends TimelineEntry {
     this.senderAvatarUrl,
     this.isOwn = false,
     this.sendState = SendState.sent,
+    this.meta = const EventMeta(),
   }) : super(id);
+
+  final EventMeta meta;
 
   final String sender;
   final String? senderName;
@@ -128,7 +193,10 @@ final class MediaEntry extends TimelineEntry {
     this.senderAvatarUrl,
     this.isOwn = false,
     this.sendState = SendState.sent,
+    this.meta = const EventMeta(),
   }) : super(id);
+
+  final EventMeta meta;
 
   final String sender;
   final String? senderName;
@@ -150,6 +218,7 @@ final class UndecryptableEntry extends TimelineEntry {
     this.senderName,
     this.senderAvatarUrl,
     this.isOwn = false,
+    this.meta = const EventMeta(),
   }) : super(id);
 
   final String sender;
@@ -159,6 +228,29 @@ final class UndecryptableEntry extends TimelineEntry {
   final String? senderAvatarUrl;
   final DateTime time;
   final bool isOwn;
+  final EventMeta meta;
+}
+
+/// A message that was deleted.
+final class RedactedEntry extends TimelineEntry {
+  const RedactedEntry({
+    required String id,
+    required this.sender,
+    required this.time,
+    this.senderName,
+    this.senderAvatarUrl,
+    this.isOwn = false,
+    this.meta = const EventMeta(),
+  }) : super(id);
+
+  final String sender;
+  final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
+  final DateTime time;
+  final bool isOwn;
+  final EventMeta meta;
 }
 
 final class DayDivider extends TimelineEntry {

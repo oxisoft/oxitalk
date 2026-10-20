@@ -1,29 +1,41 @@
 //! A room's timeline: its events oldest first, delivered as batches of diffs, plus paging back
 //! and sending.
 
-use std::sync::{Arc, Mutex, PoisonError};
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex, PoisonError},
+};
 
 use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
-use matrix_sdk::ruma::{
-    OwnedRoomId, UInt,
-    api::client::receipt::create_receipt::v3::ReceiptType,
-    events::room::{
-        MediaSource,
-        message::{MessageType, RoomMessageEventContent},
+use matrix_sdk::{
+    attachment::{AttachmentInfo, BaseImageInfo},
+    room::edit::EditedContent,
+    ruma::{
+        OwnedEventId, OwnedRoomId, UInt, UserId,
+        api::client::receipt::create_receipt::v3::ReceiptType,
+        events::room::{
+            MediaSource,
+            message::{
+                MessageType, RoomMessageEventContent, RoomMessageEventContentWithoutRelation,
+                TextMessageEventContent,
+            },
+        },
     },
 };
 use matrix_sdk_ui::{
     eyeball_im::VectorDiff,
     timeline::{
-        self, EventSendState, EventTimelineItem, RoomExt, TimelineDetails, TimelineItemKind,
-        VirtualTimelineItem,
+        self, AttachmentConfig, AttachmentSource, EventSendState, EventTimelineItem,
+        InReplyToDetails, RoomExt, SendTarget, TimelineDetails, TimelineEventItemId,
+        TimelineItemKind, VirtualTimelineItem,
     },
 };
 use tokio::task::AbortHandle;
 
 use super::{
     error::{CoreError, parse_id},
+    media_prep::prepare_image,
     session::Session,
 };
 use crate::frb_generated::StreamSink;
@@ -55,6 +67,8 @@ pub enum TimelineItemContent {
     },
     /// An encrypted event whose key hasn't arrived (yet).
     UnableToDecrypt { event: EventInfo },
+    /// A message that was deleted.
+    Redacted { event: EventInfo },
     /// Any other event; M0 doesn't show them.
     OtherEvent { event: EventInfo },
     /// The start of a day, in milliseconds since the Unix epoch.
@@ -69,6 +83,9 @@ pub enum TimelineItemContent {
 pub struct EventInfo {
     /// `None` until the server has accepted a local echo.
     pub event_id: Option<String>,
+    /// A local echo's ID until then. The event ID, or else this, names the event in the
+    /// timeline's actions.
+    pub transaction_id: Option<String>,
     pub sender: String,
     pub sender_name: Option<String>,
     /// An `mxc://` URI.
@@ -76,6 +93,36 @@ pub struct EventInfo {
     pub timestamp_ms: i64,
     pub is_own: bool,
     pub send_state: SendState,
+    /// While an attachment uploads: how far, from 0 to 100.
+    pub upload_percent: Option<u32>,
+    /// The reactions, in the order they were first given.
+    pub reactions: Vec<Reaction>,
+    /// The message this one answers.
+    pub in_reply_to: Option<ReplyQuote>,
+    pub is_edited: bool,
+    /// Whether the user can edit it: their own text message or caption.
+    pub is_editable: bool,
+}
+
+/// One emoji (or other key) given to a message, by whom.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reaction {
+    pub key: String,
+    /// The user IDs, first given first.
+    pub senders: Vec<String>,
+    /// Whether the user is among them.
+    pub mine: bool,
+}
+
+/// What a reply shows of the message it answers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplyQuote {
+    pub event_id: String,
+    /// `None` until the original is loaded.
+    pub sender: Option<String>,
+    pub sender_name: Option<String>,
+    /// The original's text, or a file's name; `None` until loaded.
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,8 +213,12 @@ impl Timeline {
     #[frb(ignore)]
     pub async fn item_updates(&self, emit: impl Fn(Vec<TimelineDiff>) -> bool + Send + 'static) {
         let (items, stream) = self.inner.subscribe().await;
+        let own = self.inner.room().own_user_id().to_owned();
+        let inner = self.inner.clone();
+        let mut fetching = HashSet::new();
+        fetch_missing_replies(&inner, items.iter(), &mut fetching);
         let first = vec![TimelineDiff::Reset {
-            values: items.iter().map(|i| item(i)).collect(),
+            values: items.iter().map(|i| item(i, &own)).collect(),
         }];
         let handle = tokio::spawn(async move {
             if !emit(first) {
@@ -175,7 +226,21 @@ impl Timeline {
             }
             let mut stream = Box::pin(stream);
             while let Some(diffs) = stream.next().await {
-                if !emit(diffs.into_iter().map(timeline_diff).collect()) {
+                for diff in &diffs {
+                    match diff {
+                        VectorDiff::Append { values } | VectorDiff::Reset { values } => {
+                            fetch_missing_replies(&inner, values.iter(), &mut fetching);
+                        }
+                        VectorDiff::PushFront { value }
+                        | VectorDiff::PushBack { value }
+                        | VectorDiff::Insert { value, .. }
+                        | VectorDiff::Set { value, .. } => {
+                            fetch_missing_replies(&inner, [value], &mut fetching);
+                        }
+                        _ => {}
+                    }
+                }
+                if !emit(diffs.into_iter().map(|d| timeline_diff(d, &own)).collect()) {
                     break;
                 }
             }
@@ -220,6 +285,192 @@ impl Timeline {
             .await?;
         Ok(())
     }
+
+    /// Sends a plain-text reply to the event `reply_to`.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::InvalidId`], or if the reply can't be queued.
+    pub async fn send_reply(&self, body: String, reply_to: String) -> Result<(), CoreError> {
+        let reply_to: OwnedEventId = parse_id(&reply_to)?;
+        self.inner
+            .send_reply(
+                RoomMessageEventContentWithoutRelation::text_plain(body),
+                reply_to,
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Gives the item the user's reaction `key` (an emoji), or takes it back if they gave it
+    /// already. `item` is an event ID, or a local echo's transaction ID.
+    ///
+    /// # Errors
+    ///
+    /// If the item isn't in the timeline, or the reaction can't be queued.
+    pub async fn toggle_reaction(&self, item: String, key: String) -> Result<(), CoreError> {
+        self.inner.toggle_reaction(&item_id(&item)?, &key).await?;
+        Ok(())
+    }
+
+    /// Replaces the text of the user's message, or with `caption` the caption of their file
+    /// (an empty one removes it).
+    ///
+    /// # Errors
+    ///
+    /// If the item isn't the user's or isn't in the timeline.
+    pub async fn edit(&self, item: String, body: String, caption: bool) -> Result<(), CoreError> {
+        let content = if caption {
+            EditedContent::MediaCaption {
+                caption: (!body.is_empty()).then_some(body),
+                formatted_caption: None,
+                mentions: None,
+            }
+        } else {
+            EditedContent::RoomMessage(RoomMessageEventContentWithoutRelation::text_plain(body))
+        };
+        self.inner.edit(&item_id(&item)?, content).await?;
+        Ok(())
+    }
+
+    /// Deletes the item for everyone; a local echo is just not sent.
+    ///
+    /// # Errors
+    ///
+    /// If the item isn't in the timeline, or the user may not delete it.
+    pub async fn redact(&self, item: String, reason: Option<String>) -> Result<(), CoreError> {
+        self.inner
+            .redact(&item_id(&item)?, reason.as_deref())
+            .await?;
+        Ok(())
+    }
+
+    /// Sends a local echo whose sending failed once more.
+    ///
+    /// # Errors
+    ///
+    /// If the item isn't in the timeline.
+    pub async fn retry_send(&self, item: String) -> Result<(), CoreError> {
+        self.inner
+            .retry_send(&item_id(&item)?, SendTarget::Event)
+            .await?;
+        Ok(())
+    }
+
+    /// Whether the user may delete other people's messages here (a moderator's right).
+    pub async fn can_redact_others(&self) -> bool {
+        let room = self.inner.room();
+        room.power_levels()
+            .await
+            .is_ok_and(|levels| levels.user_can_redact_event_of_other(room.own_user_id()))
+    }
+
+    /// Sends the file at `path` with an optional caption; see [`Self::send_data`].
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::Internal`] if the file can't be read, otherwise as [`Self::send_data`].
+    pub async fn send_file(
+        &self,
+        path: String,
+        mime_type: String,
+        caption: Option<String>,
+        compress: bool,
+    ) -> Result<(), CoreError> {
+        let data = std::fs::read(&path).map_err(|error| CoreError::internal(&error))?;
+        let filename = std::path::Path::new(&path).file_name().map_or_else(
+            || "file".to_owned(),
+            |name| name.to_string_lossy().into_owned(),
+        );
+        self.send_data(data, filename, mime_type, caption, compress)
+            .await
+    }
+
+    /// Sends `data` as a file named `filename` of type `mime_type`, with an optional caption.
+    /// It shows at once as a local echo with its upload progress, and is encrypted in an
+    /// encrypted room. An image is sent with its size; with `compress`, a big photo is
+    /// scaled to 2048 pixels and sent as JPEG.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::Internal`] for a malformed `mime_type`, or if it can't be queued.
+    pub async fn send_data(
+        &self,
+        data: Vec<u8>,
+        filename: String,
+        mime_type: String,
+        caption: Option<String>,
+        compress: bool,
+    ) -> Result<(), CoreError> {
+        let mut config = AttachmentConfig {
+            caption: caption
+                .filter(|caption| !caption.is_empty())
+                .map(TextMessageEventContent::plain),
+            ..AttachmentConfig::default()
+        };
+        let (data, filename, mime_type) = if mime_type.starts_with("image/") {
+            let image = prepare_image(data, filename, mime_type, compress);
+            config.info = Some(AttachmentInfo::Image(BaseImageInfo {
+                width: image.width.map(UInt::from),
+                height: image.height.map(UInt::from),
+                size: UInt::new(image.data.len() as u64),
+                blurhash: None,
+                is_animated: None,
+            }));
+            (image.data, image.filename, image.mime_type)
+        } else {
+            (data, filename, mime_type)
+        };
+        let mime_type: mime::Mime = mime_type
+            .parse()
+            .map_err(|error| CoreError::internal(&error))?;
+        self.inner
+            .send_attachment(
+                AttachmentSource::Data {
+                    bytes: data,
+                    filename,
+                },
+                mime_type,
+                config,
+            )
+            .use_send_queue()
+            .await?;
+        Ok(())
+    }
+
+    /// Sends the message `item` (an event ID) again in the user's room `to_room`, as it is
+    /// now (after edits), without what it answered; a file is sent again without uploading.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], [`CoreError::Internal`] if the
+    /// item isn't a loaded message, or if it can't be queued.
+    pub async fn forward(&self, item: String, to_room: String) -> Result<(), CoreError> {
+        let event_id: OwnedEventId = parse_id(&item)?;
+        let to_id: OwnedRoomId = parse_id(&to_room)?;
+        let event = self
+            .inner
+            .item_by_event_id(&event_id)
+            .await
+            .ok_or_else(|| CoreError::internal(&"the message isn't loaded"))?;
+        let msgtype = event
+            .content()
+            .as_message()
+            .ok_or_else(|| CoreError::internal(&"not a message"))?
+            .msgtype()
+            .clone();
+        let room = self
+            .inner
+            .room()
+            .client()
+            .get_room(&to_id)
+            .ok_or(CoreError::RoomNotFound { room_id: to_room })?;
+        room.send_queue()
+            .send(RoomMessageEventContent::new(msgtype).into())
+            .await
+            .map_err(|error| CoreError::internal(&error))?;
+        Ok(())
+    }
 }
 
 impl Drop for Timeline {
@@ -231,7 +482,32 @@ impl Drop for Timeline {
     }
 }
 
-fn timeline_diff(diff: VectorDiff<Arc<timeline::TimelineItem>>) -> TimelineDiff {
+/// Asks the server for the originals of replies that show without them; each once.
+fn fetch_missing_replies<'a>(
+    timeline: &Arc<timeline::Timeline>,
+    items: impl IntoIterator<Item = &'a Arc<timeline::TimelineItem>>,
+    fetching: &mut HashSet<OwnedEventId>,
+) {
+    for event in items.into_iter().filter_map(|item| item.as_event()) {
+        let missing = event
+            .content()
+            .in_reply_to()
+            .is_some_and(|reply| matches!(reply.event, TimelineDetails::Unavailable));
+        if let (true, Some(id)) = (missing, event.event_id())
+            && fetching.insert(id.to_owned())
+        {
+            let timeline = timeline.clone();
+            let id = id.to_owned();
+            // A failure leaves the quote without its text.
+            tokio::spawn(async move {
+                let _ = timeline.fetch_details_for_event(&id).await;
+            });
+        }
+    }
+}
+
+fn timeline_diff(diff: VectorDiff<Arc<timeline::TimelineItem>>, own: &UserId) -> TimelineDiff {
+    let item = |value: &timeline::TimelineItem| item(value, own);
     let items = |values: matrix_sdk_ui::eyeball_im::Vector<Arc<timeline::TimelineItem>>| {
         values.iter().map(|i| item(i)).collect()
     };
@@ -274,9 +550,9 @@ pub(crate) fn dart_int(value: usize) -> u32 {
     u32::try_from(value).unwrap_or(u32::MAX)
 }
 
-fn item(item: &timeline::TimelineItem) -> TimelineItem {
+fn item(item: &timeline::TimelineItem, own: &UserId) -> TimelineItem {
     let content = match item.kind() {
-        TimelineItemKind::Event(event) => event_content(event),
+        TimelineItemKind::Event(event) => event_content(event, own),
         TimelineItemKind::Virtual(VirtualTimelineItem::DateDivider(timestamp)) => {
             TimelineItemContent::DateDivider {
                 timestamp_ms: timestamp.0.into(),
@@ -295,9 +571,11 @@ fn item(item: &timeline::TimelineItem) -> TimelineItem {
     }
 }
 
-fn event_content(event: &EventTimelineItem) -> TimelineItemContent {
+fn event_content(event: &EventTimelineItem, own: &UserId) -> TimelineItemContent {
+    let content = event.content();
     let info = EventInfo {
         event_id: event.event_id().map(ToString::to_string),
+        transaction_id: event.transaction_id().map(ToString::to_string),
         sender: event.sender().to_string(),
         sender_name: match event.sender_profile() {
             TimelineDetails::Ready(profile) => profile.display_name.clone(),
@@ -314,9 +592,33 @@ fn event_content(event: &EventTimelineItem) -> TimelineItemContent {
             Some(EventSendState::SendingFailed { .. }) => SendState::Failed,
             Some(EventSendState::Sent { .. }) | None => SendState::Sent,
         },
+        upload_percent: match event.send_state() {
+            Some(EventSendState::NotSentYet {
+                progress: Some(progress),
+            }) if progress.progress.total > 0 => Some(
+                u32::try_from(progress.progress.current * 100 / progress.progress.total)
+                    .unwrap_or(100),
+            ),
+            _ => None,
+        },
+        reactions: event
+            .reactions()
+            .iter()
+            .map(|(key, senders)| Reaction {
+                key: key.clone(),
+                senders: senders.keys().map(ToString::to_string).collect(),
+                mine: senders.contains_key(own),
+            })
+            .collect(),
+        in_reply_to: content.in_reply_to().map(|reply| reply_quote(&reply)),
+        is_edited: content
+            .as_message()
+            .is_some_and(timeline::Message::is_edited),
+        is_editable: event.is_editable(),
     };
-    let content = event.content();
-    if let Some(media) = content
+    if content.is_redacted() {
+        TimelineItemContent::Redacted { event: info }
+    } else if let Some(media) = content
         .as_message()
         .and_then(|m| media_message(m.msgtype()))
     {
@@ -428,4 +730,38 @@ fn small(value: UInt) -> u32 {
 
 fn millis(duration: std::time::Duration) -> i64 {
     i64::try_from(duration.as_millis()).unwrap_or(i64::MAX)
+}
+
+fn reply_quote(reply: &InReplyToDetails) -> ReplyQuote {
+    let mut quote = ReplyQuote {
+        event_id: reply.event_id.to_string(),
+        sender: None,
+        sender_name: None,
+        text: None,
+    };
+    if let TimelineDetails::Ready(original) = &reply.event {
+        quote.sender = Some(original.sender.to_string());
+        if let TimelineDetails::Ready(profile) = &original.sender_profile {
+            quote.sender_name.clone_from(&profile.display_name);
+        }
+        quote.text = original.content.as_message().map(|message| {
+            media_message(message.msgtype()).map_or_else(
+                || message.body().to_owned(),
+                |media| media.caption.unwrap_or(media.filename),
+            )
+        });
+        if original.content.is_redacted() {
+            quote.text = Some("Message deleted".to_owned());
+        }
+    }
+    quote
+}
+
+/// An item named by its event ID (`$…`) or, while a local echo, its transaction ID.
+fn item_id(id: &str) -> Result<TimelineEventItemId, CoreError> {
+    if id.starts_with('$') {
+        Ok(TimelineEventItemId::EventId(parse_id(id)?))
+    } else {
+        Ok(TimelineEventItemId::TransactionId(id.into()))
+    }
 }

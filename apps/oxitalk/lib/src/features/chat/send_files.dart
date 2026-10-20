@@ -1,0 +1,175 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/file_actions.dart';
+import '../../app/providers.dart';
+import '../../matrix/api/matrix.dart';
+import '../../ui/format.dart';
+
+/// Shows [files] with a caption field and, for photos, a Compress switch; on Send, sends
+/// them to the chat. The caption goes with the first file.
+Future<void> confirmAndSendFiles(
+  BuildContext context,
+  WidgetRef ref, {
+  required String account,
+  required String roomId,
+  required List<PendingFile> files,
+}) async {
+  if (files.isEmpty) return;
+  final messenger = ScaffoldMessenger.of(context);
+  final choice = await showDialog<({String caption, bool compress})>(
+    context: context,
+    builder: (_) => _SendFilesDialog(files: files),
+  );
+  final timeline = ref.read(roomTimelineProvider(account, roomId)).value;
+  if (choice == null || timeline == null) return;
+  for (final (index, file) in files.indexed) {
+    try {
+      await timeline.sendFile(
+        file.bytes,
+        filename: file.name,
+        mimeType: file.mimeType,
+        caption: index == 0 && choice.caption.isNotEmpty
+            ? choice.caption
+            : null,
+        compress: choice.compress,
+      );
+    } on MatrixFailure catch (failure) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Can’t send ${file.name}: ${failure.kind.name}'),
+        ),
+      );
+    }
+  }
+}
+
+class _SendFilesDialog extends StatefulWidget {
+  const _SendFilesDialog({required this.files});
+
+  final List<PendingFile> files;
+
+  @override
+  State<_SendFilesDialog> createState() => _SendFilesDialogState();
+}
+
+class _SendFilesDialogState extends State<_SendFilesDialog> {
+  final _caption = TextEditingController();
+  var _compress = true;
+
+  @override
+  void dispose() {
+    _caption.dispose();
+    super.dispose();
+  }
+
+  void _send() =>
+      Navigator.of(context)
+          .pop((caption: _caption.text.trim(), compress: _compress));
+
+  @override
+  Widget build(BuildContext context) {
+    final files = widget.files;
+    final images = files.where((file) => file.isImage).length;
+    return AlertDialog(
+      key: const Key('sendFiles'),
+      title: Text(
+        files.length == 1
+            ? (files.single.isImage ? 'Send photo' : 'Send file')
+            : 'Send ${files.length} files',
+      ),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final file in files) _Preview(file: file),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('send.caption'),
+                controller: _caption,
+                autofocus: true,
+                minLines: 1,
+                maxLines: 4,
+                decoration: const InputDecoration(labelText: 'Caption'),
+                onSubmitted: (_) => _send(),
+              ),
+              if (images > 0)
+                SwitchListTile(
+                  key: const Key('send.compress'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Compress'),
+                  subtitle: const Text(
+                    'Big photos are made smaller (2048 px, JPEG). Off sends the '
+                    'original file.',
+                  ),
+                  value: _compress,
+                  onChanged: (on) => setState(() => _compress = on),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('send.confirm'),
+          onPressed: _send,
+          child: const Text('Send'),
+        ),
+      ],
+    );
+  }
+}
+
+class _Preview extends StatelessWidget {
+  const _Preview({required this.file});
+
+  final PendingFile file;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = Text(
+      '${file.name} · ${fileSize(file.bytes.length)}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall,
+    );
+    if (file.isImage) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: Image.memory(
+                  file.bytes,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) =>
+                      const Icon(Icons.broken_image_outlined, size: 48),
+                ),
+              ),
+            ),
+            details,
+          ],
+        ),
+      );
+    }
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.insert_drive_file_outlined),
+      title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(fileSize(file.bytes.length)),
+    );
+  }
+}

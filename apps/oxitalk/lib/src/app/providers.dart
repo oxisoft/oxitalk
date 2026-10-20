@@ -374,6 +374,19 @@ Stream<List<TimelineEntry>> mediaTimelineEntries(
   _ => const Stream.empty(),
 };
 
+/// The emojis the user used lately, the last first.
+@riverpod
+Future<List<String>> recentEmojis(Ref ref, String account) async =>
+    await _session(ref, account)?.recentEmojis() ?? const [];
+
+/// Whether the user may delete other people's messages in the room.
+@riverpod
+Future<bool> canRedactOthers(Ref ref, String account, String roomId) async =>
+    switch (ref.watch(roomTimelineProvider(account, roomId))) {
+      AsyncData(:final value) => value.canRedactOthers(),
+      _ => false,
+    };
+
 /// `null` until the first room list has arrived.
 @riverpod
 Stream<List<Room>?> rooms(Ref ref, String account) =>

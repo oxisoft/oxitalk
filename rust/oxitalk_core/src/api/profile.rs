@@ -1,8 +1,12 @@
 //! The user's own profile: display name and avatar.
 
+use matrix_sdk::ruma::{api::error::ErrorKind, events::GlobalAccountDataEventType, serde::Raw};
 use mime::Mime;
 
 use super::{error::CoreError, session::Session};
+
+/// Where Element keeps the recently used emojis.
+const RECENT_EMOJI_EVENT_TYPE: &str = "io.element.recent_emoji";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Profile {
@@ -59,5 +63,46 @@ impl Session {
     /// As the server answers.
     pub async fn remove_avatar(&self) -> Result<(), CoreError> {
         Ok(self.client.account().set_avatar_url(None).await?)
+    }
+
+    /// The emojis the user used lately, the last used first; kept in the account like
+    /// Element keeps them, so they are the same everywhere.
+    ///
+    /// # Errors
+    ///
+    /// Only if the store can't be read.
+    pub async fn recent_emojis(&self) -> Result<Vec<String>, CoreError> {
+        let account = self.client.account();
+        // The server's, which another device may have just changed; else the last synced
+        // (offline, or none yet).
+        let recent = match account.get_recent_emojis(true).await {
+            Ok(recent) => recent,
+            Err(_) => account.get_recent_emojis(false).await?,
+        };
+        Ok(recent.into_iter().map(|(emoji, _)| emoji).collect())
+    }
+
+    /// Counts a use of `emoji` among the recent ones.
+    ///
+    /// # Errors
+    ///
+    /// As the server answers.
+    pub async fn add_recent_emoji(&self, emoji: String) -> Result<(), CoreError> {
+        let account = self.client.account();
+        match account.add_recent_emoji(&emoji).await {
+            // The SDK reads the list from the server first, which has none until the first
+            // emoji: start it here, as Element does.
+            Err(error) if error.client_api_error_kind() == Some(&ErrorKind::NotFound) => {
+                let content = serde_json::json!({ "recent_emoji": [[emoji, 1]] }).to_string();
+                account
+                    .set_account_data_raw(
+                        GlobalAccountDataEventType::from(RECENT_EMOJI_EVENT_TYPE),
+                        Raw::from_json_string(content).map_err(|e| CoreError::internal(&e))?,
+                    )
+                    .await?;
+                Ok(())
+            }
+            result => Ok(result?),
+        }
     }
 }

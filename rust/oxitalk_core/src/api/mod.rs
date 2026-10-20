@@ -5,6 +5,7 @@ use flutter_rust_bridge::frb;
 pub mod error;
 pub mod logging;
 pub mod media;
+mod media_prep;
 pub mod profile;
 pub mod room_info;
 pub mod room_list;

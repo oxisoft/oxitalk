@@ -1,13 +1,62 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// A file the user is about to send.
+final class PendingFile {
+  const PendingFile(this.name, this.mimeType, this.bytes);
+
+  final String name;
+  final String mimeType;
+  final Uint8List bytes;
+
+  bool get isImage => mimeType.startsWith('image/');
+}
+
+const _mimeTypes = {
+  'png': 'image/png',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'mp4': 'video/mp4',
+  'webm': 'video/webm',
+  'mov': 'video/quicktime',
+  'mp3': 'audio/mpeg',
+  'ogg': 'audio/ogg',
+  'm4a': 'audio/mp4',
+  'wav': 'audio/wav',
+  'pdf': 'application/pdf',
+  'txt': 'text/plain',
+  'zip': 'application/zip',
+};
+
+/// A file's type from its name's extension.
+String mimeTypeOf(String filename) =>
+    _mimeTypes[filename.split('.').last.toLowerCase()] ??
+    'application/octet-stream';
+
 /// What the app does with files outside itself: where to put one for another app, asking
-/// where to save one, and opening files and links in the system's apps.
+/// where to save one, picking files to send, the clipboard, and opening files and links in
+/// the system's apps.
 abstract interface class FileActions {
+  /// Asks the user for files to send; empty if they cancel.
+  Future<List<PendingFile>> pickFiles();
+
+  /// The files at [paths] (dropped on the window, or copied in a file manager).
+  Future<List<PendingFile>> readFiles(List<String> paths);
+
+  /// An image on the clipboard, as a PNG; `null` if there is none.
+  Future<Uint8List?> clipboardImage();
+
+  /// Files copied in a file manager, by path.
+  Future<List<String>> clipboardFiles();
+
   /// A fresh path for [filename] in a temporary folder, to hand to another app.
   Future<String> tempPathFor(String filename);
 
@@ -20,6 +69,33 @@ abstract interface class FileActions {
 
 final class SystemFileActions implements FileActions {
   const SystemFileActions();
+
+  @override
+  Future<List<PendingFile>> pickFiles() async => [
+    for (final file in await openFiles())
+      PendingFile(
+        file.name,
+        file.mimeType ?? mimeTypeOf(file.name),
+        await file.readAsBytes(),
+      ),
+  ];
+
+  @override
+  Future<List<PendingFile>> readFiles(List<String> paths) async => [
+    for (final path in paths)
+      if (File(path).statSync().type == FileSystemEntityType.file)
+        PendingFile(
+          path.split(Platform.pathSeparator).last,
+          mimeTypeOf(path),
+          await File(path).readAsBytes(),
+        ),
+  ];
+
+  @override
+  Future<Uint8List?> clipboardImage() => Pasteboard.image;
+
+  @override
+  Future<List<String>> clipboardFiles() => Pasteboard.files();
 
   @override
   Future<String> tempPathFor(String filename) async {
@@ -51,6 +127,29 @@ final class FakeFileActions implements FileActions {
   /// What [askSavePath] answers.
   String? savePath = '/saved/file';
   final launched = <Uri>[];
+
+  /// What [pickFiles] answers.
+  List<PendingFile> picked = const [];
+
+  /// What [readFiles] gives for each path.
+  final files = <String, PendingFile>{};
+
+  /// What is on the clipboard.
+  Uint8List? clipboard;
+
+  @override
+  Future<List<PendingFile>> pickFiles() async => picked;
+
+  @override
+  Future<List<PendingFile>> readFiles(List<String> paths) async => [
+    for (final path in paths) ?files[path],
+  ];
+
+  @override
+  Future<Uint8List?> clipboardImage() async => clipboard;
+
+  @override
+  Future<List<String>> clipboardFiles() async => const [];
 
   @override
   Future<String> tempPathFor(String filename) async =>

@@ -2033,6 +2033,168 @@ final class MediaTimelineEntriesFamily extends $Family
   String toString() => r'mediaTimelineEntriesProvider';
 }
 
+/// The emojis the user used lately, the last first.
+
+@ProviderFor(recentEmojis)
+final recentEmojisProvider = RecentEmojisFamily._();
+
+/// The emojis the user used lately, the last first.
+
+final class RecentEmojisProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<String>>,
+          List<String>,
+          FutureOr<List<String>>
+        >
+    with $FutureModifier<List<String>>, $FutureProvider<List<String>> {
+  /// The emojis the user used lately, the last first.
+  RecentEmojisProvider._({
+    required RecentEmojisFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'recentEmojisProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$recentEmojisHash();
+
+  @override
+  String toString() {
+    return r'recentEmojisProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<List<String>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<String>> create(Ref ref) {
+    final argument = this.argument as String;
+    return recentEmojis(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RecentEmojisProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$recentEmojisHash() => r'ce98fdbe05862de6c4d8f14e375ed057fd980128';
+
+/// The emojis the user used lately, the last first.
+
+final class RecentEmojisFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<List<String>>, String> {
+  RecentEmojisFamily._()
+    : super(
+        retry: null,
+        name: r'recentEmojisProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The emojis the user used lately, the last first.
+
+  RecentEmojisProvider call(String account) =>
+      RecentEmojisProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'recentEmojisProvider';
+}
+
+/// Whether the user may delete other people's messages in the room.
+
+@ProviderFor(canRedactOthers)
+final canRedactOthersProvider = CanRedactOthersFamily._();
+
+/// Whether the user may delete other people's messages in the room.
+
+final class CanRedactOthersProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether the user may delete other people's messages in the room.
+  CanRedactOthersProvider._({
+    required CanRedactOthersFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'canRedactOthersProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$canRedactOthersHash();
+
+  @override
+  String toString() {
+    return r'canRedactOthersProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return canRedactOthers(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is CanRedactOthersProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$canRedactOthersHash() => r'ca991f0671acb55003feb6f741dcf1fa20fbbceb';
+
+/// Whether the user may delete other people's messages in the room.
+
+final class CanRedactOthersFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<bool>, (String, String)> {
+  CanRedactOthersFamily._()
+    : super(
+        retry: null,
+        name: r'canRedactOthersProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether the user may delete other people's messages in the room.
+
+  CanRedactOthersProvider call(String account, String roomId) =>
+      CanRedactOthersProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'canRedactOthersProvider';
+}
+
 /// `null` until the first room list has arrived.
 
 @ProviderFor(rooms)

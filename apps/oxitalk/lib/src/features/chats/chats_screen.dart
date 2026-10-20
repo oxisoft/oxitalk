@@ -62,20 +62,24 @@ class ChatsScreen extends ConsumerWidget {
             ),
             const VerticalDivider(width: 1),
             Expanded(
-              child: switch (roomId) {
-                final id? when showInfo => ChatInfoPane(
-                  key: ValueKey((account, id, 'info')),
-                  account: account,
-                  roomId: id,
-                ),
-                final id? => ChatPane(
-                  key: ValueKey((account, id)),
-                  account: account,
-                  roomId: id,
-                  showBack: false,
-                ),
-                null => WelcomePane(account: account),
-              },
+              // Its own messenger: a snack bar shows in the pane it is about, not in
+              // every pane of the window.
+              child: ScaffoldMessenger(
+                child: switch (roomId) {
+                  final id? when showInfo => ChatInfoPane(
+                    key: ValueKey((account, id, 'info')),
+                    account: account,
+                    roomId: id,
+                  ),
+                  final id? => ChatPane(
+                    key: ValueKey((account, id)),
+                    account: account,
+                    roomId: id,
+                    showBack: false,
+                  ),
+                  null => WelcomePane(account: account),
+                },
+              ),
             ),
           ],
         );

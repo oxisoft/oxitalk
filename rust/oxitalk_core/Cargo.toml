@@ -14,6 +14,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 flutter_rust_bridge.workspace = true
 futures-util.workspace = true
+image.workspace = true
 matrix-sdk.workspace = true
 matrix-sdk-sqlite.workspace = true
 matrix-sdk-ui.workspace = true

@@ -30,7 +30,7 @@ use oxitalk_core::api::{
     room_list::{Membership, RoomSummary},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
     session::{Session, login, restore},
-    timeline::{MediaKind, MediaMessage, SendState, TimelineItem, TimelineItemContent},
+    timeline::{EventInfo, MediaKind, MediaMessage, SendState, TimelineItem, TimelineItemContent},
     verification::{Verification, VerificationFlowState, VerificationStatus},
 };
 use serde_json::json;
@@ -565,6 +565,155 @@ async fn a_direct_chat_shows_its_details_and_members() -> TestResult {
         Err(CoreError::RoomNotFound { .. })
     ));
     Ok(())
+}
+
+/// The event of the text message `body` in `items`, once there is one.
+fn event_of<'a>(items: &'a [TimelineItem], body: &str) -> Option<&'a EventInfo> {
+    items.iter().find_map(|item| match &item.content {
+        TimelineItemContent::Message { event, body: b } if b == body => Some(event),
+        _ => None,
+    })
+}
+
+/// Reactions, replies, edits and deletions reach the other side.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let mut alice_items = watch_timeline(&alice_timeline).await;
+    let bob_timeline = bob.timeline(room_id).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    alice_timeline.send_text("hello".to_owned()).await?;
+    bob_items
+        .wait_until(|items| event_of(items, "hello").is_some_and(|e| e.event_id.is_some()))
+        .await?;
+    let id = event_of(&bob_items.items, "hello")
+        .and_then(|e| e.event_id.clone())
+        .ok_or("no event ID")?;
+
+    bob_timeline
+        .toggle_reaction(id.clone(), "👍".to_owned())
+        .await?;
+    let bob_id = bob.user_id();
+    alice_items
+        .wait_until(|items| {
+            event_of(items, "hello").is_some_and(|e| {
+                e.reactions.len() == 1
+                    && e.reactions[0].key == "👍"
+                    && e.reactions[0].senders == [bob_id.clone()]
+                    && !e.reactions[0].mine
+            })
+        })
+        .await?;
+    bob_items
+        .wait_until(|items| {
+            event_of(items, "hello").is_some_and(|e| e.reactions.first().is_some_and(|r| r.mine))
+        })
+        .await?;
+
+    bob_timeline
+        .send_reply("hi back".to_owned(), id.clone())
+        .await?;
+    alice_items
+        .wait_until(|items| {
+            event_of(items, "hi back").is_some_and(|e| {
+                e.in_reply_to.as_ref().is_some_and(|quote| {
+                    quote.event_id == id && quote.text.as_deref() == Some("hello")
+                })
+            })
+        })
+        .await?;
+
+    alice_timeline
+        .edit(id.clone(), "hello there".to_owned(), false)
+        .await?;
+    bob_items
+        .wait_until(|items| event_of(items, "hello there").is_some_and(|e| e.is_edited))
+        .await?;
+    alice_timeline.redact(id.clone(), None).await?;
+    bob_items
+        .wait_until(|items| {
+            items.iter().any(|item| {
+                matches!(&item.content, TimelineItemContent::Redacted { event }
+                    if event.event_id.as_deref() == Some(id.as_str()))
+            })
+        })
+        .await?;
+    // A DM makes both of them admins, who may delete each other's messages.
+    assert!(alice_timeline.can_redact_others().await);
+    Ok(())
+}
+
+/// A big photo goes compressed with its caption; forwarding sends the same file again
+/// without uploading; recent emojis are kept in the account.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn photos_go_compressed_with_a_caption_and_forward() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let photo = noise_png(2600, 1300)?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    alice_timeline
+        .send_data(
+            photo.clone(),
+            "beach.png".to_owned(),
+            "image/png".to_owned(),
+            Some("At the beach".to_owned()),
+            true,
+        )
+        .await?;
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_timeline.paginate_back(20).await?;
+    bob_items
+        .wait_until(|items| media_of(items, MediaKind::Image).is_some())
+        .await?;
+    let image = media_of(&bob_items.items, MediaKind::Image).ok_or("no image")?;
+    assert_eq!(image.filename, "beach.jpg");
+    assert_eq!(image.caption.as_deref(), Some("At the beach"));
+    assert_eq!((image.width, image.height), (Some(2048), Some(1024)));
+    let sent = bob.media_content(image.source.clone()).await?;
+    assert!(sent.starts_with(b"\xff\xd8") && sent.len() < photo.len());
+
+    // Forwarded to another chat of Bob's: the same file, not uploaded again.
+    let event_id = bob_items
+        .items
+        .iter()
+        .find_map(|item| match &item.content {
+            TimelineItemContent::Media { event, .. } => event.event_id.clone(),
+            _ => None,
+        })
+        .ok_or("no event ID")?;
+    let other = bob.create_dm(alice.user_id()).await?;
+    bob_timeline.forward(event_id, other.clone()).await?;
+    let other_timeline = bob.timeline(other).await?;
+    let mut other_items = watch_timeline(&other_timeline).await;
+    other_items
+        .wait_until(|items| {
+            media_of(items, MediaKind::Image).is_some_and(|m| m.source == image.source)
+        })
+        .await?;
+
+    alice.add_recent_emoji("🎉".to_owned()).await?;
+    assert_eq!(
+        alice.recent_emojis().await?.first().map(String::as_str),
+        Some("🎉")
+    );
+    Ok(())
+}
+
+/// A PNG of noise, which compresses badly, like a photo.
+fn noise_png(width: u32, height: u32) -> Result<Vec<u8>, Box<dyn Error>> {
+    let byte = |value: u32| u8::try_from(value % 256).unwrap_or_default();
+    let image = image::RgbImage::from_fn(width, height, |x, y| {
+        image::Rgb([byte(x * 7 + y * 13), byte(x ^ y), byte(x * y)])
+    });
+    let mut data = Vec::new();
+    image::DynamicImage::ImageRgb8(image).write_to(
+        &mut std::io::Cursor::new(&mut data),
+        image::ImageFormat::Png,
+    )?;
+    Ok(data)
 }
 
 #[tokio::test(flavor = "multi_thread")]

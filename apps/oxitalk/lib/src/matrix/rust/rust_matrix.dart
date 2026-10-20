@@ -413,6 +413,13 @@ final class RustMatrixSession implements MatrixSession {
       );
 
   @override
+  Future<List<String>> recentEmojis() => guarded(_session.recentEmojis);
+
+  @override
+  Future<void> addRecentEmoji(String emoji) =>
+      guarded(() => _session.addRecentEmoji(emoji: emoji));
+
+  @override
   Future<String> createDm(String userId) =>
       guarded(() => _session.createDm(userId: userId));
 
@@ -491,6 +498,49 @@ final class RustRoomTimeline implements RoomTimeline {
 
   @override
   Future<void> markAsRead() => guarded(_timeline.markAsRead);
+
+  @override
+  Future<void> sendReply(String text, String eventId) =>
+      guarded(() => _timeline.sendReply(body: text, replyTo: eventId));
+
+  @override
+  Future<void> toggleReaction(String ref, String key) =>
+      guarded(() => _timeline.toggleReaction(item: ref, key: key));
+
+  @override
+  Future<void> edit(String ref, String text, {bool caption = false}) =>
+      guarded(() => _timeline.edit(item: ref, body: text, caption: caption));
+
+  @override
+  Future<void> redact(String ref) => guarded(() => _timeline.redact(item: ref));
+
+  @override
+  Future<void> retrySend(String ref) =>
+      guarded(() => _timeline.retrySend(item: ref));
+
+  @override
+  Future<bool> canRedactOthers() => _timeline.canRedactOthers();
+
+  @override
+  Future<void> sendFile(
+    Uint8List data, {
+    required String filename,
+    required String mimeType,
+    String? caption,
+    bool compress = false,
+  }) => guarded(
+    () => _timeline.sendData(
+      data: data,
+      filename: filename,
+      mimeType: mimeType,
+      caption: caption,
+      compress: compress,
+    ),
+  );
+
+  @override
+  Future<void> forward(String eventId, String roomId) =>
+      guarded(() => _timeline.forward(item: eventId, toRoom: roomId));
 
   @override
   void close() {

@@ -60,6 +60,8 @@ void main() {
     final requests = StreamIterator(aliceFirst.verificationRequests);
     addTearDown(requests.cancel);
 
+    final files = FakeFileActions();
+
     // The real app, on the real core; only the keyring is replaced (CI has none).
     await tester.pumpWidget(
       ProviderScope(
@@ -74,7 +76,7 @@ void main() {
           defaultServerProvider.overrideWithValue(_homeserver),
           diagnosticsProvider.overrideWithValue(MemoryDiagnostics()),
           mediaPrefsProvider.overrideWithValue(MemoryMediaPrefs()),
-          fileActionsProvider.overrideWithValue(FakeFileActions()),
+          fileActionsProvider.overrideWithValue(files),
           uiPrefsProvider.overrideWithValue(MemoryUiPrefs()),
           accountPicturesProvider.overrideWithValue(MemoryAccountPictures()),
           collapsedSectionsStoreProvider.overrideWithValue(
@@ -161,6 +163,32 @@ void main() {
           ),
         )
         .timeout(_timeout);
+
+    // Alice sends a photo with a caption through 📎; Bob gets it, and reacts to her text.
+    files.picked = [PendingFile('office.png', 'image/png', png)];
+    await tester.tap(find.byKey(const Key('composer.attach')));
+    await _pumpUntil(tester, find.byKey(const Key('send.caption')));
+    await _type(tester, find.byKey(const Key('send.caption')), 'Our office');
+    await tester.tap(find.byKey(const Key('send.confirm')));
+    final bobEntries = await bobTimeline.entries
+        .firstWhere(
+          (entries) =>
+              entries.any(
+                (e) => e is MediaEntry && e.media.caption == 'Our office',
+              ) &&
+              entries.any(
+                (e) =>
+                    e is MessageEntry &&
+                    e.body == 'Hi Bob!' &&
+                    e.meta.eventId != null,
+              ),
+        )
+        .timeout(_timeout);
+    final hiBob = bobEntries.whereType<MessageEntry>().firstWhere(
+      (e) => e.body == 'Hi Bob!',
+    );
+    await bobTimeline.toggleReaction(hiBob.meta.ref!, '👍');
+    await _pumpUntil(tester, find.text('👍 1'));
 
     // Bob's chat goes to Favorites, then to a new section; the tags round-trip the server.
     final bobTile = find.widgetWithText(ListTile, bob.name);

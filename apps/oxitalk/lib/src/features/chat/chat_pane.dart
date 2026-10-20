@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +13,11 @@ import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
+import '../../app/file_actions.dart';
+import 'emoji.dart';
 import 'media_views.dart';
+import 'message_actions.dart';
+import 'send_files.dart';
 
 /// A chat of the active account as a page of its own (narrow windows).
 class ChatScreen extends ConsumerWidget {
@@ -111,23 +116,45 @@ class ChatPane extends ConsumerWidget {
           ),
         ),
       ),
-      body: ColoredBox(
-        color: context.isDark
-            ? OxiColors.wallpaperDark
-            : OxiColors.wallpaperLight,
-        child: Column(
-          children: [
-            Expanded(
-              child: TimelineView(
-                account: account,
-                roomId: roomId,
-                showSenders: !(room?.isDm ?? false),
+      // Files dropped anywhere on the chat go to the send dialog.
+      body: DropTarget(
+        onDragDone: (details) => unawaited(
+          _sendDropped(context, ref, [for (final f in details.files) f.path]),
+        ),
+        child: ColoredBox(
+          color: context.isDark
+              ? OxiColors.wallpaperDark
+              : OxiColors.wallpaperLight,
+          child: Column(
+            children: [
+              Expanded(
+                child: TimelineView(
+                  account: account,
+                  roomId: roomId,
+                  showSenders: !(room?.isDm ?? false),
+                ),
               ),
-            ),
-            Composer(account: account, roomId: roomId),
-          ],
+              Composer(account: account, roomId: roomId),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Future<void> _sendDropped(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> paths,
+  ) async {
+    final files = await ref.read(fileActionsProvider).readFiles(paths);
+    if (!context.mounted) return;
+    await confirmAndSendFiles(
+      context,
+      ref,
+      account: account,
+      roomId: roomId,
+      files: files,
     );
   }
 }
@@ -157,12 +184,15 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   /// Whether the newest message is in view; the list is reversed, so its start is the bottom.
   var _atBottom = true;
 
-  /// The message bubbles, to find the one a context menu was opened on.
+  /// The message bubbles, to find the one a context menu was opened on, or a quote's original.
   final _bubbleKeys = <String, GlobalKey>{};
 
   /// The newest entry when the room was last marked read.
   String? _readUpTo;
   late final AppLifecycleListener _lifecycle;
+
+  MessageActions get _actions =>
+      MessageActions(context, ref, widget.account, widget.roomId);
 
   @override
   void initState() {
@@ -254,43 +284,33 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       );
     }
     _bubbleKeys.removeWhere((id, _) => !entries.any((entry) => entry.id == id));
-    // Message text can be selected, across messages too, and copied; the context menu also
-    // copies the whole message it was opened on.
+    final canRedactOthers =
+        ref
+            .watch(canRedactOthersProvider(widget.account, widget.roomId))
+            .value ??
+        false;
+    // Message text can be selected, across messages too, and copied; the context menu has
+    // what can be done with the message it was opened on.
     return SelectionArea(
       contextMenuBuilder: (context, region) {
         final entry = _entryAt(
           region.contextMenuAnchors.primaryAnchor,
           entries,
         );
-        final text = switch (entry) {
-          MessageEntry(:final body) => body,
-          MediaEntry(:final media) => media.caption,
-          _ => null,
-        };
         return AdaptiveTextSelectionToolbar.buttonItems(
           anchors: region.contextMenuAnchors,
           buttonItems: [
             ...region.contextMenuButtonItems,
-            if (text != null && text.isNotEmpty)
-              ContextMenuButtonItem(
-                label: 'Copy message',
-                onPressed: () {
-                  region.hideToolbar();
-                  unawaited(Clipboard.setData(ClipboardData(text: text)));
-                },
-              ),
-            if (entry case MediaEntry(:final media))
-              ContextMenuButtonItem(
-                label: 'Save as…',
-                onPressed: () {
-                  region.hideToolbar();
-                  unawaited(saveMediaAs(context, ref, widget.account, media));
-                },
+            if (entry != null)
+              ..._actions.menuItems(
+                entry,
+                canRedactOthers: canRedactOthers,
+                close: region.hideToolbar,
               ),
           ],
         );
       },
-      child: _scrollable(entries),
+      child: _scrollable(entries, canRedactOthers: canRedactOthers),
     );
   }
 
@@ -307,7 +327,33 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     return null;
   }
 
-  Widget _scrollable(List<TimelineEntry> entries) {
+  /// Scrolls to the message [eventId] if it is loaded and built; else says where it is.
+  void _showOriginal(String eventId, List<TimelineEntry> entries) {
+    final entry = entries
+        .where((entry) => eventFields(entry)?.meta.eventId == eventId)
+        .firstOrNull;
+    final context = entry == null
+        ? null
+        : _bubbleKeys[entry.id]?.currentContext;
+    if (context != null) {
+      unawaited(
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 300),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        const SnackBar(content: Text('Scroll up to see that message')),
+      );
+    }
+  }
+
+  Widget _scrollable(
+    List<TimelineEntry> entries, {
+    required bool canRedactOthers,
+  }) {
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ListView.builder(
@@ -317,109 +363,113 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         itemBuilder: (context, index) {
           final position = entries.length - 1 - index;
           final entry = entries[position];
+          if (entry case DayDivider(:final day)) {
+            return SelectionContainer.disabled(
+              child: _DayChip(label: dayLabel(day)),
+            );
+          }
           final previous = position > 0 ? entries[position - 1] : null;
           final next = position < entries.length - 1
               ? entries[position + 1]
               : null;
-          return switch (entry) {
-            DayDivider(:final day) => SelectionContainer.disabled(
-              child: _DayChip(label: dayLabel(day)),
-            ),
-            MessageEntry() => MessageBubble(
-              key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
-              isOwn: entry.isOwn,
-              sender: _senderLabel(
-                entry.sender,
-                entry.senderName,
-                entry.isOwn,
-                previous,
-              ),
-              avatar: _senderAvatar(
-                entry.id,
-                entry.sender,
-                entry.senderName,
-                entry.senderAvatarUrl,
-                entry.isOwn,
-                next,
-              ),
-              time: entry.time,
-              sendState: entry.sendState,
-              child: Text(entry.body),
-            ),
-            MediaEntry() => MessageBubble(
-              key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
-              isOwn: entry.isOwn,
-              sender: _senderLabel(
-                entry.sender,
-                entry.senderName,
-                entry.isOwn,
-                previous,
-              ),
-              avatar: _senderAvatar(
-                entry.id,
-                entry.sender,
-                entry.senderName,
-                entry.senderAvatarUrl,
-                entry.isOwn,
-                next,
-              ),
-              time: entry.time,
-              sendState: entry.sendState,
-              child: MediaMessageView(
-                account: widget.account,
-                media: entry.media,
-              ),
-            ),
-            UndecryptableEntry() => MessageBubble(
-              key: ValueKey(entry.id),
-              isOwn: entry.isOwn,
-              sender: _senderLabel(
-                entry.sender,
-                entry.senderName,
-                entry.isOwn,
-                previous,
-              ),
-              avatar: _senderAvatar(
-                entry.id,
-                entry.sender,
-                entry.senderName,
-                entry.senderAvatarUrl,
-                entry.isOwn,
-                next,
-              ),
-              time: entry.time,
-              child: const Text(
-                'Waiting for this message…',
-                style: TextStyle(fontStyle: FontStyle.italic),
-              ),
-            ),
-          };
+          return _bubble(entry, previous, next, entries, canRedactOthers);
         },
       ),
+    );
+  }
+
+  Widget _bubble(
+    TimelineEntry entry,
+    TimelineEntry? previous,
+    TimelineEntry? next,
+    List<TimelineEntry> entries,
+    bool canRedactOthers,
+  ) {
+    final fields = eventFields(entry)!;
+    final meta = fields.meta;
+    final quote = meta.inReplyTo;
+    final body = switch (entry) {
+      MessageEntry(:final body) when isEmojiOnly(body) => Text(
+        body,
+        style: const TextStyle(fontSize: 40, height: 1.2),
+      ),
+      MessageEntry(:final body) => Text(body),
+      MediaEntry(:final media) => MediaMessageView(
+        account: widget.account,
+        media: media,
+      ),
+      UndecryptableEntry() => const Text(
+        'Waiting for this message…',
+        style: TextStyle(fontStyle: FontStyle.italic),
+      ),
+      _ => const Text(
+        'Message deleted',
+        style: TextStyle(fontStyle: FontStyle.italic),
+      ),
+    };
+    final canAct = meta.eventId != null && entry is! RedactedEntry;
+    return MessageBubble(
+      key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
+      isOwn: fields.isOwn,
+      plain: entry is MessageEntry && isEmojiOnly(entry.body),
+      sender: _senderLabel(fields, previous),
+      avatar: _senderAvatar(entry.id, fields, next),
+      time: fields.time,
+      sendState: fields.sendState,
+      edited: meta.isEdited,
+      quote: quote == null
+          ? null
+          : ReplyQuoteView(
+              quote: quote,
+              onTap: () => _showOriginal(quote.eventId, entries),
+            ),
+      footer: [
+        if (meta.uploadPercent case final percent?)
+          LinearProgressIndicator(
+            key: const Key('message.upload'),
+            value: percent / 100,
+          ),
+        if (fields.isOwn && fields.sendState == SendState.failed)
+          _FailedActions(
+            onRetry: () => unawaited(_actions.retry(entry)),
+            onRemove: () => unawaited(_actions.delete(entry)),
+          ),
+      ],
+      reactions: meta.reactions.isEmpty
+          ? null
+          : ReactionChips(
+              reactions: meta.reactions,
+              onToggle: (key) => unawaited(_actions.toggleReaction(entry, key)),
+            ),
+      hoverActions: canAct && entry is! UndecryptableEntry
+          ? _HoverActions(
+              onReact: () => unawaited(_actions.react(entry)),
+              onReply: () => _actions.reply(entry),
+              menu: () => _actions.menuItems(
+                entry,
+                canRedactOthers: canRedactOthers,
+                close: () {},
+              ),
+            )
+          : null,
+      child: body,
     );
   }
 
   /// In group chats, the sender's picture beside the last of their consecutive messages and
   /// an empty space of the same width beside the others; `null` in direct chats and for the
   /// user's own messages.
-  Widget? _senderAvatar(
-    String id,
-    String sender,
-    String? name,
-    String? url,
-    bool isOwn,
-    TimelineEntry? next,
-  ) {
-    if (!widget.showSenders || isOwn) return null;
-    if (_sameSender(next, sender)) {
+  Widget? _senderAvatar(String id, EventFields fields, TimelineEntry? next) {
+    if (!widget.showSenders || fields.isOwn) return null;
+    if (_sameSender(next, fields.sender)) {
       return const SizedBox(width: _senderAvatarRadius * 2);
     }
     return MatrixAvatar(
       key: Key('senderAvatar.$id'),
       account: widget.account,
-      url: url,
-      name: name ?? sender,
-      seed: sender,
+      url: fields.senderAvatarUrl,
+      name: fields.senderName ?? fields.sender,
+      seed: fields.sender,
       radius: _senderAvatarRadius,
     );
   }
@@ -428,21 +478,16 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
 
   static bool _sameSender(TimelineEntry? entry, String sender) =>
       switch (entry) {
-        MessageEntry(sender: final s) ||
-        MediaEntry(sender: final s) ||
-        UndecryptableEntry(sender: final s) => s == sender,
-        _ => false,
+        null => false,
+        final entry => eventFields(entry)?.sender == sender,
       };
 
   /// The sender's name above the first of their consecutive messages, in group chats.
-  String? _senderLabel(
-    String sender,
-    String? name,
-    bool isOwn,
-    TimelineEntry? previous,
-  ) {
-    if (!widget.showSenders || isOwn) return null;
-    return _sameSender(previous, sender) ? null : name ?? sender;
+  String? _senderLabel(EventFields fields, TimelineEntry? previous) {
+    if (!widget.showSenders || fields.isOwn) return null;
+    return _sameSender(previous, fields.sender)
+        ? null
+        : fields.senderName ?? fields.sender;
   }
 }
 
@@ -468,7 +513,114 @@ class _DayChip extends StatelessWidget {
   );
 }
 
-class MessageBubble extends StatelessWidget {
+/// A failed message of the user's: send it again, or drop it.
+class _FailedActions extends StatelessWidget {
+  const _FailedActions({required this.onRetry, required this.onRemove});
+
+  final VoidCallback onRetry;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) => SelectionContainer.disabled(
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextButton(
+          key: const Key('message.retry'),
+          onPressed: onRetry,
+          child: const Text('Retry'),
+        ),
+        TextButton(
+          key: const Key('message.remove'),
+          onPressed: onRemove,
+          child: const Text('Remove'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// The small toolbar beside a message under the mouse: react, reply, and the rest.
+class _HoverActions extends StatelessWidget {
+  const _HoverActions({
+    required this.onReact,
+    required this.onReply,
+    required this.menu,
+  });
+
+  final VoidCallback onReact;
+  final VoidCallback onReply;
+
+  /// The message menu's items, made when it opens.
+  final List<ContextMenuButtonItem> Function() menu;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+    elevation: 1,
+    borderRadius: BorderRadius.circular(16),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _toolbarButton(
+          const Key('hover.react'),
+          'React',
+          Icons.add_reaction_outlined,
+          onReact,
+        ),
+        _toolbarButton(
+          const Key('hover.reply'),
+          'Reply',
+          Icons.reply_rounded,
+          onReply,
+        ),
+        Builder(
+          builder: (context) => _toolbarButton(
+            const Key('hover.more'),
+            'More',
+            Icons.more_horiz_rounded,
+            () => unawaited(_openMenu(context)),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  static Widget _toolbarButton(
+    Key key,
+    String tooltip,
+    IconData icon,
+    VoidCallback onPressed,
+  ) => IconButton(
+    key: key,
+    tooltip: tooltip,
+    iconSize: 18,
+    visualDensity: VisualDensity.compact,
+    onPressed: onPressed,
+    icon: Icon(icon),
+  );
+
+  Future<void> _openMenu(BuildContext context) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final items = menu();
+    final chosen = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromRect(
+        box.localToGlobal(Offset.zero, ancestor: overlay) & box.size,
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final (index, item) in items.indexed)
+          PopupMenuItem(value: index, child: Text(item.label ?? '')),
+      ],
+    );
+    if (chosen != null) items[chosen].onPressed?.call();
+  }
+}
+
+class MessageBubble extends StatefulWidget {
   const MessageBubble({
     required this.isOwn,
     required this.time,
@@ -476,6 +628,12 @@ class MessageBubble extends StatelessWidget {
     this.sender,
     this.avatar,
     this.sendState,
+    this.edited = false,
+    this.plain = false,
+    this.quote,
+    this.footer = const [],
+    this.reactions,
+    this.hoverActions,
     super.key,
   });
 
@@ -487,14 +645,41 @@ class MessageBubble extends StatelessWidget {
   final DateTime time;
   final SendState? sendState;
   final Widget child;
+  final bool edited;
+
+  /// Without the bubble: a message of big emojis.
+  final bool plain;
+
+  /// The message this one answers, above the content.
+  final Widget? quote;
+
+  /// Under the content: upload progress, or what to do with a failed message.
+  final List<Widget> footer;
+
+  /// Under the bubble.
+  final Widget? reactions;
+
+  /// Shown beside the bubble while the mouse is over the message.
+  final Widget? hoverActions;
+
+  @override
+  State<MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<MessageBubble> {
+  var _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final color = isOwn
+    final isOwn = widget.isOwn;
+    final color = widget.plain
+        ? Colors.transparent
+        : isOwn
         ? (dark ? OxiColors.ownBubbleDark : OxiColors.ownBubbleLight)
         : (dark ? OxiColors.bubbleDark : OxiColors.bubbleLight);
     final meta = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
+    final sender = widget.sender;
     final bubble = ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.sizeOf(context).width * 0.75,
@@ -515,7 +700,7 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (sender case final sender?)
+            if (sender != null)
               SelectionContainer.disabled(
                 child: Text(
                   sender,
@@ -527,46 +712,82 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ),
               ),
+            ?widget.quote,
             Wrap(
               alignment: WrapAlignment.end,
               crossAxisAlignment: WrapCrossAlignment.end,
               spacing: 8,
               children: [
-                child,
+                widget.child,
                 SelectionContainer.disabled(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(clockTime(time), style: meta),
-                      if (isOwn && sendState != null) ...[
+                      if (widget.edited) Text('edited', style: meta),
+                      if (widget.edited) const SizedBox(width: 4),
+                      Text(clockTime(widget.time), style: meta),
+                      if (isOwn && widget.sendState != null) ...[
                         const SizedBox(width: 3),
-                        _SendStateIcon(state: sendState!),
+                        _SendStateIcon(state: widget.sendState!),
                       ],
                     ],
                   ),
                 ),
               ],
             ),
+            ...widget.footer,
           ],
         ),
       ),
     );
-    final avatar = this.avatar;
-    return Align(
-      alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
-      child: avatar == null
-          ? bubble
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2, right: 6),
-                  child: avatar,
-                ),
-                Flexible(child: bubble),
-              ],
+    final reactions = widget.reactions;
+    final content = Column(
+      crossAxisAlignment: isOwn
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [bubble, ?reactions],
+    );
+    final hoverActions = widget.hoverActions;
+    // Room kept for the toolbar, so the message doesn't move when it shows.
+    final toolbar = hoverActions == null
+        ? null
+        : SelectionContainer.disabled(
+            child: Visibility(
+              visible: _hovered,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: hoverActions,
             ),
+          );
+    final avatar = widget.avatar;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Align(
+        alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (isOwn && toolbar != null) ...[
+              toolbar,
+              const SizedBox(width: 4),
+            ],
+            if (avatar != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2, right: 6),
+                child: avatar,
+              ),
+            Flexible(child: content),
+            if (!isOwn && toolbar != null) ...[
+              const SizedBox(width: 4),
+              toolbar,
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -598,6 +819,8 @@ class _SendStateIcon extends StatelessWidget {
   };
 }
 
+/// The message box: text with emojis, files by 📎, paste or drop; a reply or an edit when the
+/// message menu started one (Esc cancels).
 class Composer extends ConsumerStatefulWidget {
   const Composer({required this.account, required this.roomId, super.key});
 
@@ -612,6 +835,8 @@ class _ComposerState extends ConsumerState<Composer> {
   final _text = TextEditingController();
   final _focus = FocusNode();
 
+  (String, String) get _chat => (widget.account, widget.roomId);
+
   @override
   void dispose() {
     _text.dispose();
@@ -619,16 +844,36 @@ class _ComposerState extends ConsumerState<Composer> {
     super.dispose();
   }
 
+  void _setMode(ComposerMode? mode) =>
+      ref.read(composerModeProvider(_chat).notifier).set(mode);
+
   Future<void> _send() async {
     final text = _text.text.trim();
+    final mode = ref.read(composerModeProvider(_chat));
     final timeline = ref
         .read(roomTimelineProvider(widget.account, widget.roomId))
         .value;
-    if (text.isEmpty || timeline == null) return;
+    // An empty edit of a caption removes it; empty text sends nothing.
+    final editingCaption = mode is Editing && mode.entry is MediaEntry;
+    if ((text.isEmpty && !editingCaption) || timeline == null) return;
     _text.clear();
+    _setMode(null);
     _focus.requestFocus();
     try {
-      await timeline.send(text);
+      switch (mode) {
+        case null:
+          await timeline.send(text);
+        case Replying(:final entry):
+          final eventId = eventFields(entry)?.meta.eventId;
+          eventId == null
+              ? await timeline.send(text)
+              : await timeline.sendReply(text, eventId);
+        case Editing(:final entry):
+          final ref = eventFields(entry)?.meta.ref;
+          if (ref != null) {
+            await timeline.edit(ref, text, caption: entry is MediaEntry);
+          }
+      }
     } on MatrixFailure catch (failure) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -638,47 +883,222 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
+  Future<void> _attach() async {
+    final files = await ref.read(fileActionsProvider).pickFiles();
+    if (!mounted) return;
+    await confirmAndSendFiles(
+      context,
+      ref,
+      account: widget.account,
+      roomId: widget.roomId,
+      files: files,
+    );
+  }
+
+  /// Ctrl+V: an image or copied files go to the send dialog; text is pasted as usual.
+  Future<void> _paste() async {
+    final files = ref.read(fileActionsProvider);
+    final image = await files.clipboardImage();
+    final copied = image == null
+        ? await files.clipboardFiles()
+        : const <String>[];
+    if (image != null || copied.isNotEmpty) {
+      final pending = image != null
+          ? [PendingFile('pasted.png', 'image/png', image)]
+          : await files.readFiles(copied);
+      if (!mounted) return;
+      await confirmAndSendFiles(
+        context,
+        ref,
+        account: widget.account,
+        roomId: widget.roomId,
+        files: pending,
+      );
+      return;
+    }
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+    if (text != null && mounted) _insert(text);
+  }
+
+  /// Puts [text] where the cursor is, replacing a selection.
+  void _insert(String text) {
+    final value = _text.value;
+    final selection = value.selection.isValid
+        ? value.selection
+        : TextSelection.collapsed(offset: value.text.length);
+    _text.value = value.copyWith(
+      text: value.text.replaceRange(selection.start, selection.end, text),
+      selection: TextSelection.collapsed(offset: selection.start + text.length),
+    );
+  }
+
+  Future<void> _pickEmoji() async {
+    final emoji = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        key: const Key('composer.emojiPicker'),
+        child: SizedBox(
+          width: 380,
+          child: emojiPicker(
+            onSelected: (emoji) => Navigator.of(context).pop(emoji),
+          ),
+        ),
+      ),
+    );
+    if (emoji == null || !mounted) return;
+    _insert(emoji);
+    rememberEmoji(ref, widget.account, emoji);
+    _focus.requestFocus();
+  }
+
   @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surface,
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+  Widget build(BuildContext context) {
+    final mode = ref.watch(composerModeProvider(_chat));
+    ref.listen(composerModeProvider(_chat), (previous, next) {
+      if (next is Editing) {
+        _text.text = messageText(next.entry);
+        if (next.entry case MediaEntry(:final media)) {
+          _text.text = media.caption ?? '';
+        }
+      } else if (previous is Editing) {
+        _text.clear();
+      }
+      if (next != null) _focus.requestFocus();
+    });
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: CallbackShortcuts(
-                // Enter sends; Shift+Enter makes a new line.
-                bindings: {
-                  const SingleActivator(LogicalKeyboardKey.enter): () =>
-                      unawaited(_send()),
-                },
-                child: TextField(
-                  key: const Key('composer.text'),
-                  controller: _text,
-                  focusNode: _focus,
-                  minLines: 1,
-                  maxLines: 6,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    hintText: 'Message',
-                    border: InputBorder.none,
+            if (mode != null)
+              _ModeBar(mode: mode, onCancel: () => _setMode(null)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  IconButton(
+                    key: const Key('composer.attach'),
+                    tooltip: 'Attach files',
+                    icon: const Icon(Icons.attach_file_rounded),
+                    onPressed: () => unawaited(_attach()),
                   ),
-                ),
+                  Expanded(
+                    child: CallbackShortcuts(
+                      // Enter sends; Shift+Enter makes a new line; Esc drops a reply or
+                      // an edit.
+                      bindings: {
+                        const SingleActivator(LogicalKeyboardKey.enter): () =>
+                            unawaited(_send()),
+                        const SingleActivator(
+                          LogicalKeyboardKey.keyV,
+                          control: true,
+                        ): () =>
+                            unawaited(_paste()),
+                        const SingleActivator(
+                          LogicalKeyboardKey.keyV,
+                          meta: true,
+                        ): () =>
+                            unawaited(_paste()),
+                        if (mode != null)
+                          const SingleActivator(
+                            LogicalKeyboardKey.escape,
+                          ): () =>
+                              _setMode(null),
+                      },
+                      child: TextField(
+                        key: const Key('composer.text'),
+                        controller: _text,
+                        focusNode: _focus,
+                        minLines: 1,
+                        maxLines: 6,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          hintText: 'Message',
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('composer.emoji'),
+                    tooltip: 'Emoji',
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                    onPressed: () => unawaited(_pickEmoji()),
+                  ),
+                  IconButton(
+                    key: const Key('composer.send'),
+                    tooltip: mode is Editing ? 'Save' : 'Send',
+                    color: OxiColors.accent,
+                    icon: Icon(
+                      mode is Editing
+                          ? Icons.check_rounded
+                          : Icons.send_rounded,
+                    ),
+                    onPressed: () => unawaited(_send()),
+                  ),
+                ],
               ),
-            ),
-            IconButton(
-              key: const Key('composer.send'),
-              tooltip: 'Send',
-              color: OxiColors.accent,
-              icon: const Icon(Icons.send_rounded),
-              onPressed: () => unawaited(_send()),
             ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// Above the message box: which message the user answers or edits, with ✕ to stop.
+class _ModeBar extends StatelessWidget {
+  const _ModeBar({required this.mode, required this.onCancel});
+
+  final ComposerMode mode;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final fields = eventFields(mode.entry);
+    final name = fields?.senderName ?? fields?.sender ?? '';
+    return Padding(
+      key: const Key('composer.mode'),
+      padding: const EdgeInsets.fromLTRB(16, 6, 4, 0),
+      child: Row(
+        children: [
+          Icon(
+            mode is Editing ? Icons.edit_rounded : Icons.reply_rounded,
+            size: 18,
+            color: OxiColors.accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mode is Editing ? 'Editing' : 'Replying to $name',
+                  style: const TextStyle(
+                    color: OxiColors.accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  messageText(mode.entry),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            key: const Key('composer.cancelMode'),
+            tooltip: 'Cancel',
+            icon: const Icon(Icons.close_rounded),
+            onPressed: onCancel,
+          ),
+        ],
+      ),
+    );
+  }
 }

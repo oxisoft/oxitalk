@@ -27,6 +27,9 @@ EventInfo _event({bool isOwn = false}) => EventInfo(
   timestampMs: 1760000000000,
   isOwn: isOwn,
   sendState: SendState.sent,
+  reactions: const [],
+  isEdited: false,
+  isEditable: false,
 );
 
 void main() {

@@ -241,6 +241,17 @@ final class FakeSession implements MatrixSession {
   Future<RoomTimeline> openMediaTimeline(String roomId) async =>
       mediaTimelines.putIfAbsent(roomId, () => FakeTimeline(ownUserId: userId));
 
+  /// What [recentEmojis] returns; [addRecentEmoji] puts one first.
+  final recent = <String>[];
+
+  @override
+  Future<List<String>> recentEmojis() async => [...recent];
+
+  @override
+  Future<void> addRecentEmoji(String emoji) async => recent
+    ..remove(emoji)
+    ..insert(0, emoji);
+
   @override
   Stream<Sections> get sections => sectionState.stream;
 
@@ -317,6 +328,15 @@ final class FakeTimeline implements RoomTimeline {
 
   /// How many times the room was marked read.
   var readMarks = 0;
+
+  /// Everything else asked of it, like `react $ref 👍` or `reply $eventId text`.
+  final calls = <String>[];
+
+  /// Files sent: name → (caption, compress).
+  final files = <String, (String?, bool)>{};
+
+  /// What [canRedactOthers] answers.
+  var moderator = false;
   var closed = false;
 
   set entryList(List<TimelineEntry> entries) => _entries.value = entries;
@@ -348,6 +368,81 @@ final class FakeTimeline implements RoomTimeline {
 
   @override
   Future<void> markAsRead() async => readMarks++;
+
+  @override
+  Future<void> sendReply(String text, String eventId) async {
+    calls.add('reply $eventId $text');
+    await send(text);
+  }
+
+  /// Gives or takes back the user's reaction on the entry named [ref], as the server would.
+  @override
+  Future<void> toggleReaction(String ref, String key) async {
+    calls.add('react $ref $key');
+    entryList = [
+      for (final entry in entryList)
+        entry is MessageEntry && entry.meta.ref == ref
+            ? MessageEntry(
+                id: entry.id,
+                sender: entry.sender,
+                senderName: entry.senderName,
+                time: entry.time,
+                body: entry.body,
+                isOwn: entry.isOwn,
+                meta: EventMeta(
+                  eventId: entry.meta.eventId,
+                  reactions: _toggled(entry.meta.reactions, key),
+                  isEditable: entry.meta.isEditable,
+                ),
+              )
+            : entry,
+    ];
+  }
+
+  List<Reaction> _toggled(List<Reaction> reactions, String key) {
+    final mine = reactions.where((r) => r.key == key && r.mine).firstOrNull;
+    if (mine != null) {
+      return [
+        for (final r in reactions)
+          if (r != mine)
+            r
+          else if (r.senders.length > 1)
+            Reaction(r.key, [...r.senders]..remove(ownUserId)),
+      ];
+    }
+    final other = reactions.where((r) => r.key == key).firstOrNull;
+    return [
+      for (final r in reactions)
+        r == other ? Reaction(r.key, [...r.senders, ownUserId], mine: true) : r,
+      if (other == null) Reaction(key, [ownUserId], mine: true),
+    ];
+  }
+
+  @override
+  Future<void> edit(String ref, String text, {bool caption = false}) async =>
+      calls.add('edit $ref${caption ? ' caption' : ''} $text');
+
+  @override
+  Future<void> redact(String ref) async => calls.add('redact $ref');
+
+  @override
+  Future<void> retrySend(String ref) async => calls.add('retry $ref');
+
+  @override
+  Future<bool> canRedactOthers() async => moderator;
+
+  @override
+  Future<void> sendFile(
+    Uint8List data, {
+    required String filename,
+    required String mimeType,
+    String? caption,
+    bool compress = false,
+  }) async => files[filename] = (caption, compress);
+
+  @override
+  Future<void> forward(String eventId, String roomId) async =>
+      calls.add('forward $eventId $roomId');
 
   @override
   void close() => closed = true;

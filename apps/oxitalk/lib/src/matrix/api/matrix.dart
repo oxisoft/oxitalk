@@ -131,6 +131,11 @@ abstract interface class MatrixSession {
   /// A timeline of only the room's files and messages with links.
   Future<RoomTimeline> openMediaTimeline(String roomId);
 
+  /// The emojis the user used lately, the last used first; the same on every device.
+  Future<List<String>> recentEmojis();
+
+  Future<void> addRecentEmoji(String emoji);
+
   /// Creates an encrypted direct chat and invites [userId]. Returns the room ID.
   Future<String> createDm(String userId);
 
@@ -154,6 +159,37 @@ abstract interface class RoomTimeline {
   Future<bool> loadOlder();
 
   Future<void> send(String text);
+
+  /// Sends [text] as a reply to the event [eventId].
+  Future<void> sendReply(String text, String eventId);
+
+  /// Gives the message [ref] ([EventMeta.ref]) the user's reaction [key], or takes it back.
+  Future<void> toggleReaction(String ref, String key);
+
+  /// Replaces the text of the user's message, or with [caption] the caption of their file.
+  Future<void> edit(String ref, String text, {bool caption = false});
+
+  /// Deletes the message for everyone; a local echo is just not sent.
+  Future<void> redact(String ref);
+
+  /// Sends a message whose sending failed once more.
+  Future<void> retrySend(String ref);
+
+  /// Whether the user may delete other people's messages here.
+  Future<bool> canRedactOthers();
+
+  /// Sends [data] as the file [filename] of type [mimeType], with [caption]; with
+  /// [compress], a big photo goes scaled down as JPEG.
+  Future<void> sendFile(
+    Uint8List data, {
+    required String filename,
+    required String mimeType,
+    String? caption,
+    bool compress = false,
+  });
+
+  /// Sends the message [eventId] again in the account's room [roomId].
+  Future<void> forward(String eventId, String roomId);
 
   /// Marks the room read up to its latest message, for the other members and the user's
   /// other devices.

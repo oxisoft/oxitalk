@@ -10,12 +10,36 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `int`, `item`, `media_message`, `millis`, `new`, `small`, `source_json`, `timeline_diff`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `fetch_missing_replies`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `reply_quote`, `small`, `source_json`, `timeline_diff`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Timeline>>
 abstract class Timeline implements RustOpaqueInterface {
+  /// Whether the user may delete other people's messages here (a moderator's right).
+  Future<bool> canRedactOthers();
+
+  /// Replaces the text of the user's message, or with `caption` the caption of their file
+  /// (an empty one removes it).
+  ///
+  /// # Errors
+  ///
+  /// If the item isn't the user's or isn't in the timeline.
+  Future<void> edit({
+    required String item,
+    required String body,
+    required bool caption,
+  });
+
+  /// Sends the message `item` (an event ID) again in the user's room `to_room`, as it is
+  /// now (after edits), without what it answered; a file is sent again without uploading.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], [`CoreError::Internal`] if the
+  /// item isn't a loaded message, or if it can't be queued.
+  Future<void> forward({required String item, required String toRoom});
+
   /// Marks the room read up to its latest event: a read receipt, which the room's other
   /// members see, and the read marker, which the user's other devices go by. Nothing is
   /// sent when both are there already.
@@ -32,6 +56,55 @@ abstract class Timeline implements RustOpaqueInterface {
   /// As the server answers.
   Future<bool> paginateBack({required int count});
 
+  /// Deletes the item for everyone; a local echo is just not sent.
+  ///
+  /// # Errors
+  ///
+  /// If the item isn't in the timeline, or the user may not delete it.
+  Future<void> redact({required String item, String? reason});
+
+  /// Sends a local echo whose sending failed once more.
+  ///
+  /// # Errors
+  ///
+  /// If the item isn't in the timeline.
+  Future<void> retrySend({required String item});
+
+  /// Sends `data` as a file named `filename` of type `mime_type`, with an optional caption.
+  /// It shows at once as a local echo with its upload progress, and is encrypted in an
+  /// encrypted room. An image is sent with its size; with `compress`, a big photo is
+  /// scaled to 2048 pixels and sent as JPEG.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] for a malformed `mime_type`, or if it can't be queued.
+  Future<void> sendData({
+    required List<int> data,
+    required String filename,
+    required String mimeType,
+    String? caption,
+    required bool compress,
+  });
+
+  /// Sends the file at `path` with an optional caption; see [`Self::send_data`].
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if the file can't be read, otherwise as [`Self::send_data`].
+  Future<void> sendFile({
+    required String path,
+    required String mimeType,
+    String? caption,
+    required bool compress,
+  });
+
+  /// Sends a plain-text reply to the event `reply_to`.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], or if the reply can't be queued.
+  Future<void> sendReply({required String body, required String replyTo});
+
   /// Queues a plain-text message. It shows at once as a local echo in [`SendState::Sending`];
   /// the room is encrypted transparently if it is an encrypted room.
   ///
@@ -43,11 +116,23 @@ abstract class Timeline implements RustOpaqueInterface {
   /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
   /// loaded so far.
   Stream<List<TimelineDiff>> subscribeItems();
+
+  /// Gives the item the user's reaction `key` (an emoji), or takes it back if they gave it
+  /// already. `item` is an event ID, or a local echo's transaction ID.
+  ///
+  /// # Errors
+  ///
+  /// If the item isn't in the timeline, or the reaction can't be queued.
+  Future<void> toggleReaction({required String item, required String key});
 }
 
 class EventInfo {
   /// `None` until the server has accepted a local echo.
   final String? eventId;
+
+  /// A local echo's ID until then. The event ID, or else this, names the event in the
+  /// timeline's actions.
+  final String? transactionId;
   final String sender;
   final String? senderName;
 
@@ -57,25 +142,50 @@ class EventInfo {
   final bool isOwn;
   final SendState sendState;
 
+  /// While an attachment uploads: how far, from 0 to 100.
+  final int? uploadPercent;
+
+  /// The reactions, in the order they were first given.
+  final List<Reaction> reactions;
+
+  /// The message this one answers.
+  final ReplyQuote? inReplyTo;
+  final bool isEdited;
+
+  /// Whether the user can edit it: their own text message or caption.
+  final bool isEditable;
+
   const EventInfo({
     this.eventId,
+    this.transactionId,
     required this.sender,
     this.senderName,
     this.senderAvatarUrl,
     required this.timestampMs,
     required this.isOwn,
     required this.sendState,
+    this.uploadPercent,
+    required this.reactions,
+    this.inReplyTo,
+    required this.isEdited,
+    required this.isEditable,
   });
 
   @override
   int get hashCode =>
       eventId.hashCode ^
+      transactionId.hashCode ^
       sender.hashCode ^
       senderName.hashCode ^
       senderAvatarUrl.hashCode ^
       timestampMs.hashCode ^
       isOwn.hashCode ^
-      sendState.hashCode;
+      sendState.hashCode ^
+      uploadPercent.hashCode ^
+      reactions.hashCode ^
+      inReplyTo.hashCode ^
+      isEdited.hashCode ^
+      isEditable.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -83,12 +193,18 @@ class EventInfo {
       other is EventInfo &&
           runtimeType == other.runtimeType &&
           eventId == other.eventId &&
+          transactionId == other.transactionId &&
           sender == other.sender &&
           senderName == other.senderName &&
           senderAvatarUrl == other.senderAvatarUrl &&
           timestampMs == other.timestampMs &&
           isOwn == other.isOwn &&
-          sendState == other.sendState;
+          sendState == other.sendState &&
+          uploadPercent == other.uploadPercent &&
+          reactions == other.reactions &&
+          inReplyTo == other.inReplyTo &&
+          isEdited == other.isEdited &&
+          isEditable == other.isEditable;
 }
 
 enum MediaKind { image, video, audio, file }
@@ -155,6 +271,68 @@ class MediaMessage {
           width == other.width &&
           height == other.height &&
           durationMs == other.durationMs;
+}
+
+/// One emoji (or other key) given to a message, by whom.
+class Reaction {
+  final String key;
+
+  /// The user IDs, first given first.
+  final List<String> senders;
+
+  /// Whether the user is among them.
+  final bool mine;
+
+  const Reaction({
+    required this.key,
+    required this.senders,
+    required this.mine,
+  });
+
+  @override
+  int get hashCode => key.hashCode ^ senders.hashCode ^ mine.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Reaction &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          senders == other.senders &&
+          mine == other.mine;
+}
+
+/// What a reply shows of the message it answers.
+class ReplyQuote {
+  final String eventId;
+
+  /// `None` until the original is loaded.
+  final String? sender;
+  final String? senderName;
+
+  /// The original's text, or a file's name; `None` until loaded.
+  final String? text;
+
+  const ReplyQuote({
+    required this.eventId,
+    this.sender,
+    this.senderName,
+    this.text,
+  });
+
+  @override
+  int get hashCode =>
+      eventId.hashCode ^ sender.hashCode ^ senderName.hashCode ^ text.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplyQuote &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          sender == other.sender &&
+          senderName == other.senderName &&
+          text == other.text;
 }
 
 enum SendState { sending, sent, failed }
@@ -227,6 +405,10 @@ sealed class TimelineItemContent with _$TimelineItemContent {
   const factory TimelineItemContent.unableToDecrypt({
     required EventInfo event,
   }) = TimelineItemContent_UnableToDecrypt;
+
+  /// A message that was deleted.
+  const factory TimelineItemContent.redacted({required EventInfo event}) =
+      TimelineItemContent_Redacted;
 
   /// Any other event; M0 doesn't show them.
   const factory TimelineItemContent.otherEvent({required EventInfo event}) =

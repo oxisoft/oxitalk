@@ -62,6 +62,13 @@ Future<Session> restore({
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Session>>
 abstract class Session implements RustOpaqueInterface {
+  /// Counts a use of `emoji` among the recent ones.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> addRecentEmoji({required String emoji});
+
   /// Empties the media cache; the retention period stays.
   ///
   /// # Errors
@@ -132,6 +139,14 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// Only if the store can't be read.
   Future<Profile> ownProfile();
+
+  /// The emojis the user used lately, the last used first; kept in the account like
+  /// Element keeps them, so they are the same everywhere.
+  ///
+  /// # Errors
+  ///
+  /// Only if the store can't be read.
+  Future<List<String>> recentEmojis();
 
   /// Verifies this device with the recovery key or the security phrase, and turns on the key
   /// backup with it.
