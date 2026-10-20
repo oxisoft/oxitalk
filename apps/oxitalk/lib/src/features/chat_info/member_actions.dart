@@ -119,13 +119,17 @@ class MemberMenu extends ConsumerWidget {
           );
           return;
         case _Action.role:
-          final details = ref.read(roomDetailsProvider(account, roomId)).value;
+          final details = await ref.read(
+            roomDetailsProvider(account, roomId).future,
+          );
+          if (!context.mounted) return;
           final level = await showDialog<int>(
             context: context,
             builder: (_) => RoleDialog(
               name: name,
               current: member.powerLevel,
-              ownLevel: details?.ownPowerLevel ?? memberLevel,
+              // `null`: a room creator, above every level.
+              ownLevel: details.ownPowerLevel,
               self: member.userId == account,
             ),
           );

@@ -12,16 +12,17 @@ const _bob = '@bob:acme.com';
 const _carol = '@carol:acme.com';
 const _dan = '@dan:acme.com';
 
-Future<FakeSession> _open(WidgetTester tester) async {
+/// [ownLevel] `null`: the user created the room (version 12 or later), above every level.
+Future<FakeSession> _open(WidgetTester tester, {int? ownLevel = 100}) async {
   final session =
       FakeSession(
           userId: _me,
           rooms: const [Room(id: _room, name: 'Team')],
         )
-        ..details[_room] = const RoomDetails(
+        ..details[_room] = RoomDetails(
           roomId: _room,
           name: 'Team',
-          ownPowerLevel: 100,
+          ownPowerLevel: ownLevel,
         )
         ..members[_room] = const [
           RoomMember(
@@ -137,6 +138,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.moderated.last, 'setPowerLevel $_room $_bob 75');
     expect(_inInfo(find.text('Custom (75)')), findsOneWidget);
+  });
+
+  testWidgets('a room creator may give any role', (tester) async {
+    final session = await _open(tester, ownLevel: null);
+    await _menu(tester, _bob, 'role');
+    for (final level in [100, 50, 0]) {
+      expect(
+        tester
+            .widget<RadioListTile<int>>(find.byKey(Key('role.$level')))
+            .enabled,
+        isTrue,
+      );
+    }
+    await tester.tap(find.byKey(const Key('role.100')));
+    await tester.tap(find.byKey(const Key('role.save')));
+    await tester.pumpAndSettle();
+    expect(session.moderated, ['setPowerLevel $_room $_bob 100']);
+
+    // No custom level is too high for them either.
+    await _menu(tester, _bob, 'role');
+    await tester.tap(find.byKey(const Key('role.custom')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('role.number')), '150');
+    await tester.pump();
+    expect(find.text('Higher than your own level'), findsNothing);
   });
 
   testWidgets('lowering one’s own role asks once more', (tester) async {
