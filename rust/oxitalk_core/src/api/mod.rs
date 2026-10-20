@@ -43,6 +43,6 @@ mod tests {
 
     #[test]
     fn core_version_is_the_crate_version() {
-        assert_eq!(core_version(), "0.1.25");
+        assert_eq!(core_version(), "0.1.26");
     }
 }
