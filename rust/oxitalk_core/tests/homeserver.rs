@@ -19,7 +19,14 @@ use matrix_sdk::{
     attachment::{AttachmentConfig, AttachmentInfo, BaseFileInfo},
     ruma::{
         OwnedRoomId,
-        api::client::{account::register::v3::Request as RegistrationRequest, uiaa},
+        api::client::{
+            account::register::v3::Request as RegistrationRequest,
+            room::{
+                Visibility,
+                create_room::v3::{Request as CreateRoomRequest, RoomPreset},
+            },
+            uiaa,
+        },
         serde::Raw,
     },
 };
@@ -888,6 +895,82 @@ async fn rooms_are_created_joined_and_invited_to() -> TestResult {
         bob.join_by_address("not a room".to_owned()).await,
         Err(CoreError::InvalidId { .. })
     ));
+    Ok(())
+}
+
+/// People known from shared chats and from the server's directory; public rooms the most
+/// joined first, the ones already joined last.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn people_and_public_rooms_are_found() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let known = alice.known_people(50).await?;
+    assert!(
+        known.iter().any(|p| p.user_id == bob.user_id()),
+        "{known:?}"
+    );
+    assert!(!known.iter().any(|p| p.user_id == alice.user_id()));
+    assert_eq!(alice.dm_with(bob.user_id())?, Some(room_id));
+
+    let bob_name = bob.user_id()[1..]
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .to_owned();
+    // The server's user directory catches up with new users and rooms in the background.
+    tokio::time::timeout(TIMEOUT, async {
+        loop {
+            let found = alice.search_people(bob_name.clone(), 10).await?;
+            if found.iter().any(|p| p.user_id == bob.user_id()) {
+                return Ok::<_, CoreError>(());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    })
+    .await
+    .map_err(|_| "Bob never showed in the user directory")??;
+
+    // Two rooms in the directory: Bob is in "Big", not in "Small".
+    // Unique to this run: earlier runs' rooms stay in the directory.
+    let tag = bob_name.clone();
+    let publish = async |name: String| -> Result<String, Box<dyn Error>> {
+        let mut request = CreateRoomRequest::new();
+        request.name = Some(name);
+        request.visibility = Visibility::Public;
+        request.preset = Some(RoomPreset::PublicChat);
+        Ok(alice
+            .sdk()
+            .create_room(request)
+            .await?
+            .room_id()
+            .to_string())
+    };
+    let big = publish(format!("Big {tag}")).await?;
+    let small = publish(format!("Small {tag}")).await?;
+    bob.join(big.clone()).await?;
+    // The directory lists them once the server's room statistics catch up.
+    let rooms = tokio::time::timeout(TIMEOUT, async {
+        loop {
+            let rooms = bob.public_rooms(Some(tag.clone()), 50).await?;
+            if rooms.len() == 2 {
+                return Ok::<_, CoreError>(rooms);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    })
+    .await
+    .map_err(|_| "the rooms never showed in the directory")??;
+    let order: Vec<_> = rooms
+        .iter()
+        .map(|r| (r.room_id.clone(), r.joined))
+        .collect();
+    assert_eq!(order, vec![(small.clone(), false), (big, true)]);
+    assert_eq!(rooms[0].members, 1);
+    let only = bob.public_rooms(Some(format!("Small {tag}")), 50).await?;
+    assert_eq!(
+        only.iter().map(|r| r.room_id.clone()).collect::<Vec<_>>(),
+        vec![small]
+    );
     Ok(())
 }
 

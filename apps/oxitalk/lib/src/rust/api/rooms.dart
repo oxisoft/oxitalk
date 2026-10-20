@@ -15,7 +15,8 @@ class NewRoom {
   final String name;
   final String? topic;
 
-  /// Anyone can join; else invite only.
+  /// Listed in the server's room directory (when the server allows) and anyone can join;
+  /// else invite only.
   final bool public;
 
   /// For a public room: the part of its address before the colon (`team` in

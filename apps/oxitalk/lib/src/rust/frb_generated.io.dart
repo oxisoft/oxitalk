@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/directory.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/profile.dart';
@@ -209,6 +210,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<CustomSection> dco_decode_list_custom_section(dynamic raw);
 
   @protected
+  List<Person> dco_decode_list_person(dynamic raw);
+
+  @protected
   Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
 
   @protected
@@ -216,6 +220,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<PublicRoom> dco_decode_list_public_room(dynamic raw);
 
   @protected
   List<Reaction> dco_decode_list_reaction(dynamic raw);
@@ -290,7 +297,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw);
 
   @protected
+  Person dco_decode_person(dynamic raw);
+
+  @protected
   Profile dco_decode_profile(dynamic raw);
+
+  @protected
+  PublicRoom dco_decode_public_room(dynamic raw);
 
   @protected
   Reaction dco_decode_reaction(dynamic raw);
@@ -558,6 +571,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<Person> sse_decode_list_person(SseDeserializer deserializer);
+
+  @protected
   Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
 
   @protected
@@ -565,6 +581,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<PublicRoom> sse_decode_list_public_room(SseDeserializer deserializer);
 
   @protected
   List<Reaction> sse_decode_list_reaction(SseDeserializer deserializer);
@@ -653,7 +672,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Person sse_decode_person(SseDeserializer deserializer);
+
+  @protected
   Profile sse_decode_profile(SseDeserializer deserializer);
+
+  @protected
+  PublicRoom sse_decode_public_room(SseDeserializer deserializer);
 
   @protected
   Reaction sse_decode_reaction(SseDeserializer deserializer);
@@ -976,6 +1001,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_person(List<Person> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_16_strict(
     Uint16List self,
     SseSerializer serializer,
@@ -987,6 +1015,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_public_room(
+    List<PublicRoom> self,
     SseSerializer serializer,
   );
 
@@ -1099,7 +1133,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_person(Person self, SseSerializer serializer);
+
+  @protected
   void sse_encode_profile(Profile self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_public_room(PublicRoom self, SseSerializer serializer);
 
   @protected
   void sse_encode_reaction(Reaction self, SseSerializer serializer);

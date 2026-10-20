@@ -145,6 +145,19 @@ abstract interface class MatrixSession {
 
   Future<void> join(String roomId);
 
+  /// People the user shares chats with, the most recently active chats' first.
+  Future<List<Person>> knownPeople();
+
+  /// People in the server's user directory matching [term].
+  Future<List<Person>> searchPeople(String term);
+
+  /// The user's direct chat with [userId], if any.
+  String? dmWith(String userId);
+
+  /// Rooms in the server's public directory matching [term] (all with `null`): the most
+  /// joined first, those the user is in last.
+  Future<List<PublicRoom>> publicRooms(String? term);
+
   /// Creates a room and returns its ID. Private rooms are invite-only and always encrypted;
   /// a public one anyone can join, at `#alias:server` if [alias] is given, encrypted unless
   /// [encrypted] is off. [avatar] is an image of type [avatarMimeType].

@@ -42,3 +42,8 @@ rc_invites:
   per_room: {per_second: 1000, burst_count: 1000}
   per_user: {per_second: 1000, burst_count: 1000}
   per_issuer: {per_second: 1000, burst_count: 1000}
+
+# Anyone may list rooms in the public directory (Synapse lets only admins by default);
+# the tests publish rooms.
+room_list_publication_rules:
+  - action: allow

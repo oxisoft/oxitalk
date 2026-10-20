@@ -442,6 +442,44 @@ final class RoomMember {
   final bool invited;
 }
 
+/// Someone to chat with.
+final class Person {
+  const Person(this.userId, {this.displayName, this.avatarUrl});
+
+  final String userId;
+  final String? displayName;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+}
+
+/// A room in the server's public directory.
+final class PublicRoom {
+  const PublicRoom({
+    required this.roomId,
+    this.name,
+    this.topic,
+    this.alias,
+    this.members = 0,
+    this.avatarUrl,
+    this.joined = false,
+  });
+
+  final String roomId;
+  final String? name;
+  final String? topic;
+
+  /// Its main address, like `#team:example.org`.
+  final String? alias;
+  final int members;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+
+  /// The user is in it already.
+  final bool joined;
+}
+
 /// The user's own profile.
 final class Profile {
   const Profile({this.displayName, this.avatarUrl});

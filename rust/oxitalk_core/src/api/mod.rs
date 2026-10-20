@@ -2,6 +2,7 @@
 
 use flutter_rust_bridge::frb;
 
+pub mod directory;
 pub mod error;
 pub mod logging;
 pub mod media;

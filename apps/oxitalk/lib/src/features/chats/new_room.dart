@@ -8,6 +8,7 @@ import '../../app/pick_image.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../matrix/api/matrix.dart';
+import 'finders.dart';
 
 /// The part of a room address made from its name: `Team Alpha!` → `team-alpha`.
 String aliasFrom(String name) => name
@@ -58,7 +59,8 @@ Future<void> createRoom(
   }
 }
 
-/// Asks for a room's address or link, joins it, and opens it.
+/// Lets the user pick a public room or give an address or link, joins it, and opens it; a
+/// room they are in already just opens.
 Future<void> joinRoom(
   BuildContext context,
   WidgetRef ref,
@@ -66,14 +68,19 @@ Future<void> joinRoom(
 ) async {
   final router = GoRouter.of(context);
   final messenger = ScaffoldMessenger.of(context);
-  final address = await showDialog<String>(
-    context: context,
-    builder: (_) => const _JoinRoomDialog(),
-  );
   final session = ref.read(accountsProvider).value?.byId(account);
-  if (address == null || address.isEmpty || session == null) return;
+  if (session == null) return;
+  final choice = await showDialog<JoinChoice>(
+    context: context,
+    builder: (_) => JoinRoomDialog(account: account, session: session),
+  );
+  if (choice == null) return;
+  if (choice.joined) {
+    router.go(Routes.room(choice.target));
+    return;
+  }
   try {
-    router.go(Routes.room(await session.joinByAddress(address)));
+    router.go(Routes.room(await session.joinByAddress(choice.target)));
   } on MatrixFailure catch (failure) {
     messenger.showSnackBar(
       SnackBar(
@@ -210,7 +217,7 @@ class _NewRoomDialogState extends ConsumerState<NewRoomDialog> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   _public
-                      ? 'Anyone can join with the room’s address.'
+                      ? 'Listed in your server’s room directory; anyone can join.'
                       : 'Only people you invite can join. Always encrypted.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -252,51 +259,6 @@ class _NewRoomDialogState extends ConsumerState<NewRoomDialog> {
       ],
     );
   }
-}
-
-class _JoinRoomDialog extends StatefulWidget {
-  const _JoinRoomDialog();
-
-  @override
-  State<_JoinRoomDialog> createState() => _JoinRoomDialogState();
-}
-
-class _JoinRoomDialogState extends State<_JoinRoomDialog> {
-  final _address = TextEditingController();
-
-  @override
-  void dispose() {
-    _address.dispose();
-    super.dispose();
-  }
-
-  void _join() => Navigator.of(context).pop(_address.text.trim());
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Join a room'),
-    content: TextField(
-      key: const Key('joinRoom.address'),
-      controller: _address,
-      autofocus: true,
-      decoration: const InputDecoration(
-        labelText: 'Address or link',
-        hintText: '#room:server.org',
-      ),
-      onSubmitted: (_) => _join(),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        key: const Key('joinRoom.join'),
-        onPressed: _join,
-        child: const Text('Join'),
-      ),
-    ],
-  );
 }
 
 /// Asks for a user ID and invites them to the room; failures show as a snack bar.

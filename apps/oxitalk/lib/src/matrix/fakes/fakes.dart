@@ -330,6 +330,41 @@ final class FakeSession implements MatrixSession {
     return id;
   }
 
+  /// What [knownPeople] answers.
+  List<Person> known = const [];
+
+  /// The server's user directory, searched by name or ID.
+  List<Person> directory = const [];
+
+  /// The server's public rooms; [publicRooms] filters them by name.
+  List<PublicRoom> publicDirectory = const [];
+
+  /// Direct chats by the other person's user ID.
+  final dms = <String, String>{};
+
+  @override
+  Future<List<Person>> knownPeople() async => known;
+
+  @override
+  Future<List<Person>> searchPeople(String term) async => [
+    for (final person in directory)
+      if ('${person.userId} ${person.displayName ?? ''}'.toLowerCase().contains(
+        term.toLowerCase(),
+      ))
+        person,
+  ];
+
+  @override
+  String? dmWith(String userId) => dms[userId];
+
+  @override
+  Future<List<PublicRoom>> publicRooms(String? term) async => [
+    for (final room in publicDirectory)
+      if (term == null ||
+          (room.name ?? '').toLowerCase().contains(term.toLowerCase()))
+        room,
+  ];
+
   @override
   Future<String> joinByAddress(String address) async {
     final room = addresses[address.trim()];

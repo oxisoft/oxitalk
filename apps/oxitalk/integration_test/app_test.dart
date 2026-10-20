@@ -248,6 +248,63 @@ void main() {
       ),
     );
 
+    // New chat finds Bob among the people Alice knows, and opens their chat, not a new one.
+    await tester.tap(find.byKey(const Key('newMenu')));
+    await _pumpUntil(tester, find.byKey(const Key('newMenu.chat')));
+    await _pumpFor(
+      tester,
+      const Duration(milliseconds: 500),
+    ); // the menu opening
+    await tester.tap(find.byKey(const Key('newMenu.chat')));
+    await _pumpUntil(tester, find.byKey(const Key('newChat.search')));
+    await _type(tester, find.byKey(const Key('newChat.search')), bob.name);
+    final bobId = '@${bob.name}:localhost';
+    await _pumpUntil(tester, find.byKey(Key('newChat.person.$bobId')));
+    await tester.tap(find.byKey(Key('newChat.person.$bobId')));
+    await _pumpUntil(tester, find.byKey(const Key('newChat')), gone: true);
+    await _pumpUntil(tester, find.text('Hi Bob!'));
+    expect(find.widgetWithText(ListTile, bob.name), findsOneWidget);
+
+    // Bob opens a public room; Alice finds it in her server's directory and joins.
+    final lobby = 'Lobby ${bob.name}';
+    final lobbyId = await bobSession.createRoom(
+      name: lobby,
+      public: true,
+      alias: 'lobby-${bob.name}',
+      encrypted: false,
+    );
+    await tester.tap(find.byKey(const Key('newMenu')));
+    await _pumpUntil(tester, find.byKey(const Key('newMenu.join')));
+    await _pumpFor(tester, const Duration(milliseconds: 500));
+    await tester.tap(find.byKey(const Key('newMenu.join')));
+    await _pumpUntil(tester, find.byKey(const Key('joinRoom.address')));
+    final lobbyTile = find.byKey(Key('joinRoom.room.$lobbyId'));
+    // The server lists a new room a moment later; each change of the search asks again.
+    for (var attempt = 0; lobbyTile.evaluate().isEmpty; attempt++) {
+      if (attempt == 30) throw TestFailure('$lobby never got listed');
+      await _type(
+        tester,
+        find.byKey(const Key('joinRoom.address')),
+        attempt.isEven ? 'lobby' : 'Lobby',
+      );
+      await _pumpFor(tester, const Duration(seconds: 1));
+    }
+    await tester.tap(lobbyTile);
+    await _pumpUntil(tester, find.byKey(const Key('composer.text')));
+    await _pumpUntil(tester, find.widgetWithText(ListTile, lobby));
+
+    // Listed again, it is marked Joined.
+    await tester.tap(find.byKey(const Key('newMenu')));
+    await _pumpUntil(tester, find.byKey(const Key('newMenu.join')));
+    await _pumpFor(tester, const Duration(milliseconds: 500));
+    await tester.tap(find.byKey(const Key('newMenu.join')));
+    await _pumpUntil(
+      tester,
+      find.descendant(of: lobbyTile, matching: find.text('Joined')),
+    );
+    await tester.tap(find.text('Cancel'));
+    await _pumpUntil(tester, find.byKey(const Key('joinRoom')), gone: true);
+
     // A second account, for another customer: added from the rail, both stay online.
     final carol = await _registerUser();
     await tester.tap(find.byKey(const Key('account.add')));

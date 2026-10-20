@@ -462,6 +462,53 @@ final class RustMatrixSession implements MatrixSession {
   );
 
   @override
+  Future<List<Person>> knownPeople() async => [
+    for (final person in await guarded(() => _session.knownPeople(limit: 200)))
+      Person(
+        person.userId,
+        displayName: person.displayName,
+        avatarUrl: person.avatarUrl,
+      ),
+  ];
+
+  @override
+  Future<List<Person>> searchPeople(String term) async => [
+    for (final person in await guarded(
+      () => _session.searchPeople(term: term, limit: 30),
+    ))
+      Person(
+        person.userId,
+        displayName: person.displayName,
+        avatarUrl: person.avatarUrl,
+      ),
+  ];
+
+  @override
+  String? dmWith(String userId) {
+    try {
+      return _session.dmWith(userId: userId);
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
+  Future<List<PublicRoom>> publicRooms(String? term) async => [
+    for (final room in await guarded(
+      () => _session.publicRooms(term: term, limit: 100),
+    ))
+      PublicRoom(
+        roomId: room.roomId,
+        name: room.name,
+        topic: room.topic,
+        alias: room.alias,
+        members: room.members,
+        avatarUrl: room.avatarUrl,
+        joined: room.joined,
+      ),
+  ];
+
+  @override
   Future<String> joinByAddress(String address) =>
       guarded(() => _session.joinByAddress(address: address));
 

@@ -21,7 +21,8 @@ use super::{
 pub struct NewRoom {
     pub name: String,
     pub topic: Option<String>,
-    /// Anyone can join; else invite only.
+    /// Listed in the server's room directory (when the server allows) and anyone can join;
+    /// else invite only.
     pub public: bool,
     /// For a public room: the part of its address before the colon (`team` in
     /// `#team:server`).
@@ -94,6 +95,16 @@ impl Session {
                 .parse()
                 .map_err(|error| CoreError::internal(&error))?;
             created.upload_avatar(&mime, avatar.data, None).await?;
+        }
+        // Listed in the server's room directory, as Element does. Asked for apart from the
+        // creation: a server that lets only admins publish would refuse the whole room.
+        if room.public
+            && let Err(error) = created
+                .privacy_settings()
+                .update_room_visibility(Visibility::Public)
+                .await
+        {
+            tracing::warn!(%error, "the server didn't list the new room in its directory");
         }
         Ok(created.room_id().to_string())
     }

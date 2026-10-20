@@ -102,7 +102,7 @@ void main() {
       expect(find.byKey(const Key('composer.text')), findsOneWidget);
     });
 
-    testWidgets('a new chat starts a DM by user ID', (tester) async {
+    testWidgets('a new chat starts a DM with a typed user ID', (tester) async {
       final session = _session();
       await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
@@ -110,20 +110,20 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('newMenu.chat')));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('newChat.userId')), 'dave');
-      await tester.tap(find.text('Start'));
+      await tester.enterText(find.byKey(const Key('newChat.search')), 'dave');
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
-      expect(find.textContaining('invalid ID “dave”'), findsOneWidget);
+      // Not a full ID, and no one by that name: nothing to pick.
+      expect(find.byKey(const Key('newChat.typed')), findsNothing);
+      expect(find.byKey(const Key('newChat.none')), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('newMenu')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('newMenu.chat')));
-      await tester.pumpAndSettle();
       await tester.enterText(
-        find.byKey(const Key('newChat.userId')),
+        find.byKey(const Key('newChat.search')),
         '@dave:example.org',
       );
-      await tester.tap(find.text('Start'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('newChat.typed')));
       await tester.pumpAndSettle();
       expect(session.roomList.first.name, '@dave:example.org');
       expect(find.byKey(const Key('composer.text')), findsOneWidget);

@@ -15,6 +15,7 @@ import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
 import '../chat_info/chat_info.dart';
+import 'finders.dart';
 import 'new_room.dart';
 import 'room_groups.dart';
 import 'section_actions.dart';
@@ -351,13 +352,20 @@ class ChatListPane extends ConsumerWidget {
     }
   }
 
+  /// Lets the user pick someone and opens their direct chat, starting one if there is none.
   Future<void> _newChat(BuildContext context, WidgetRef ref) async {
+    final session = ref.read(accountsProvider).value?.byId(account);
+    if (session == null) return;
     final userId = await showDialog<String>(
       context: context,
-      builder: (_) => const _NewChatDialog(),
+      builder: (_) => NewChatDialog(account: account, session: session),
     );
-    final session = ref.read(accountsProvider).value?.byId(account);
-    if (userId == null || session == null || !context.mounted) return;
+    if (userId == null || !context.mounted) return;
+    final existing = session.dmWith(userId);
+    if (existing != null) {
+      context.go(Routes.room(existing));
+      return;
+    }
     try {
       final roomId = await session.createDm(userId);
       if (context.mounted) context.go(Routes.room(roomId));
@@ -753,47 +761,6 @@ class _Badge extends StatelessWidget {
         fontWeight: FontWeight.w600,
       ),
     ),
-  );
-}
-
-class _NewChatDialog extends StatefulWidget {
-  const _NewChatDialog();
-
-  @override
-  State<_NewChatDialog> createState() => _NewChatDialogState();
-}
-
-class _NewChatDialogState extends State<_NewChatDialog> {
-  final _userId = TextEditingController();
-
-  @override
-  void dispose() {
-    _userId.dispose();
-    super.dispose();
-  }
-
-  void _submit() => Navigator.of(context).pop(_userId.text.trim());
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('New chat'),
-    content: TextField(
-      key: const Key('newChat.userId'),
-      controller: _userId,
-      autofocus: true,
-      decoration: const InputDecoration(
-        labelText: 'User ID',
-        hintText: '@name:server.org',
-      ),
-      onSubmitted: (_) => _submit(),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(onPressed: _submit, child: const Text('Start')),
-    ],
   );
 }
 

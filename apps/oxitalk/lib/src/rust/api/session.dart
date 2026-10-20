@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'directory.dart';
 import 'error.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -92,6 +93,13 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers: [`CoreError::Internal`] if the address is taken or malformed.
   Future<String> createRoom({required NewRoom room});
 
+  /// The user's direct chat with `user_id`, if they have one.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`].
+  String? dmWith({required String userId});
+
   /// Invites `user_id` to the room.
   ///
   /// # Errors
@@ -114,6 +122,14 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] for anything else, otherwise as the server answers.
   Future<String> joinByAddress({required String address});
+
+  /// The people the user shares chats with, those of the most recently active chats first,
+  /// each once; the user left out. Read from the store, so it works offline.
+  ///
+  /// # Errors
+  ///
+  /// Only if the store can't be read.
+  Future<List<Person>> knownPeople({required int limit});
 
   /// Stops syncing and logs this device out on the server. The store stays; the app deletes
   /// it.
@@ -164,6 +180,14 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// Only if the store can't be read.
   Future<Profile> ownProfile();
+
+  /// Rooms in the server's public directory matching `term` (all with `None`): the most
+  /// joined first, the ones the user is in at the end.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<List<PublicRoom>> publicRooms({String? term, required int limit});
 
   /// The emojis the user used lately, the last used first; kept in the account like
   /// Element keeps them, so they are the same everywhere.
@@ -227,6 +251,15 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] for a section tag without the `element.io.section.` prefix,
   /// otherwise as the server answers.
   Future<void> saveSectionSettings({required SectionSettings settings});
+
+  /// People in the server's user directory whose name or ID matches `term`. Which users
+  /// a server lists is up to it (often those sharing a room with the user, or in public
+  /// rooms).
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<List<Person>> searchPeople({required String term, required int limit});
 
   /// What the app stores to [`restore`] this session later.
   ///
