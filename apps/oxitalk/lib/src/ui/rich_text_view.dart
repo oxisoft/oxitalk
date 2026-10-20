@@ -122,7 +122,7 @@ class _RichTextViewState extends State<RichTextView> {
           scrollDirection: Axis.horizontal,
           child: Text(
             block.spans.map((span) => span.text).join(),
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            style: codeStyle.copyWith(fontSize: 13),
           ),
         ),
       ),
@@ -169,7 +169,8 @@ class _RichTextViewState extends State<RichTextView> {
         if (span.strike) TextDecoration.lineThrough,
         if (span.underline || span.link != null) TextDecoration.underline,
       ]),
-      fontFamily: span.code ? 'monospace' : null,
+      fontFamily: span.code ? codeStyle.fontFamily : null,
+      fontFamilyFallback: span.code ? codeStyle.fontFamilyFallback : null,
       color: hidden
           ? Colors.transparent
           : span.link != null

@@ -17,11 +17,16 @@ import 'src/util/log.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // The bundled emoji font's licence, in About → View licenses.
+  // The bundled fonts' licences, in About → View licenses.
   LicenseRegistry.addLicense(() async* {
-    yield LicenseEntryWithLineBreaks(const [
-      'Noto Color Emoji',
-    ], await rootBundle.loadString('assets/fonts/NotoColorEmoji-LICENSE.txt'));
+    for (final (name, file) in [
+      ('Open Sans', 'OpenSans'),
+      ('Noto Color Emoji', 'NotoColorEmoji'),
+    ]) {
+      yield LicenseEntryWithLineBreaks([
+        name,
+      ], await rootBundle.loadString('assets/fonts/$file-LICENSE.txt'));
+    }
   });
   await RustLib.init();
   final window = await DrawnWindowControls.start();

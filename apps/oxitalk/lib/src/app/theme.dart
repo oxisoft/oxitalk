@@ -25,11 +25,30 @@ abstract final class OxiColors {
 /// From this width on, the chat list and the chat sit side by side.
 const wideLayoutBreakpoint = 840.0;
 
-/// The bundled colour emoji font, for every emoji the text font lacks.
+/// The bundled text font, on every platform.
+const textFont = 'Open Sans';
+
+/// The bundled colour emoji font, for every emoji the text font lacks. It also has a space,
+/// digits, `#` and `*` (for keycap emoji), so it must never stand in for a missing text font.
 const emojiFont = 'Noto Color Emoji';
+
+/// Code, in the platform's monospaced font: `monospace` names it on Linux and Android,
+/// the others by name; the text font if none is there.
+const codeStyle = TextStyle(
+  fontFamily: 'monospace',
+  fontFamilyFallback: [
+    'Menlo',
+    'Consolas',
+    'Cascadia Mono',
+    'Courier New',
+    textFont,
+    emojiFont,
+  ],
+);
 
 ThemeData oxiTheme(Brightness brightness) => ThemeData(
   useMaterial3: true,
+  fontFamily: textFont,
   fontFamilyFallback: const [emojiFont],
   colorScheme: ColorScheme.fromSeed(
     seedColor: OxiColors.accent,
