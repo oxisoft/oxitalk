@@ -22,6 +22,9 @@ String _two(int value) => value.toString().padLeft(2, '0');
 /// `14:05`.
 String clockTime(DateTime time) => '${_two(time.hour)}:${_two(time.minute)}';
 
+/// `1 reply`, `3 replies`.
+String replyCountLabel(int count) => count == 1 ? '1 reply' : '$count replies';
+
 DateTime _day(DateTime time) => DateTime(time.year, time.month, time.day);
 
 /// For the chat list: the time today, the weekday this week, else `18.10.26`.

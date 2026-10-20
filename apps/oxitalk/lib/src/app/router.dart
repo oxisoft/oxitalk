@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/auth/login_screen.dart';
 import '../features/chat/chat_pane.dart';
+import '../features/chat/threads.dart';
 import '../features/chat_info/chat_info.dart';
 import '../features/chats/chats_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -31,6 +32,13 @@ abstract final class Routes {
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
 
   static String roomInfo(String roomId) => '${room(roomId)}/info';
+
+  /// The thread that starts at [rootEventId].
+  static String thread(String roomId, String rootEventId) =>
+      '${room(roomId)}/thread/${Uri.encodeComponent(rootEventId)}';
+
+  /// The room's thread list.
+  static String threads(String roomId) => '${room(roomId)}/threads';
 }
 
 /// The active account's verification status, which decides whether it sees its chats.
@@ -140,6 +148,43 @@ GoRouter router(Ref ref) {
                       : MaterialPage(
                           key: state.pageKey,
                           child: ChatInfoScreen(roomId: roomId),
+                        );
+                },
+              ),
+              GoRoute(
+                path: 'thread/:rootId',
+                pageBuilder: (context, state) {
+                  final roomId = state.pathParameters['roomId']!;
+                  final rootId = state.pathParameters['rootId']!;
+                  // Wide: beside the chat. Narrow: a page of its own over it.
+                  return MediaQuery.sizeOf(context).width >=
+                          wideLayoutBreakpoint
+                      ? NoTransitionPage(
+                          key: state.pageKey,
+                          child: ChatsScreen(roomId: roomId, thread: rootId),
+                        )
+                      : MaterialPage(
+                          key: state.pageKey,
+                          child: ThreadScreen(
+                            roomId: roomId,
+                            rootEventId: rootId,
+                          ),
+                        );
+                },
+              ),
+              GoRoute(
+                path: 'threads',
+                pageBuilder: (context, state) {
+                  final roomId = state.pathParameters['roomId']!;
+                  return MediaQuery.sizeOf(context).width >=
+                          wideLayoutBreakpoint
+                      ? NoTransitionPage(
+                          key: state.pageKey,
+                          child: ChatsScreen(roomId: roomId, showThreads: true),
+                        )
+                      : MaterialPage(
+                          key: state.pageKey,
+                          child: ThreadListScreen(roomId: roomId),
                         );
                 },
               ),

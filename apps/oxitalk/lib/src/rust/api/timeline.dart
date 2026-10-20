@@ -12,8 +12,8 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `fetch_missing_replies`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `small`, `source_json`, `text_content`, `timeline_diff`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Timeline>>
@@ -167,6 +167,9 @@ class EventInfo {
 
   /// The message this one answers.
   final ReplyQuote? inReplyTo;
+
+  /// The thread that starts at this message, if it has replies.
+  final ThreadInfo? thread;
   final bool isEdited;
 
   /// Whether the user can edit it: their own text message or caption.
@@ -184,6 +187,7 @@ class EventInfo {
     this.uploadPercent,
     required this.reactions,
     this.inReplyTo,
+    this.thread,
     required this.isEdited,
     required this.isEditable,
   });
@@ -201,6 +205,7 @@ class EventInfo {
       uploadPercent.hashCode ^
       reactions.hashCode ^
       inReplyTo.hashCode ^
+      thread.hashCode ^
       isEdited.hashCode ^
       isEditable.hashCode;
 
@@ -220,6 +225,7 @@ class EventInfo {
           uploadPercent == other.uploadPercent &&
           reactions == other.reactions &&
           inReplyTo == other.inReplyTo &&
+          thread == other.thread &&
           isEdited == other.isEdited &&
           isEditable == other.isEditable;
 }
@@ -359,6 +365,67 @@ class ReplyQuote {
 }
 
 enum SendState { sending, sent, failed }
+
+/// A message in a thread as the thread's summary or list shows it.
+class ThreadEvent {
+  final String sender;
+  final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
+
+  /// Its text, or a file's caption or name; `None` for other events.
+  final String? text;
+  final PlatformInt64 timestampMs;
+
+  const ThreadEvent({
+    required this.sender,
+    this.senderName,
+    this.senderAvatarUrl,
+    this.text,
+    required this.timestampMs,
+  });
+
+  @override
+  int get hashCode =>
+      sender.hashCode ^
+      senderName.hashCode ^
+      senderAvatarUrl.hashCode ^
+      text.hashCode ^
+      timestampMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThreadEvent &&
+          runtimeType == other.runtimeType &&
+          sender == other.sender &&
+          senderName == other.senderName &&
+          senderAvatarUrl == other.senderAvatarUrl &&
+          text == other.text &&
+          timestampMs == other.timestampMs;
+}
+
+/// A thread under its first message: how many replies, and the latest.
+class ThreadInfo {
+  final int replyCount;
+
+  /// `None` until the latest reply is loaded.
+  final ThreadEvent? latest;
+
+  const ThreadInfo({required this.replyCount, this.latest});
+
+  @override
+  int get hashCode => replyCount.hashCode ^ latest.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThreadInfo &&
+          runtimeType == other.runtimeType &&
+          replyCount == other.replyCount &&
+          latest == other.latest;
+}
 
 @freezed
 sealed class TimelineDiff with _$TimelineDiff {

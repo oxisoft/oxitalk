@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
@@ -78,17 +80,20 @@ final class Editing extends ComposerMode {
   const Editing(super.entry);
 }
 
-/// Whether the composer of a chat answers or edits a message; `null` for a new one.
+/// Whether the composer of a chat (or of a thread in it) answers or edits a message; `null`
+/// for a new one.
 final composerModeProvider = NotifierProvider.family
-    .autoDispose<ComposerModeNotifier, ComposerMode?, (String, String)>(
+    .autoDispose<ComposerModeNotifier, ComposerMode?, ComposerKey>(
       ComposerModeNotifier.new,
     );
+
+/// Account, room, and the thread's first event ID (`null` for the chat itself).
+typedef ComposerKey = (String, String, String?);
 
 final class ComposerModeNotifier extends Notifier<ComposerMode?> {
   ComposerModeNotifier(this.chat);
 
-  /// Account and room.
-  final (String, String) chat;
+  final ComposerKey chat;
 
   @override
   ComposerMode? build() => null;
@@ -103,17 +108,27 @@ String messageText(TimelineEntry entry) => switch (entry) {
   _ => '',
 };
 
-/// What the user does with one message of a chat; failures show as a snack bar.
+/// What the user does with one message of a chat, or of a thread in it; failures show as a
+/// snack bar.
 final class MessageActions {
-  MessageActions(this._context, this._ref, this.account, this.roomId);
+  MessageActions(
+    this._context,
+    this._ref,
+    this.account,
+    this.roomId, {
+    this.thread,
+  });
 
   final BuildContext _context;
   final WidgetRef _ref;
   final String account;
   final String roomId;
 
+  /// The thread's first event ID, when the message is in a thread's view.
+  final String? thread;
+
   RoomTimeline? get _timeline =>
-      _ref.read(roomTimelineProvider(account, roomId)).value;
+      _ref.read(roomTimelineProvider(account, roomId, thread: thread)).value;
 
   Future<void> _run(
     String what,
@@ -146,12 +161,18 @@ final class MessageActions {
   }
 
   void reply(TimelineEntry entry) => _ref
-      .read(composerModeProvider((account, roomId)).notifier)
+      .read(composerModeProvider((account, roomId, thread)).notifier)
       .set(Replying(entry));
 
   void edit(TimelineEntry entry) => _ref
-      .read(composerModeProvider((account, roomId)).notifier)
+      .read(composerModeProvider((account, roomId, thread)).notifier)
       .set(Editing(entry));
+
+  /// Opens the thread that starts at [entry], beside the chat (or as a page of its own).
+  void openThread(TimelineEntry entry) {
+    final eventId = eventFields(entry)?.meta.eventId;
+    if (eventId != null) _context.go(Routes.thread(roomId, eventId));
+  }
 
   void copy(TimelineEntry entry) =>
       unawaited(Clipboard.setData(ClipboardData(text: messageText(entry))));
@@ -225,6 +246,7 @@ final class MessageActions {
       if (sent && entry is! UndecryptableEntry) ...[
         item('React…', () => unawaited(react(entry))),
         item('Reply', () => reply(entry)),
+        if (thread == null) item('Reply in thread', () => openThread(entry)),
       ],
       if (entry is MessageEntry || entry is MediaEntry)
         item('Copy message', () => copy(entry)),

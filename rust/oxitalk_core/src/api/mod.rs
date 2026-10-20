@@ -16,6 +16,7 @@ pub mod rooms;
 pub mod sections;
 pub mod session;
 pub mod sync;
+pub mod threads;
 pub mod timeline;
 pub mod typing;
 pub mod verification;

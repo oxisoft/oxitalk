@@ -8,6 +8,7 @@ import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/rooms.dart' as rust;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/session.dart' as rust;
+import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
 import '../../util/latest.dart';
@@ -557,6 +558,20 @@ final class RustMatrixSession implements MatrixSession {
   );
 
   @override
+  Future<RoomTimeline> openThread(String roomId, String rootEventId) async =>
+      RustRoomTimeline._(
+        await guarded(
+          () =>
+              _session.threadTimeline(roomId: roomId, rootEventId: rootEventId),
+        ),
+      );
+
+  @override
+  Future<ThreadList> openThreadList(String roomId) async => RustThreadList._(
+    await guarded(() => _session.threadList(roomId: roomId)),
+  );
+
+  @override
   Future<void> logout() async {
     try {
       await guarded(_session.logout);
@@ -593,6 +608,33 @@ final class RustMatrixSession implements MatrixSession {
     unawaited(_verificationStatus.close());
     unawaited(_verificationRequests.close());
     _session.dispose();
+  }
+}
+
+final class RustThreadList implements ThreadList {
+  RustThreadList._(this._list) {
+    _subscription = _list.subscribe().listen(
+      (list) =>
+          _threads.value = [for (final thread in list) roomThreadOf(thread)],
+    );
+  }
+
+  final thread_api.ThreadList _list;
+  late final StreamSubscription<List<thread_api.ThreadSummary>> _subscription;
+  final _threads = Latest<List<RoomThread>>(const []);
+
+  @override
+  Stream<List<RoomThread>> get threads => _threads.stream;
+
+  @override
+  Future<bool> loadMore() => guarded(_list.paginate);
+
+  @override
+  void close() {
+    // Not awaited: see RustMatrixSession.close.
+    unawaited(_subscription.cancel());
+    unawaited(_threads.close());
+    _list.dispose();
   }
 }
 

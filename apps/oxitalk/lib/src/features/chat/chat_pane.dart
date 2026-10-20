@@ -45,6 +45,7 @@ class ChatPane extends ConsumerWidget {
     required this.account,
     required this.roomId,
     required this.showBack,
+    this.windowButtons = true,
     super.key,
   });
 
@@ -52,6 +53,9 @@ class ChatPane extends ConsumerWidget {
   final String account;
   final String roomId;
   final bool showBack;
+
+  /// The window's buttons in the header; off while a pane beside the chat has them.
+  final bool windowButtons;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,7 +78,15 @@ class ChatPane extends ConsumerWidget {
         titleSpacing: showBack ? 0 : null,
         // The rest of the header is the window's title bar.
         flexibleSpace: const WindowDragArea(),
-        actions: const [WindowButtons.right()],
+        actions: [
+          IconButton(
+            key: const Key('chat.threads'),
+            tooltip: 'Threads',
+            icon: const Icon(Icons.forum_outlined),
+            onPressed: () => context.go(Routes.threads(roomId)),
+          ),
+          if (windowButtons) const WindowButtons.right(),
+        ],
         // The picture and name, and only they, open the chat's info.
         title: Align(
           alignment: AlignmentDirectional.centerStart,
@@ -177,11 +189,15 @@ class TimelineView extends ConsumerStatefulWidget {
     required this.account,
     required this.roomId,
     required this.showSenders,
+    this.thread,
     super.key,
   });
 
   final String account;
   final String roomId;
+
+  /// The thread's first event ID, to show that thread instead of the chat.
+  final String? thread;
 
   /// Names above other people's messages; off in direct chats.
   final bool showSenders;
@@ -204,8 +220,13 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   String? _readUpTo;
   late final AppLifecycleListener _lifecycle;
 
-  MessageActions get _actions =>
-      MessageActions(context, ref, widget.account, widget.roomId);
+  MessageActions get _actions => MessageActions(
+    context,
+    ref,
+    widget.account,
+    widget.roomId,
+    thread: widget.thread,
+  );
 
   @override
   void initState() {
@@ -226,12 +247,24 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     if (!mounted || !_atBottom) return;
     if (state != null && state != AppLifecycleState.resumed) return;
     final newest = ref
-        .read(timelineEntriesProvider(widget.account, widget.roomId))
+        .read(
+          timelineEntriesProvider(
+            widget.account,
+            widget.roomId,
+            thread: widget.thread,
+          ),
+        )
         .value
         ?.lastOrNull
         ?.id;
     final timeline = ref
-        .read(roomTimelineProvider(widget.account, widget.roomId))
+        .read(
+          roomTimelineProvider(
+            widget.account,
+            widget.roomId,
+            thread: widget.thread,
+          ),
+        )
         .value;
     if (newest == null || newest == _readUpTo || timeline == null) return;
     _readUpTo = newest;
@@ -247,7 +280,13 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   Future<void> _loadOlder() async {
     if (_loadingOlder || _reachedStart) return;
     final timeline = ref
-        .read(roomTimelineProvider(widget.account, widget.roomId))
+        .read(
+          roomTimelineProvider(
+            widget.account,
+            widget.roomId,
+            thread: widget.thread,
+          ),
+        )
         .value;
     if (timeline == null) return;
     _loadingOlder = true;
@@ -274,7 +313,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   @override
   Widget build(BuildContext context) {
     final entries = ref.watch(
-      timelineEntriesProvider(widget.account, widget.roomId),
+      timelineEntriesProvider(
+        widget.account,
+        widget.roomId,
+        thread: widget.thread,
+      ),
     );
     return switch (entries) {
       AsyncData(value: final entries) => _list(entries),
@@ -425,6 +468,8 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       ),
     };
     final canAct = meta.eventId != null && entry is! RedactedEntry;
+    // In the chat, a thread shows under its first message; in the thread, it is all around.
+    final thread = widget.thread == null ? meta.thread : null;
     return MessageBubble(
       key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
       isOwn: fields.isOwn,
@@ -458,10 +503,21 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
               reactions: meta.reactions,
               onToggle: (key) => unawaited(_actions.toggleReaction(entry, key)),
             ),
+      thread: thread == null || meta.eventId == null
+          ? null
+          : ThreadBar(
+              key: Key('thread.bar.${meta.eventId}'),
+              account: widget.account,
+              thread: thread,
+              onTap: () => _actions.openThread(entry),
+            ),
       hoverActions: canAct && entry is! UndecryptableEntry
           ? _HoverActions(
               onReact: () => unawaited(_actions.react(entry)),
               onReply: () => _actions.reply(entry),
+              onThread: widget.thread == null
+                  ? () => _actions.openThread(entry)
+                  : null,
               menu: () => _actions.menuItems(
                 entry,
                 canRedactOthers: canRedactOthers,
@@ -562,16 +618,19 @@ class _FailedActions extends StatelessWidget {
   );
 }
 
-/// The small toolbar beside a message under the mouse: react, reply, and the rest.
+/// The small toolbar beside a message under the mouse: react, reply, reply in a thread (in
+/// the chat), and the rest.
 class _HoverActions extends StatelessWidget {
   const _HoverActions({
     required this.onReact,
     required this.onReply,
     required this.menu,
+    this.onThread,
   });
 
   final VoidCallback onReact;
   final VoidCallback onReply;
+  final VoidCallback? onThread;
 
   /// The message menu's items, made when it opens.
   final List<ContextMenuButtonItem> Function() menu;
@@ -596,6 +655,13 @@ class _HoverActions extends StatelessWidget {
           Icons.reply_rounded,
           onReply,
         ),
+        if (onThread case final onThread?)
+          _toolbarButton(
+            const Key('hover.thread'),
+            'Reply in thread',
+            Icons.forum_outlined,
+            onThread,
+          ),
         Builder(
           builder: (context) => _toolbarButton(
             const Key('hover.more'),
@@ -655,6 +721,7 @@ class MessageBubble extends StatefulWidget {
     this.quote,
     this.footer = const [],
     this.reactions,
+    this.thread,
     this.hoverActions,
     super.key,
   });
@@ -680,6 +747,9 @@ class MessageBubble extends StatefulWidget {
 
   /// Under the bubble.
   final Widget? reactions;
+
+  /// Under the reactions: the thread that starts at this message.
+  final Widget? thread;
 
   /// Shown beside the bubble while the mouse is over the message.
   final Widget? hoverActions;
@@ -768,7 +838,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [bubble, ?reactions],
+      children: [bubble, ?reactions, ?widget.thread],
     );
     final hoverActions = widget.hoverActions;
     // Room kept for the toolbar, so the message doesn't move when it shows.
@@ -842,12 +912,20 @@ class _SendStateIcon extends StatelessWidget {
 }
 
 /// The message box: text with emojis, files by 📎, paste or drop; a reply or an edit when the
-/// message menu started one (Esc cancels).
+/// message menu started one (Esc cancels). With [thread], it writes into that thread.
 class Composer extends ConsumerStatefulWidget {
-  const Composer({required this.account, required this.roomId, super.key});
+  const Composer({
+    required this.account,
+    required this.roomId,
+    this.thread,
+    super.key,
+  });
 
   final String account;
   final String roomId;
+
+  /// The thread's first event ID.
+  final String? thread;
 
   @override
   ConsumerState<Composer> createState() => _ComposerState();
@@ -867,7 +945,17 @@ class _ComposerState extends ConsumerState<Composer> {
   /// Where the last notice went; `ref` can't be used once the composer is gone.
   RoomTimeline? _typingIn;
 
-  (String, String) get _chat => (widget.account, widget.roomId);
+  ComposerKey get _chat => (widget.account, widget.roomId, widget.thread);
+
+  RoomTimeline? get _timeline => ref
+      .read(
+        roomTimelineProvider(
+          widget.account,
+          widget.roomId,
+          thread: widget.thread,
+        ),
+      )
+      .value;
 
   @override
   void initState() {
@@ -903,9 +991,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _sendTyping(bool typing) {
     _typing = typing;
-    final timeline = ref
-        .read(roomTimelineProvider(widget.account, widget.roomId))
-        .value;
+    final timeline = _timeline;
     _typingIn = timeline;
     unawaited(
       timeline?.setTyping(typing).catchError((Object _) {
@@ -923,9 +1009,7 @@ class _ComposerState extends ConsumerState<Composer> {
         ? withTrailingEmoticon(typed)
         : typed;
     final mode = ref.read(composerModeProvider(_chat));
-    final timeline = ref
-        .read(roomTimelineProvider(widget.account, widget.roomId))
-        .value;
+    final timeline = _timeline;
     // An empty edit of a caption removes it; empty text sends nothing.
     final editingCaption = mode is Editing && mode.entry is MediaEntry;
     if ((text.isEmpty && !editingCaption) || timeline == null) return;
@@ -971,6 +1055,7 @@ class _ComposerState extends ConsumerState<Composer> {
       account: widget.account,
       roomId: widget.roomId,
       files: files,
+      thread: widget.thread,
     );
   }
 
@@ -992,6 +1077,7 @@ class _ComposerState extends ConsumerState<Composer> {
         account: widget.account,
         roomId: widget.roomId,
         files: pending,
+        thread: widget.thread,
       );
       return;
     }
@@ -1096,8 +1182,10 @@ class _ComposerState extends ConsumerState<Composer> {
                         maxLines: 6,
                         textCapitalization: TextCapitalization.sentences,
                         inputFormatters: [_emoticons],
-                        decoration: const InputDecoration(
-                          hintText: 'Message',
+                        decoration: InputDecoration(
+                          hintText: widget.thread == null
+                              ? 'Message'
+                              : 'Reply in thread',
                           border: InputBorder.none,
                         ),
                       ),
@@ -1178,6 +1266,88 @@ class _ModeBar extends StatelessWidget {
             onPressed: onCancel,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Under a thread's first message: how many replies, who wrote the latest and when; opens
+/// the thread.
+class ThreadBar extends StatelessWidget {
+  const ThreadBar({
+    required this.account,
+    required this.thread,
+    required this.onTap,
+    super.key,
+  });
+
+  final String account;
+  final ThreadSummary thread;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = thread.latest;
+    final small = Theme.of(context).textTheme.bodySmall;
+    return SelectionContainer.disabled(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 4),
+        child: Material(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 12, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (latest != null) ...[
+                    MatrixAvatar(
+                      account: account,
+                      url: latest.senderAvatarUrl,
+                      name: latest.senderName ?? latest.sender,
+                      seed: latest.sender,
+                      radius: 10,
+                    ),
+                    const SizedBox(width: 6),
+                  ] else ...[
+                    const Icon(
+                      Icons.forum_outlined,
+                      size: 16,
+                      color: OxiColors.accent,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  // Narrow bubbles shorten the texts rather than overflow.
+                  Flexible(
+                    child: Text(
+                      replyCountLabel(thread.replyCount),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: OxiColors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (latest != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        listTime(latest.time),
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        style: small,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

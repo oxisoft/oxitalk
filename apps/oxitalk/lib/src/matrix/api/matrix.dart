@@ -135,6 +135,13 @@ abstract interface class MatrixSession {
   /// A timeline of only the room's files and messages with links.
   Future<RoomTimeline> openMediaTimeline(String roomId);
 
+  /// The thread that starts at the message [rootEventId]: that message, then the replies.
+  /// What is sent through it goes into the thread.
+  Future<RoomTimeline> openThread(String roomId, String rootEventId);
+
+  /// The room's threads, most recent first.
+  Future<ThreadList> openThreadList(String roomId);
+
   /// The emojis the user used lately, the last used first; the same on every device.
   Future<List<String>> recentEmojis();
 
@@ -196,6 +203,17 @@ abstract interface class MatrixSession {
 
   /// Stops syncing and frees the session, keeping it saved.
   Future<void> close();
+}
+
+/// A room's threads; nothing is loaded until [loadMore].
+abstract interface class ThreadList {
+  /// The threads loaded so far, then the list after every change.
+  Stream<List<RoomThread>> get threads;
+
+  /// Loads the next, older page. Returns `true` once there are no more.
+  Future<bool> loadMore();
+
+  void close();
 }
 
 abstract interface class RoomTimeline {

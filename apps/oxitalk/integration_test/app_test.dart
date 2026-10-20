@@ -11,6 +11,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:oxitalk/src/app/account_pictures.dart';
 import 'package:oxitalk/src/app/app.dart';
 import 'package:oxitalk/src/app/collapsed_sections.dart';
+import 'package:oxitalk/src/features/chat/chat_pane.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
@@ -208,6 +209,44 @@ void main() {
     );
     await bobTimeline.toggleReaction(hiBob.meta.ref!, '👍');
     await _pumpUntil(tester, find.text('👍 1'));
+
+    // Bob answers "Hi Bob!" in a thread: Alice sees "1 reply" under it, not the reply. She
+    // opens the thread and answers there; Bob gets it in the thread. Esc closes it.
+    final bobThread = await bobSession.openThread(roomId, hiBob.meta.eventId!);
+    addTearDown(() => _bounded(bobThread.close));
+    await bobThread.send('Thread from Bob');
+    final threadBar = find.byKey(Key('thread.bar.${hiBob.meta.eventId}'));
+    await _pumpUntil(
+      tester,
+      find.descendant(of: threadBar, matching: find.text('1 reply')),
+    );
+    // Not in the chat (the chat list's preview may show it).
+    expect(
+      find.descendant(
+        of: find.byType(TimelineView),
+        matching: find.text('Thread from Bob'),
+      ),
+      findsNothing,
+    );
+    await tester.tap(threadBar);
+    await _pumpUntil(tester, find.text('Thread from Bob'));
+    await _type(
+      tester,
+      find.byKey(const Key('composer.text')).last,
+      'Thread from Alice',
+    );
+    await tester.tap(find.byKey(const Key('composer.send')).last);
+    await bobThread.entries
+        .firstWhere(
+          (entries) => entries.any(
+            (e) =>
+                e is MessageEntry && e.body == 'Thread from Alice' && !e.isOwn,
+          ),
+        )
+        .timeout(_timeout);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _pumpFor(tester, const Duration(milliseconds: 500));
+    expect(find.byKey(const Key('thread.close')), findsNothing);
 
     // Bob's chat goes to Favorites, then to a new section; the tags round-trip the server.
     final bobTile = find.widgetWithText(ListTile, bob.name);

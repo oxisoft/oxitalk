@@ -9,13 +9,14 @@ import '../../matrix/api/matrix.dart';
 import '../../ui/format.dart';
 
 /// Shows [files] with a caption field and, for photos, a Compress switch; on Send, sends
-/// them to the chat. The caption goes with the first file.
+/// them to the chat, or with [thread] into that thread. The caption goes with the first file.
 Future<void> confirmAndSendFiles(
   BuildContext context,
   WidgetRef ref, {
   required String account,
   required String roomId,
   required List<PendingFile> files,
+  String? thread,
 }) async {
   if (files.isEmpty) return;
   final messenger = ScaffoldMessenger.of(context);
@@ -23,7 +24,9 @@ Future<void> confirmAndSendFiles(
     context: context,
     builder: (_) => _SendFilesDialog(files: files),
   );
-  final timeline = ref.read(roomTimelineProvider(account, roomId)).value;
+  final timeline = ref
+      .read(roomTimelineProvider(account, roomId, thread: thread))
+      .value;
   final markdown = ref.read(useMarkdownProvider);
   if (choice == null || timeline == null) return;
   for (final (index, file) in files.indexed) {

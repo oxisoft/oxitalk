@@ -40,6 +40,7 @@ use oxitalk_core::api::{
     rooms::{NewRoom, RoomAvatar},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
     session::{Session, login, restore},
+    threads::ThreadSummary,
     timeline::{EventInfo, MediaKind, MediaMessage, SendState, TimelineItem, TimelineItemContent},
     verification::{Verification, VerificationFlowState, VerificationStatus},
 };
@@ -606,6 +607,92 @@ fn event_of<'a>(items: &'a [TimelineItem], body: &str) -> Option<&'a EventInfo> 
         TimelineItemContent::Message { event, body: b, .. } if b == body => Some(event),
         _ => None,
     })
+}
+
+/// A reply in a thread stays in the thread: the main timeline shows only the thread's first
+/// message with how many replies it has and the latest; the thread and the room's thread list
+/// show the rest.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn replies_in_a_thread_stay_in_it() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let mut alice_items = watch_timeline(&alice_timeline).await;
+    alice_timeline.send_text("lunch?".to_owned(), false).await?;
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_items
+        .wait_until(|items| event_of(items, "lunch?").is_some_and(|e| e.event_id.is_some()))
+        .await?;
+    let root = event_of(&bob_items.items, "lunch?")
+        .and_then(|e| e.event_id.clone())
+        .ok_or("no event ID")?;
+
+    let bob_thread = bob.thread_timeline(room_id.clone(), root.clone()).await?;
+    bob_thread.send_text("pizza".to_owned(), false).await?;
+
+    // Alice: the first message carries the thread; the reply isn't in the main timeline.
+    alice_items
+        .wait_until(|items| {
+            event_of(items, "lunch?").is_some_and(|e| {
+                e.thread.as_ref().is_some_and(|thread| {
+                    thread.reply_count == 1
+                        && thread
+                            .latest
+                            .as_ref()
+                            .is_some_and(|latest| latest.text.as_deref() == Some("pizza"))
+                })
+            })
+        })
+        .await?;
+    assert!(event_of(&alice_items.items, "pizza").is_none());
+
+    // The thread has its first message, then the reply, which Alice answers there.
+    let alice_thread = alice.thread_timeline(room_id.clone(), root.clone()).await?;
+    let mut thread_items = watch_timeline(&alice_thread).await;
+    alice_thread.paginate_back(20).await?;
+    thread_items
+        .wait_until(|items| {
+            event_of(items, "lunch?").is_some() && event_of(items, "pizza").is_some()
+        })
+        .await?;
+    alice_thread.send_text("deal".to_owned(), false).await?;
+    alice_items
+        .wait_until(|items| {
+            event_of(items, "lunch?")
+                .is_some_and(|e| e.thread.as_ref().is_some_and(|t| t.reply_count == 2))
+        })
+        .await?;
+    assert!(event_of(&alice_items.items, "deal").is_none());
+
+    // The room's thread list.
+    let list = alice.thread_list(room_id).await?;
+    let (sender, mut lists) = mpsc::unbounded_channel();
+    list.updates(move |threads| sender.send(threads).is_ok())
+        .await;
+    list.paginate().await?;
+    let found = tokio::time::timeout(TIMEOUT, async {
+        while let Some(threads) = lists.recv().await {
+            if let Some(thread) = threads
+                .into_iter()
+                .find(|t: &ThreadSummary| t.root_event_id == root)
+                && thread.reply_count == 2
+            {
+                return Some(thread);
+            }
+        }
+        None
+    })
+    .await
+    .map_err(|_| "the thread never showed in the list with both replies")?
+    .ok_or("the list stream ended")?;
+    assert_eq!(found.root.text.as_deref(), Some("lunch?"));
+    assert_eq!(found.root.sender, alice.user_id());
+    assert_eq!(
+        found.latest.and_then(|latest| latest.text).as_deref(),
+        Some("deal")
+    );
+    Ok(())
 }
 
 /// Reactions, replies, edits and deletions reach the other side.

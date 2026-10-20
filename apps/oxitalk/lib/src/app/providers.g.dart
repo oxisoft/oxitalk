@@ -2679,8 +2679,12 @@ final class UnreadCountFamily extends $Family
   String toString() => r'unreadCountProvider';
 }
 
+/// A room's timeline, or with [thread] the thread that starts at that event.
+
 @ProviderFor(roomTimeline)
 final roomTimelineProvider = RoomTimelineFamily._();
+
+/// A room's timeline, or with [thread] the thread that starts at that event.
 
 final class RoomTimelineProvider
     extends
@@ -2690,9 +2694,10 @@ final class RoomTimelineProvider
           FutureOr<RoomTimeline>
         >
     with $FutureModifier<RoomTimeline>, $FutureProvider<RoomTimeline> {
+  /// A room's timeline, or with [thread] the thread that starts at that event.
   RoomTimelineProvider._({
     required RoomTimelineFamily super.from,
-    required (String, String) super.argument,
+    required (String, String, {String? thread}) super.argument,
   }) : super(
          retry: null,
          name: r'roomTimelineProvider',
@@ -2719,8 +2724,8 @@ final class RoomTimelineProvider
 
   @override
   FutureOr<RoomTimeline> create(Ref ref) {
-    final argument = this.argument as (String, String);
-    return roomTimeline(ref, argument.$1, argument.$2);
+    final argument = this.argument as (String, String, {String? thread});
+    return roomTimeline(ref, argument.$1, argument.$2, thread: argument.thread);
   }
 
   @override
@@ -2734,10 +2739,16 @@ final class RoomTimelineProvider
   }
 }
 
-String _$roomTimelineHash() => r'4a7425da15aba5d756162c8189ecd6edf2b1d9ed';
+String _$roomTimelineHash() => r'32bdfdf9924c3e45d9478a0360f88178d713f2c1';
+
+/// A room's timeline, or with [thread] the thread that starts at that event.
 
 final class RoomTimelineFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<RoomTimeline>, (String, String)> {
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<RoomTimeline>,
+          (String, String, {String? thread})
+        > {
   RoomTimelineFamily._()
     : super(
         retry: null,
@@ -2747,8 +2758,13 @@ final class RoomTimelineFamily extends $Family
         isAutoDispose: true,
       );
 
-  RoomTimelineProvider call(String account, String roomId) =>
-      RoomTimelineProvider._(argument: (account, roomId), from: this);
+  /// A room's timeline, or with [thread] the thread that starts at that event.
+
+  RoomTimelineProvider call(String account, String roomId, {String? thread}) =>
+      RoomTimelineProvider._(
+        argument: (account, roomId, thread: thread),
+        from: this,
+      );
 
   @override
   String toString() => r'roomTimelineProvider';
@@ -2777,7 +2793,7 @@ final class TimelineEntriesProvider
   /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
   TimelineEntriesProvider._({
     required TimelineEntriesFamily super.from,
-    required (String, String) super.argument,
+    required (String, String, {String? thread}) super.argument,
   }) : super(
          retry: null,
          name: r'timelineEntriesProvider',
@@ -2804,8 +2820,13 @@ final class TimelineEntriesProvider
 
   @override
   Stream<List<TimelineEntry>> create(Ref ref) {
-    final argument = this.argument as (String, String);
-    return timelineEntries(ref, argument.$1, argument.$2);
+    final argument = this.argument as (String, String, {String? thread});
+    return timelineEntries(
+      ref,
+      argument.$1,
+      argument.$2,
+      thread: argument.thread,
+    );
   }
 
   @override
@@ -2819,7 +2840,7 @@ final class TimelineEntriesProvider
   }
 }
 
-String _$timelineEntriesHash() => r'0e3e705846fbf510e05fdc3450105e0924e33af3';
+String _$timelineEntriesHash() => r'd7555d1e1799d115b16e7e2da239fc9780a72d58';
 
 /// Follows the timeline's state rather than awaiting its `future`: a logout disposes both
 /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
@@ -2828,7 +2849,7 @@ final class TimelineEntriesFamily extends $Family
     with
         $FunctionalFamilyOverride<
           Stream<List<TimelineEntry>>,
-          (String, String)
+          (String, String, {String? thread})
         > {
   TimelineEntriesFamily._()
     : super(
@@ -2842,9 +2863,182 @@ final class TimelineEntriesFamily extends $Family
   /// Follows the timeline's state rather than awaiting its `future`: a logout disposes both
   /// while the timeline may still be opening, and an awaited `future` then fails unhandled.
 
-  TimelineEntriesProvider call(String account, String roomId) =>
-      TimelineEntriesProvider._(argument: (account, roomId), from: this);
+  TimelineEntriesProvider call(
+    String account,
+    String roomId, {
+    String? thread,
+  }) => TimelineEntriesProvider._(
+    argument: (account, roomId, thread: thread),
+    from: this,
+  );
 
   @override
   String toString() => r'timelineEntriesProvider';
+}
+
+/// The room's threads, for its thread list; closed when no longer shown.
+
+@ProviderFor(threadList)
+final threadListProvider = ThreadListFamily._();
+
+/// The room's threads, for its thread list; closed when no longer shown.
+
+final class ThreadListProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ThreadList>,
+          ThreadList,
+          FutureOr<ThreadList>
+        >
+    with $FutureModifier<ThreadList>, $FutureProvider<ThreadList> {
+  /// The room's threads, for its thread list; closed when no longer shown.
+  ThreadListProvider._({
+    required ThreadListFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'threadListProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$threadListHash();
+
+  @override
+  String toString() {
+    return r'threadListProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<ThreadList> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<ThreadList> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return threadList(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ThreadListProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$threadListHash() => r'fae9fcce72ee55dcc616087e38860c5020644943';
+
+/// The room's threads, for its thread list; closed when no longer shown.
+
+final class ThreadListFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<ThreadList>, (String, String)> {
+  ThreadListFamily._()
+    : super(
+        retry: null,
+        name: r'threadListProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The room's threads, for its thread list; closed when no longer shown.
+
+  ThreadListProvider call(String account, String roomId) =>
+      ThreadListProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'threadListProvider';
+}
+
+/// As [timelineEntries], for [threadList].
+
+@ProviderFor(roomThreads)
+final roomThreadsProvider = RoomThreadsFamily._();
+
+/// As [timelineEntries], for [threadList].
+
+final class RoomThreadsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<RoomThread>>,
+          List<RoomThread>,
+          Stream<List<RoomThread>>
+        >
+    with $FutureModifier<List<RoomThread>>, $StreamProvider<List<RoomThread>> {
+  /// As [timelineEntries], for [threadList].
+  RoomThreadsProvider._({
+    required RoomThreadsFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'roomThreadsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$roomThreadsHash();
+
+  @override
+  String toString() {
+    return r'roomThreadsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<List<RoomThread>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<RoomThread>> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return roomThreads(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomThreadsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$roomThreadsHash() => r'05c9dd4c286c952d0a3cce86d967b98abe5e62e7';
+
+/// As [timelineEntries], for [threadList].
+
+final class RoomThreadsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<List<RoomThread>>, (String, String)> {
+  RoomThreadsFamily._()
+    : super(
+        retry: null,
+        name: r'roomThreadsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// As [timelineEntries], for [threadList].
+
+  RoomThreadsProvider call(String account, String roomId) =>
+      RoomThreadsProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'roomThreadsProvider';
 }

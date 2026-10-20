@@ -455,11 +455,51 @@ final class FakeSession implements MatrixSession {
   Future<RoomTimeline> openTimeline(String roomId) async =>
       timelines.putIfAbsent(roomId, () => FakeTimeline(ownUserId: userId));
 
+  /// The timelines [openThread] returns, by thread root event ID.
+  final threadTimelines = <String, FakeTimeline>{};
+
+  @override
+  Future<RoomTimeline> openThread(String roomId, String rootEventId) async =>
+      threadTimelines.putIfAbsent(
+        rootEventId,
+        () => FakeTimeline(ownUserId: userId),
+      );
+
+  /// The thread lists [openThreadList] returns, by room ID.
+  final threadLists = <String, FakeThreadList>{};
+
+  @override
+  Future<ThreadList> openThreadList(String roomId) async =>
+      threadLists.putIfAbsent(roomId, FakeThreadList.new);
+
   @override
   Future<void> logout() async => loggedOut = true;
 
   @override
   Future<void> close() async {}
+}
+
+final class FakeThreadList implements ThreadList {
+  FakeThreadList([List<RoomThread> threads = const []])
+    : _threads = Latest(threads);
+
+  final Latest<List<RoomThread>> _threads;
+  var loads = 0;
+  var closed = false;
+
+  set threadList(List<RoomThread> threads) => _threads.value = threads;
+
+  @override
+  Stream<List<RoomThread>> get threads => _threads.stream;
+
+  @override
+  Future<bool> loadMore() async {
+    loads++;
+    return true;
+  }
+
+  @override
+  void close() => closed = true;
 }
 
 final class FakeTimeline implements RoomTimeline {

@@ -14,6 +14,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
+import '../chat/threads.dart';
 import '../chat_info/chat_info.dart';
 import 'finders.dart';
 import 'new_room.dart';
@@ -21,15 +22,28 @@ import 'room_groups.dart';
 import 'section_actions.dart';
 
 /// The active account's chats: on a wide window the account rail (unless hidden), the list
-/// (perhaps narrowed) and the open chat or its info side by side; otherwise the list alone.
+/// (perhaps narrowed) and the open chat or its info side by side, with a thread or the thread
+/// list beside the chat; otherwise the list alone.
 class ChatsScreen extends ConsumerWidget {
-  const ChatsScreen({this.roomId, this.showInfo = false, super.key});
+  const ChatsScreen({
+    this.roomId,
+    this.showInfo = false,
+    this.thread,
+    this.showThreads = false,
+    super.key,
+  });
 
   /// The open chat, if any.
   final String? roomId;
 
   /// The open chat's info, in the chat's place.
   final bool showInfo;
+
+  /// The thread open beside the chat: the event ID of its first message.
+  final String? thread;
+
+  /// The chat's thread list, beside it.
+  final bool showThreads;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -73,12 +87,7 @@ class ChatsScreen extends ConsumerWidget {
                     account: account,
                     roomId: id,
                   ),
-                  final id? => ChatPane(
-                    key: ValueKey((account, id)),
-                    account: account,
-                    roomId: id,
-                    showBack: false,
-                  ),
+                  final id? => _withSide(account, id),
                   null => WelcomePane(account: account),
                 },
               ),
@@ -86,6 +95,43 @@ class ChatsScreen extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+extension on ChatsScreen {
+  /// The chat, and beside it the open thread or the thread list.
+  Widget _withSide(String account, String roomId) {
+    final side = switch ((thread, showThreads)) {
+      (final root?, _) => ThreadPane(
+        key: ValueKey((account, roomId, root)),
+        account: account,
+        roomId: roomId,
+        rootEventId: root,
+        showBack: false,
+      ),
+      (null, true) => ThreadListPane(
+        key: ValueKey((account, roomId, 'threads')),
+        account: account,
+        roomId: roomId,
+        showBack: false,
+      ),
+      _ => null,
+    };
+    final chat = ChatPane(
+      key: ValueKey((account, roomId)),
+      account: account,
+      roomId: roomId,
+      showBack: false,
+      windowButtons: side == null,
+    );
+    if (side == null) return chat;
+    return Row(
+      children: [
+        Expanded(child: chat),
+        const VerticalDivider(width: 1),
+        SizedBox(width: 400, child: ScaffoldMessenger(child: side)),
+      ],
     );
   }
 }

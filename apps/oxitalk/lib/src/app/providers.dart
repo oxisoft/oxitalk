@@ -457,12 +457,14 @@ int unreadCount(Ref ref, String account) => [
     room.membership == Membership.invited ? 1 : room.unreadCount,
 ].fold(0, (sum, count) => sum + count);
 
+/// A room's timeline, or with [thread] the thread that starts at that event.
 @riverpod
 Future<RoomTimeline> roomTimeline(
   Ref ref,
   String account,
-  String roomId,
-) async {
+  String roomId, {
+  String? thread,
+}) async {
   final session = _session(ref, account);
   if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
   RoomTimeline? timeline;
@@ -471,7 +473,9 @@ Future<RoomTimeline> roomTimeline(
     disposed = true;
     timeline?.close();
   });
-  timeline = await session.openTimeline(roomId);
+  timeline = thread == null
+      ? await session.openTimeline(roomId)
+      : await session.openThread(roomId, thread);
   if (disposed) timeline.close();
   return timeline;
 }
@@ -482,12 +486,42 @@ Future<RoomTimeline> roomTimeline(
 Stream<List<TimelineEntry>> timelineEntries(
   Ref ref,
   String account,
-  String roomId,
-) => switch (ref.watch(roomTimelineProvider(account, roomId))) {
-  AsyncData(:final value) => value.entries,
-  AsyncError(:final error, :final stackTrace) => Stream.error(
-    error,
-    stackTrace,
-  ),
-  _ => const Stream.empty(),
-};
+  String roomId, {
+  String? thread,
+}) =>
+    switch (ref.watch(roomTimelineProvider(account, roomId, thread: thread))) {
+      AsyncData(:final value) => value.entries,
+      AsyncError(:final error, :final stackTrace) => Stream.error(
+        error,
+        stackTrace,
+      ),
+      _ => const Stream.empty(),
+    };
+
+/// The room's threads, for its thread list; closed when no longer shown.
+@riverpod
+Future<ThreadList> threadList(Ref ref, String account, String roomId) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  ThreadList? list;
+  var disposed = false;
+  ref.onDispose(() {
+    disposed = true;
+    list?.close();
+  });
+  list = await session.openThreadList(roomId);
+  if (disposed) list.close();
+  return list;
+}
+
+/// As [timelineEntries], for [threadList].
+@riverpod
+Stream<List<RoomThread>> roomThreads(Ref ref, String account, String roomId) =>
+    switch (ref.watch(threadListProvider(account, roomId))) {
+      AsyncData(:final value) => value.threads,
+      AsyncError(:final error, :final stackTrace) => Stream.error(
+        error,
+        stackTrace,
+      ),
+      _ => const Stream.empty(),
+    };

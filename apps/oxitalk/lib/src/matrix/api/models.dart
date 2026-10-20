@@ -155,14 +155,62 @@ final class ReplyQuote {
   final String? text;
 }
 
+/// A message in a thread as the thread's summary or the thread list shows it.
+final class ThreadEvent {
+  const ThreadEvent({
+    required this.sender,
+    required this.time,
+    this.senderName,
+    this.senderAvatarUrl,
+    this.text,
+  });
+
+  final String sender;
+  final String? senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
+
+  /// Its text, or a file's caption or name; `null` for other events.
+  final String? text;
+  final DateTime time;
+}
+
+/// A thread under its first message: how many replies, and the latest.
+final class ThreadSummary {
+  const ThreadSummary({required this.replyCount, this.latest});
+
+  final int replyCount;
+
+  /// `null` until the latest reply is loaded.
+  final ThreadEvent? latest;
+}
+
+/// One thread of a room, for the room's thread list.
+final class RoomThread {
+  const RoomThread({
+    required this.rootEventId,
+    required this.root,
+    required this.replyCount,
+    this.latest,
+  });
+
+  /// The event ID of the thread's first message, which opens it.
+  final String rootEventId;
+  final ThreadEvent root;
+  final ThreadEvent? latest;
+  final int replyCount;
+}
+
 /// What every message has besides its content: how to name it for actions, its reactions,
-/// what it answers, and whether it was edited.
+/// what it answers, its thread, and whether it was edited.
 final class EventMeta {
   const EventMeta({
     this.eventId,
     this.transactionId,
     this.reactions = const [],
     this.inReplyTo,
+    this.thread,
     this.isEdited = false,
     this.isEditable = false,
     this.uploadPercent,
@@ -175,6 +223,9 @@ final class EventMeta {
   final String? transactionId;
   final List<Reaction> reactions;
   final ReplyQuote? inReplyTo;
+
+  /// The thread that starts at this message, if it has replies.
+  final ThreadSummary? thread;
   final bool isEdited;
 
   /// The user's own text message or caption.

@@ -3,6 +3,7 @@ import '../../rust/api/rich_text.dart' as rust;
 import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/sections.dart' as rust;
+import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
 import '../../util/log.dart';
@@ -255,9 +256,37 @@ EventMeta metaOf(rust.EventInfo event) => EventMeta(
     ),
     null => null,
   },
+  thread: switch (event.thread) {
+    final thread? => ThreadSummary(
+      replyCount: thread.replyCount,
+      latest: switch (thread.latest) {
+        final latest? => threadEventOf(latest),
+        null => null,
+      },
+    ),
+    null => null,
+  },
   isEdited: event.isEdited,
   isEditable: event.isEditable,
   uploadPercent: event.uploadPercent,
+);
+
+ThreadEvent threadEventOf(rust.ThreadEvent event) => ThreadEvent(
+  sender: event.sender,
+  senderName: event.senderName,
+  senderAvatarUrl: event.senderAvatarUrl,
+  text: event.text,
+  time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs.toInt()),
+);
+
+RoomThread roomThreadOf(thread_api.ThreadSummary thread) => RoomThread(
+  rootEventId: thread.rootEventId,
+  root: threadEventOf(thread.root),
+  latest: switch (thread.latest) {
+    final latest? => threadEventOf(latest),
+    null => null,
+  },
+  replyCount: thread.replyCount,
 );
 
 List<RichBlock> richOf(List<rust.RichBlock> blocks) => [

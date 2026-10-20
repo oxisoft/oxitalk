@@ -16,6 +16,7 @@ import 'room_list.dart';
 import 'rooms.dart';
 import 'sections.dart';
 import 'sync.dart';
+import 'threads.dart';
 import 'timeline.dart';
 import 'typing.dart';
 import 'verification.dart';
@@ -364,6 +365,25 @@ abstract class Session implements RustOpaqueInterface {
   /// Sends the current [`VerificationStatus`], then every change.
   Stream<VerificationStatus> subscribeVerificationStatus();
 
+  /// The threads of a room the user is in. Nothing is loaded until
+  /// [`ThreadList::paginate`].
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<ThreadList> threadList({required String roomId});
+
+  /// Opens the thread that starts at the event `root_event_id`: its first message, then the
+  /// replies. Whatever is sent through it goes into the thread.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or if the thread can't be loaded.
+  Future<Timeline> threadTimeline({
+    required String roomId,
+    required String rootEventId,
+  });
+
   /// A square thumbnail of the picture at `mxc_uri`, about `size` pixels wide, as encoded
   /// image bytes.
   ///
@@ -372,7 +392,8 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] for a malformed `mxc://` URI, otherwise as the server answers.
   Future<Uint8List> thumbnail({required String mxcUri, required int size});
 
-  /// Opens the timeline of a room the user is in.
+  /// Opens the timeline of a room the user is in. Replies in threads stay in their threads;
+  /// a thread's first message carries [`EventInfo::thread`].
   ///
   /// # Errors
   ///

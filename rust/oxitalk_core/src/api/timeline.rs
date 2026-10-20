@@ -26,9 +26,9 @@ use matrix_sdk::{
 use matrix_sdk_ui::{
     eyeball_im::VectorDiff,
     timeline::{
-        self, AttachmentConfig, AttachmentSource, EventSendState, EventTimelineItem,
-        InReplyToDetails, RoomExt, SendTarget, TimelineDetails, TimelineEventItemId,
-        TimelineItemKind, VirtualTimelineItem,
+        self, AttachmentConfig, AttachmentSource, EmbeddedEvent, EventSendState, EventTimelineItem,
+        InReplyToDetails, Profile, RoomExt, SendTarget, TimelineDetails, TimelineEventItemId,
+        TimelineFocus, TimelineItemKind, VirtualTimelineItem,
     },
 };
 use tokio::task::AbortHandle;
@@ -105,6 +105,8 @@ pub struct EventInfo {
     pub reactions: Vec<Reaction>,
     /// The message this one answers.
     pub in_reply_to: Option<ReplyQuote>,
+    /// The thread that starts at this message, if it has replies.
+    pub thread: Option<ThreadInfo>,
     pub is_edited: bool,
     /// Whether the user can edit it: their own text message or caption.
     pub is_editable: bool,
@@ -118,6 +120,26 @@ pub struct Reaction {
     pub senders: Vec<String>,
     /// Whether the user is among them.
     pub mine: bool,
+}
+
+/// A thread under its first message: how many replies, and the latest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThreadInfo {
+    pub reply_count: u32,
+    /// `None` until the latest reply is loaded.
+    pub latest: Option<ThreadEvent>,
+}
+
+/// A message in a thread as the thread's summary or list shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThreadEvent {
+    pub sender: String,
+    pub sender_name: Option<String>,
+    /// An `mxc://` URI.
+    pub sender_avatar_url: Option<String>,
+    /// Its text, or a file's caption or name; `None` for other events.
+    pub text: Option<String>,
+    pub timestamp_ms: i64,
 }
 
 /// What a reply shows of the message it answers.
@@ -185,22 +207,51 @@ pub enum TimelineDiff {
 }
 
 impl Session {
-    /// Opens the timeline of a room the user is in.
+    /// Opens the timeline of a room the user is in. Replies in threads stay in their threads;
+    /// a thread's first message carries [`EventInfo::thread`].
     ///
     /// # Errors
     ///
     /// [`CoreError::InvalidId`], or [`CoreError::RoomNotFound`] for a room the session doesn't
     /// know.
     pub async fn timeline(&self, room_id: String) -> Result<Timeline, CoreError> {
+        self.focused_timeline(
+            room_id,
+            TimelineFocus::Live {
+                hide_threaded_events: true,
+            },
+        )
+        .await
+    }
+
+    /// Opens the thread that starts at the event `root_event_id`: its first message, then the
+    /// replies. Whatever is sent through it goes into the thread.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or if the thread can't be loaded.
+    pub async fn thread_timeline(
+        &self,
+        room_id: String,
+        root_event_id: String,
+    ) -> Result<Timeline, CoreError> {
+        let thread_id: OwnedEventId = parse_id(&root_event_id)?;
+        self.focused_timeline(room_id, TimelineFocus::Thread { thread_id })
+            .await
+    }
+
+    async fn focused_timeline(
+        &self,
+        room_id: String,
+        focus: TimelineFocus,
+    ) -> Result<Timeline, CoreError> {
         let id: OwnedRoomId = parse_id(&room_id)?;
         let room = self
             .client
             .get_room(&id)
             .ok_or(CoreError::RoomNotFound { room_id })?;
-        Ok(Timeline::new(
-            Arc::new(room.timeline().await?),
-            Mutex::default(),
-        ))
+        let timeline = room.timeline_builder().with_focus(focus).build().await?;
+        Ok(Timeline::new(Arc::new(timeline), Mutex::default()))
     }
 }
 
@@ -643,6 +694,13 @@ fn event_content(event: &EventTimelineItem, own: &UserId) -> TimelineItemContent
             })
             .collect(),
         in_reply_to: content.in_reply_to().map(|reply| reply_quote(&reply)),
+        thread: content.thread_summary().map(|summary| ThreadInfo {
+            reply_count: summary.num_replies,
+            latest: match &summary.latest_event {
+                TimelineDetails::Ready(latest) => Some(embedded_thread_event(latest)),
+                _ => None,
+            },
+        }),
         is_edited: content
             .as_message()
             .is_some_and(timeline::Message::is_edited),
@@ -812,17 +870,50 @@ fn reply_quote(reply: &InReplyToDetails) -> ReplyQuote {
         if let TimelineDetails::Ready(profile) = &original.sender_profile {
             quote.sender_name.clone_from(&profile.display_name);
         }
-        quote.text = original.content.as_message().map(|message| {
-            media_message(message.msgtype()).map_or_else(
-                || message.body().to_owned(),
-                |media| media.caption.unwrap_or(media.filename),
-            )
-        });
-        if original.content.is_redacted() {
-            quote.text = Some("Message deleted".to_owned());
-        }
+        quote.text = content_text(&original.content);
     }
     quote
+}
+
+/// The text a quote or summary shows of a message: its body, or a file's caption or name.
+pub(crate) fn content_text(content: &timeline::TimelineItemContent) -> Option<String> {
+    if content.is_redacted() {
+        return Some("Message deleted".to_owned());
+    }
+    content.as_message().map(|message| {
+        media_message(message.msgtype()).map_or_else(
+            || message.body().to_owned(),
+            |media| media.caption.unwrap_or(media.filename),
+        )
+    })
+}
+
+fn embedded_thread_event(event: &EmbeddedEvent) -> ThreadEvent {
+    thread_event(
+        &event.sender,
+        &event.sender_profile,
+        Some(&event.content),
+        event.timestamp.0.into(),
+    )
+}
+
+pub(crate) fn thread_event(
+    sender: &UserId,
+    profile: &TimelineDetails<Profile>,
+    content: Option<&timeline::TimelineItemContent>,
+    timestamp_ms: i64,
+) -> ThreadEvent {
+    let profile = match profile {
+        TimelineDetails::Ready(profile) => Some(profile),
+        _ => None,
+    };
+    ThreadEvent {
+        sender: sender.to_string(),
+        sender_name: profile.and_then(|p| p.display_name.clone()),
+        sender_avatar_url: profile.and_then(|p| p.avatar_url.as_ref().map(ToString::to_string)),
+        text: content.and_then(content_text),
+        timestamp_ms,
+    }
 }
 
 /// An item named by its event ID (`$…`) or, while a local echo, its transaction ID.
