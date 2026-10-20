@@ -19,6 +19,7 @@ matrix-sdk.workspace = true
 matrix-sdk-sqlite.workspace = true
 matrix-sdk-ui.workspace = true
 mime.workspace = true
+ruma.workspace = true
 rustls.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time"] }

@@ -7,11 +7,15 @@ abstract interface class UiPrefs {
   bool get narrowList;
   bool get railHidden;
 
+  /// Whether messages are sent formatted from their markdown; on unless turned off.
+  bool get useMarkdown;
+
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
   Future<void> setNarrowList({required bool narrow});
   Future<void> setRailHidden({required bool hidden});
+  Future<void> setUseMarkdown({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
 }
 
@@ -48,6 +52,9 @@ final class FileUiPrefs implements UiPrefs {
   bool get railHidden => _json['railHidden'] == true;
 
   @override
+  bool get useMarkdown => _json['useMarkdown'] != false;
+
+  @override
   String? lastRoom(String account) => _rooms[account] as String?;
 
   @override
@@ -57,6 +64,10 @@ final class FileUiPrefs implements UiPrefs {
   @override
   Future<void> setRailHidden({required bool hidden}) =>
       _save(() => _json['railHidden'] = hidden);
+
+  @override
+  Future<void> setUseMarkdown({required bool on}) =>
+      _save(() => _json['useMarkdown'] = on);
 
   @override
   Future<void> setLastRoom(String account, String? roomId) => _save(() {
@@ -81,6 +92,7 @@ final class MemoryUiPrefs implements UiPrefs {
   MemoryUiPrefs({
     this.narrowList = false,
     this.railHidden = false,
+    this.useMarkdown = true,
     Map<String, String>? lastRooms,
   }) : lastRooms = {...?lastRooms};
 
@@ -89,6 +101,9 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   bool railHidden;
+
+  @override
+  bool useMarkdown;
 
   final Map<String, String> lastRooms;
 
@@ -102,6 +117,9 @@ final class MemoryUiPrefs implements UiPrefs {
   @override
   Future<void> setRailHidden({required bool hidden}) async =>
       railHidden = hidden;
+
+  @override
+  Future<void> setUseMarkdown({required bool on}) async => useMarkdown = on;
 
   @override
   Future<void> setLastRoom(String account, String? roomId) async {

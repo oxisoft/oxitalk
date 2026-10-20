@@ -97,7 +97,7 @@ pub(crate) fn messages(items: &[TimelineItem]) -> Vec<(&str, bool)> {
     items
         .iter()
         .filter_map(|item| match &item.content {
-            TimelineItemContent::Message { event, body } => Some((body.as_str(), event.is_own)),
+            TimelineItemContent::Message { event, body, .. } => Some((body.as_str(), event.is_own)),
             _ => None,
         })
         .collect()

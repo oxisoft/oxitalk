@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1202187838;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -511331233;
 
 // Section: executor
 
@@ -2152,6 +2152,7 @@ fn wire__crate__api__timeline__Timeline_edit_impl(
             let api_item = <String>::sse_decode(&mut deserializer);
             let api_body = <String>::sse_decode(&mut deserializer);
             let api_caption = <bool>::sse_decode(&mut deserializer);
+            let api_markdown = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::error::CoreError>(
@@ -2178,6 +2179,7 @@ fn wire__crate__api__timeline__Timeline_edit_impl(
                             api_item,
                             api_body,
                             api_caption,
+                            api_markdown,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)
@@ -2516,6 +2518,7 @@ fn wire__crate__api__timeline__Timeline_send_data_impl(
             let api_mime_type = <String>::sse_decode(&mut deserializer);
             let api_caption = <Option<String>>::sse_decode(&mut deserializer);
             let api_compress = <bool>::sse_decode(&mut deserializer);
+            let api_markdown = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::error::CoreError>(
@@ -2544,6 +2547,7 @@ fn wire__crate__api__timeline__Timeline_send_data_impl(
                             api_mime_type,
                             api_caption,
                             api_compress,
+                            api_markdown,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)
@@ -2583,6 +2587,7 @@ fn wire__crate__api__timeline__Timeline_send_file_impl(
             let api_mime_type = <String>::sse_decode(&mut deserializer);
             let api_caption = <Option<String>>::sse_decode(&mut deserializer);
             let api_compress = <bool>::sse_decode(&mut deserializer);
+            let api_markdown = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::error::CoreError>(
@@ -2610,6 +2615,7 @@ fn wire__crate__api__timeline__Timeline_send_file_impl(
                             api_mime_type,
                             api_caption,
                             api_compress,
+                            api_markdown,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)
@@ -2647,6 +2653,7 @@ fn wire__crate__api__timeline__Timeline_send_reply_impl(
             >>::sse_decode(&mut deserializer);
             let api_body = <String>::sse_decode(&mut deserializer);
             let api_reply_to = <String>::sse_decode(&mut deserializer);
+            let api_markdown = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::error::CoreError>(
@@ -2672,6 +2679,7 @@ fn wire__crate__api__timeline__Timeline_send_reply_impl(
                             &*api_that_guard,
                             api_body,
                             api_reply_to,
+                            api_markdown,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)
@@ -2708,6 +2716,7 @@ fn wire__crate__api__timeline__Timeline_send_text_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Timeline>,
             >>::sse_decode(&mut deserializer);
             let api_body = <String>::sse_decode(&mut deserializer);
+            let api_markdown = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::error::CoreError>(
@@ -2729,9 +2738,12 @@ fn wire__crate__api__timeline__Timeline_send_text_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok =
-                            crate::api::timeline::Timeline::send_text(&*api_that_guard, api_body)
-                                .await?;
+                        let output_ok = crate::api::timeline::Timeline::send_text(
+                            &*api_that_guard,
+                            api_body,
+                            api_markdown,
+                        )
+                        .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -3458,6 +3470,38 @@ fn wire__crate__api__session__restore_impl(
         },
     )
 }
+fn wire__crate__api__rich_text__rich_span_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "rich_span_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::rich_text::RichSpan::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__sections__section_settings_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -3743,6 +3787,42 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for crate::api::rich_text::BlockKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::rich_text::BlockKind::Paragraph;
+            }
+            1 => {
+                let mut var_level = <u8>::sse_decode(deserializer);
+                return crate::api::rich_text::BlockKind::Heading { level: var_level };
+            }
+            2 => {
+                let mut var_number = <Option<u32>>::sse_decode(deserializer);
+                let mut var_depth = <u32>::sse_decode(deserializer);
+                return crate::api::rich_text::BlockKind::ListItem {
+                    number: var_number,
+                    depth: var_depth,
+                };
+            }
+            3 => {
+                let mut var_language = <Option<String>>::sse_decode(deserializer);
+                return crate::api::rich_text::BlockKind::Code {
+                    language: var_language,
+                };
+            }
+            4 => {
+                return crate::api::rich_text::BlockKind::Rule;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3931,6 +4011,30 @@ impl SseDecode for Vec<crate::api::timeline::Reaction> {
     }
 }
 
+impl SseDecode for Vec<crate::api::rich_text::RichBlock> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::rich_text::RichBlock>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::rich_text::RichSpan> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::rich_text::RichSpan>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::room_list::RoomListDiff> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4063,6 +4167,8 @@ impl SseDecode for crate::api::timeline::MediaMessage {
         let mut var_thumbnail = <Option<String>>::sse_decode(deserializer);
         let mut var_filename = <String>::sse_decode(deserializer);
         let mut var_caption = <Option<String>>::sse_decode(deserializer);
+        let mut var_formattedCaption =
+            <Option<Vec<crate::api::rich_text::RichBlock>>>::sse_decode(deserializer);
         let mut var_mimeType = <Option<String>>::sse_decode(deserializer);
         let mut var_size = <Option<i64>>::sse_decode(deserializer);
         let mut var_width = <Option<u32>>::sse_decode(deserializer);
@@ -4074,6 +4180,7 @@ impl SseDecode for crate::api::timeline::MediaMessage {
             thumbnail: var_thumbnail,
             filename: var_filename,
             caption: var_caption,
+            formatted_caption: var_formattedCaption,
             mime_type: var_mimeType,
             size: var_size,
             width: var_width,
@@ -4166,6 +4273,19 @@ impl SseDecode for Option<u32> {
     }
 }
 
+impl SseDecode for Option<Vec<crate::api::rich_text::RichBlock>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<crate::api::rich_text::RichBlock>>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<Vec<crate::api::verification::VerificationEmoji>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4217,6 +4337,48 @@ impl SseDecode for crate::api::timeline::ReplyQuote {
             sender: var_sender,
             sender_name: var_senderName,
             text: var_text,
+        };
+    }
+}
+
+impl SseDecode for crate::api::rich_text::RichBlock {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <crate::api::rich_text::BlockKind>::sse_decode(deserializer);
+        let mut var_quoteDepth = <u32>::sse_decode(deserializer);
+        let mut var_spans = <Vec<crate::api::rich_text::RichSpan>>::sse_decode(deserializer);
+        return crate::api::rich_text::RichBlock {
+            kind: var_kind,
+            quote_depth: var_quoteDepth,
+            spans: var_spans,
+        };
+    }
+}
+
+impl SseDecode for crate::api::rich_text::RichSpan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_bold = <bool>::sse_decode(deserializer);
+        let mut var_italic = <bool>::sse_decode(deserializer);
+        let mut var_strike = <bool>::sse_decode(deserializer);
+        let mut var_underline = <bool>::sse_decode(deserializer);
+        let mut var_code = <bool>::sse_decode(deserializer);
+        let mut var_spoiler = <bool>::sse_decode(deserializer);
+        let mut var_link = <Option<String>>::sse_decode(deserializer);
+        let mut var_mention = <Option<String>>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        return crate::api::rich_text::RichSpan {
+            text: var_text,
+            bold: var_bold,
+            italic: var_italic,
+            strike: var_strike,
+            underline: var_underline,
+            code: var_code,
+            spoiler: var_spoiler,
+            link: var_link,
+            mention: var_mention,
+            color: var_color,
         };
     }
 }
@@ -4562,9 +4724,12 @@ impl SseDecode for crate::api::timeline::TimelineItemContent {
             0 => {
                 let mut var_event = <crate::api::timeline::EventInfo>::sse_decode(deserializer);
                 let mut var_body = <String>::sse_decode(deserializer);
+                let mut var_formatted =
+                    <Option<Vec<crate::api::rich_text::RichBlock>>>::sse_decode(deserializer);
                 return crate::api::timeline::TimelineItemContent::Message {
                     event: var_event,
                     body: var_body,
+                    formatted: var_formatted,
                 };
             }
             1 => {
@@ -4958,7 +5123,10 @@ fn pde_ffi_dispatcher_primary_impl(
         56 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
         58 => wire__crate__api__session__login_impl(port, ptr, rust_vec_len, data_len),
         59 => wire__crate__api__session__restore_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__sections__section_settings_default_impl(
+        60 => {
+            wire__crate__api__rich_text__rich_span_default_impl(port, ptr, rust_vec_len, data_len)
+        }
+        61 => wire__crate__api__sections__section_settings_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -4980,8 +5148,8 @@ fn pde_ffi_dispatcher_sync_impl(
         33 => wire__crate__api__session__Session_user_id_impl(ptr, rust_vec_len, data_len),
         55 => wire__crate__api__core_version_impl(ptr, rust_vec_len, data_len),
         57 => wire__crate__api__logging__init_logging_impl(ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__logging__set_logging_impl(ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__logging__write_log_impl(ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__logging__set_logging_impl(ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__logging__write_log_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -5033,6 +5201,41 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Verification>> for Verificatio
     }
 }
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::rich_text::BlockKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::rich_text::BlockKind::Paragraph => [0.into_dart()].into_dart(),
+            crate::api::rich_text::BlockKind::Heading { level } => {
+                [1.into_dart(), level.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::rich_text::BlockKind::ListItem { number, depth } => [
+                2.into_dart(),
+                number.into_into_dart().into_dart(),
+                depth.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::rich_text::BlockKind::Code { language } => {
+                [3.into_dart(), language.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::rich_text::BlockKind::Rule => [4.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::rich_text::BlockKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::rich_text::BlockKind>
+    for crate::api::rich_text::BlockKind
+{
+    fn into_into_dart(self) -> crate::api::rich_text::BlockKind {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::error::CoreError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -5178,6 +5381,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::timeline::MediaMessage {
             self.thumbnail.into_into_dart().into_dart(),
             self.filename.into_into_dart().into_dart(),
             self.caption.into_into_dart().into_dart(),
+            self.formatted_caption.into_into_dart().into_dart(),
             self.mime_type.into_into_dart().into_dart(),
             self.size.into_into_dart().into_dart(),
             self.width.into_into_dart().into_dart(),
@@ -5304,6 +5508,57 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::timeline::ReplyQuote>
     for crate::api::timeline::ReplyQuote
 {
     fn into_into_dart(self) -> crate::api::timeline::ReplyQuote {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::rich_text::RichBlock {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.quote_depth.into_into_dart().into_dart(),
+            self.spans.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::rich_text::RichBlock
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::rich_text::RichBlock>
+    for crate::api::rich_text::RichBlock
+{
+    fn into_into_dart(self) -> crate::api::rich_text::RichBlock {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::rich_text::RichSpan {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.text.into_into_dart().into_dart(),
+            self.bold.into_into_dart().into_dart(),
+            self.italic.into_into_dart().into_dart(),
+            self.strike.into_into_dart().into_dart(),
+            self.underline.into_into_dart().into_dart(),
+            self.code.into_into_dart().into_dart(),
+            self.spoiler.into_into_dart().into_dart(),
+            self.link.into_into_dart().into_dart(),
+            self.mention.into_into_dart().into_dart(),
+            self.color.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::rich_text::RichSpan
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::rich_text::RichSpan>
+    for crate::api::rich_text::RichSpan
+{
+    fn into_into_dart(self) -> crate::api::rich_text::RichSpan {
         self
     }
 }
@@ -5684,10 +5939,15 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::timeline::TimelineItem>
 impl flutter_rust_bridge::IntoDart for crate::api::timeline::TimelineItemContent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::timeline::TimelineItemContent::Message { event, body } => [
+            crate::api::timeline::TimelineItemContent::Message {
+                event,
+                body,
+                formatted,
+            } => [
                 0.into_dart(),
                 event.into_into_dart().into_dart(),
                 body.into_into_dart().into_dart(),
+                formatted.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::timeline::TimelineItemContent::Media { event, media } => [
@@ -6002,6 +6262,36 @@ impl SseEncode for String {
     }
 }
 
+impl SseEncode for crate::api::rich_text::BlockKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::rich_text::BlockKind::Paragraph => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::rich_text::BlockKind::Heading { level } => {
+                <i32>::sse_encode(1, serializer);
+                <u8>::sse_encode(level, serializer);
+            }
+            crate::api::rich_text::BlockKind::ListItem { number, depth } => {
+                <i32>::sse_encode(2, serializer);
+                <Option<u32>>::sse_encode(number, serializer);
+                <u32>::sse_encode(depth, serializer);
+            }
+            crate::api::rich_text::BlockKind::Code { language } => {
+                <i32>::sse_encode(3, serializer);
+                <Option<String>>::sse_encode(language, serializer);
+            }
+            crate::api::rich_text::BlockKind::Rule => {
+                <i32>::sse_encode(4, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6147,6 +6437,26 @@ impl SseEncode for Vec<crate::api::timeline::Reaction> {
     }
 }
 
+impl SseEncode for Vec<crate::api::rich_text::RichBlock> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::rich_text::RichBlock>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::rich_text::RichSpan> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::rich_text::RichSpan>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::room_list::RoomListDiff> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6261,6 +6571,10 @@ impl SseEncode for crate::api::timeline::MediaMessage {
         <Option<String>>::sse_encode(self.thumbnail, serializer);
         <String>::sse_encode(self.filename, serializer);
         <Option<String>>::sse_encode(self.caption, serializer);
+        <Option<Vec<crate::api::rich_text::RichBlock>>>::sse_encode(
+            self.formatted_caption,
+            serializer,
+        );
         <Option<String>>::sse_encode(self.mime_type, serializer);
         <Option<i64>>::sse_encode(self.size, serializer);
         <Option<u32>>::sse_encode(self.width, serializer);
@@ -6355,6 +6669,16 @@ impl SseEncode for Option<u32> {
     }
 }
 
+impl SseEncode for Option<Vec<crate::api::rich_text::RichBlock>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<crate::api::rich_text::RichBlock>>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<Vec<crate::api::verification::VerificationEmoji>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6389,6 +6713,31 @@ impl SseEncode for crate::api::timeline::ReplyQuote {
         <Option<String>>::sse_encode(self.sender, serializer);
         <Option<String>>::sse_encode(self.sender_name, serializer);
         <Option<String>>::sse_encode(self.text, serializer);
+    }
+}
+
+impl SseEncode for crate::api::rich_text::RichBlock {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::rich_text::BlockKind>::sse_encode(self.kind, serializer);
+        <u32>::sse_encode(self.quote_depth, serializer);
+        <Vec<crate::api::rich_text::RichSpan>>::sse_encode(self.spans, serializer);
+    }
+}
+
+impl SseEncode for crate::api::rich_text::RichSpan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.text, serializer);
+        <bool>::sse_encode(self.bold, serializer);
+        <bool>::sse_encode(self.italic, serializer);
+        <bool>::sse_encode(self.strike, serializer);
+        <bool>::sse_encode(self.underline, serializer);
+        <bool>::sse_encode(self.code, serializer);
+        <bool>::sse_encode(self.spoiler, serializer);
+        <Option<String>>::sse_encode(self.link, serializer);
+        <Option<String>>::sse_encode(self.mention, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
     }
 }
 
@@ -6660,10 +7009,15 @@ impl SseEncode for crate::api::timeline::TimelineItemContent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::timeline::TimelineItemContent::Message { event, body } => {
+            crate::api::timeline::TimelineItemContent::Message {
+                event,
+                body,
+                formatted,
+            } => {
                 <i32>::sse_encode(0, serializer);
                 <crate::api::timeline::EventInfo>::sse_encode(event, serializer);
                 <String>::sse_encode(body, serializer);
+                <Option<Vec<crate::api::rich_text::RichBlock>>>::sse_encode(formatted, serializer);
             }
             crate::api::timeline::TimelineItemContent::Media { event, media } => {
                 <i32>::sse_encode(1, serializer);

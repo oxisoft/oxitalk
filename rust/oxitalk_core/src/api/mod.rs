@@ -7,6 +7,7 @@ pub mod logging;
 pub mod media;
 mod media_prep;
 pub mod profile;
+pub mod rich_text;
 pub mod room_info;
 pub mod room_list;
 pub mod rooms;
@@ -38,6 +39,6 @@ mod tests {
 
     #[test]
     fn core_version_is_the_crate_version() {
-        assert_eq!(core_version(), "0.1.18");
+        assert_eq!(core_version(), "0.1.19");
     }
 }

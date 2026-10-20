@@ -82,6 +82,18 @@ class RailHidden extends _$RailHidden {
   }
 }
 
+/// Whether messages are sent formatted from their markdown, as Element sends them.
+@Riverpod(keepAlive: true)
+class UseMarkdown extends _$UseMarkdown {
+  @override
+  bool build() => ref.watch(uiPrefsProvider).useMarkdown;
+
+  void set({required bool on}) {
+    state = on;
+    unawaited(ref.read(uiPrefsProvider).setUseMarkdown(on: on));
+  }
+}
+
 /// `main` sets the real window; tests and phones have none of the app's own.
 @Riverpod(keepAlive: true)
 WindowControls windowControls(Ref ref) => const PlatformWindowControls();

@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/profile.dart';
+import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
 import 'api/sections.dart';
@@ -79,7 +80,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1202187838;
+  int get rustContentHash => -511331233;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -242,6 +243,7 @@ abstract class RustLibApi extends BaseApi {
     required String item,
     required String body,
     required bool caption,
+    required bool markdown,
   });
 
   Future<void> crateApiTimelineTimelineForward({
@@ -275,6 +277,7 @@ abstract class RustLibApi extends BaseApi {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   });
 
   Future<void> crateApiTimelineTimelineSendFile({
@@ -283,17 +286,20 @@ abstract class RustLibApi extends BaseApi {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   });
 
   Future<void> crateApiTimelineTimelineSendReply({
     required Timeline that,
     required String body,
     required String replyTo,
+    required bool markdown,
   });
 
   Future<void> crateApiTimelineTimelineSendText({
     required Timeline that,
     required String body,
+    required bool markdown,
   });
 
   Stream<List<TimelineDiff>> crateApiTimelineTimelineSubscribeItems({
@@ -352,6 +358,8 @@ abstract class RustLibApi extends BaseApi {
     required String storeDir,
     required String storePassphrase,
   });
+
+  Future<RichSpan> crateApiRichTextRichSpanDefault();
 
   Future<SectionSettings> crateApiSectionsSectionSettingsDefault();
 
@@ -1704,6 +1712,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String item,
     required String body,
     required bool caption,
+    required bool markdown,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1716,6 +1725,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(item, serializer);
           sse_encode_String(body, serializer);
           sse_encode_bool(caption, serializer);
+          sse_encode_bool(markdown, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1728,7 +1738,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiTimelineTimelineEditConstMeta,
-        argValues: [that, item, body, caption],
+        argValues: [that, item, body, caption, markdown],
         apiImpl: this,
       ),
     );
@@ -1737,7 +1747,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiTimelineTimelineEditConstMeta =>
       const TaskConstMeta(
         debugName: "Timeline_edit",
-        argNames: ["that", "item", "body", "caption"],
+        argNames: ["that", "item", "body", "caption", "markdown"],
       );
 
   @override
@@ -1938,6 +1948,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1952,6 +1963,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(mimeType, serializer);
           sse_encode_opt_String(caption, serializer);
           sse_encode_bool(compress, serializer);
+          sse_encode_bool(markdown, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1964,7 +1976,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiTimelineTimelineSendDataConstMeta,
-        argValues: [that, data, filename, mimeType, caption, compress],
+        argValues: [
+          that,
+          data,
+          filename,
+          mimeType,
+          caption,
+          compress,
+          markdown,
+        ],
         apiImpl: this,
       ),
     );
@@ -1980,6 +2000,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "mimeType",
           "caption",
           "compress",
+          "markdown",
         ],
       );
 
@@ -1990,6 +2011,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2003,6 +2025,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(mimeType, serializer);
           sse_encode_opt_String(caption, serializer);
           sse_encode_bool(compress, serializer);
+          sse_encode_bool(markdown, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2015,7 +2038,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiTimelineTimelineSendFileConstMeta,
-        argValues: [that, path, mimeType, caption, compress],
+        argValues: [that, path, mimeType, caption, compress, markdown],
         apiImpl: this,
       ),
     );
@@ -2024,7 +2047,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiTimelineTimelineSendFileConstMeta =>
       const TaskConstMeta(
         debugName: "Timeline_send_file",
-        argNames: ["that", "path", "mimeType", "caption", "compress"],
+        argNames: [
+          "that",
+          "path",
+          "mimeType",
+          "caption",
+          "compress",
+          "markdown",
+        ],
       );
 
   @override
@@ -2032,6 +2062,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required Timeline that,
     required String body,
     required String replyTo,
+    required bool markdown,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2043,6 +2074,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(body, serializer);
           sse_encode_String(replyTo, serializer);
+          sse_encode_bool(markdown, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2055,7 +2087,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiTimelineTimelineSendReplyConstMeta,
-        argValues: [that, body, replyTo],
+        argValues: [that, body, replyTo, markdown],
         apiImpl: this,
       ),
     );
@@ -2064,13 +2096,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiTimelineTimelineSendReplyConstMeta =>
       const TaskConstMeta(
         debugName: "Timeline_send_reply",
-        argNames: ["that", "body", "replyTo"],
+        argNames: ["that", "body", "replyTo", "markdown"],
       );
 
   @override
   Future<void> crateApiTimelineTimelineSendText({
     required Timeline that,
     required String body,
+    required bool markdown,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2081,6 +2114,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(body, serializer);
+          sse_encode_bool(markdown, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2093,7 +2127,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiTimelineTimelineSendTextConstMeta,
-        argValues: [that, body],
+        argValues: [that, body, markdown],
         apiImpl: this,
       ),
     );
@@ -2102,7 +2136,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiTimelineTimelineSendTextConstMeta =>
       const TaskConstMeta(
         debugName: "Timeline_send_text",
-        argNames: ["that", "body"],
+        argNames: ["that", "body", "markdown"],
       );
 
   @override
@@ -2595,7 +2629,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<SectionSettings> crateApiSectionsSectionSettingsDefault() {
+  Future<RichSpan> crateApiRichTextRichSpanDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -2604,6 +2638,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 60,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rich_span,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiRichTextRichSpanDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRichTextRichSpanDefaultConstMeta =>
+      const TaskConstMeta(debugName: "rich_span_default", argNames: []);
+
+  @override
+  Future<SectionSettings> crateApiSectionsSectionSettingsDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 61,
             port: port_,
           );
         },
@@ -2628,7 +2689,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(enabled, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2657,7 +2718,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_log_level(level, serializer);
           sse_encode_String(target, serializer);
           sse_encode_String(message, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 63)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2850,6 +2911,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BlockKind dco_decode_block_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return BlockKind_Paragraph();
+      case 1:
+        return BlockKind_Heading(level: dco_decode_u_8(raw[1]));
+      case 2:
+        return BlockKind_ListItem(
+          number: dco_decode_opt_box_autoadd_u_32(raw[1]),
+          depth: dco_decode_u_32(raw[2]),
+        );
+      case 3:
+        return BlockKind_Code(language: dco_decode_opt_String(raw[1]));
+      case 4:
+        return BlockKind_Rule();
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -3034,6 +3117,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RichBlock> dco_decode_list_rich_block(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_rich_block).toList();
+  }
+
+  @protected
+  List<RichSpan> dco_decode_list_rich_span(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_rich_span).toList();
+  }
+
+  @protected
   List<RoomListDiff> dco_decode_list_room_list_diff(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_room_list_diff).toList();
@@ -3091,19 +3186,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MediaMessage dco_decode_media_message(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return MediaMessage(
       kind: dco_decode_media_kind(arr[0]),
       source: dco_decode_String(arr[1]),
       thumbnail: dco_decode_opt_String(arr[2]),
       filename: dco_decode_String(arr[3]),
       caption: dco_decode_opt_String(arr[4]),
-      mimeType: dco_decode_opt_String(arr[5]),
-      size: dco_decode_opt_box_autoadd_i_64(arr[6]),
-      width: dco_decode_opt_box_autoadd_u_32(arr[7]),
-      height: dco_decode_opt_box_autoadd_u_32(arr[8]),
-      durationMs: dco_decode_opt_box_autoadd_i_64(arr[9]),
+      formattedCaption: dco_decode_opt_list_rich_block(arr[5]),
+      mimeType: dco_decode_opt_String(arr[6]),
+      size: dco_decode_opt_box_autoadd_i_64(arr[7]),
+      width: dco_decode_opt_box_autoadd_u_32(arr[8]),
+      height: dco_decode_opt_box_autoadd_u_32(arr[9]),
+      durationMs: dco_decode_opt_box_autoadd_i_64(arr[10]),
     );
   }
 
@@ -3150,6 +3246,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RichBlock>? dco_decode_opt_list_rich_block(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_rich_block(raw);
+  }
+
+  @protected
   List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_verification_emoji(raw);
@@ -3191,6 +3293,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sender: dco_decode_opt_String(arr[1]),
       senderName: dco_decode_opt_String(arr[2]),
       text: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  RichBlock dco_decode_rich_block(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return RichBlock(
+      kind: dco_decode_block_kind(arr[0]),
+      quoteDepth: dco_decode_u_32(arr[1]),
+      spans: dco_decode_list_rich_span(arr[2]),
+    );
+  }
+
+  @protected
+  RichSpan dco_decode_rich_span(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return RichSpan(
+      text: dco_decode_String(arr[0]),
+      bold: dco_decode_bool(arr[1]),
+      italic: dco_decode_bool(arr[2]),
+      strike: dco_decode_bool(arr[3]),
+      underline: dco_decode_bool(arr[4]),
+      code: dco_decode_bool(arr[5]),
+      spoiler: dco_decode_bool(arr[6]),
+      link: dco_decode_opt_String(arr[7]),
+      mention: dco_decode_opt_String(arr[8]),
+      color: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -3448,6 +3583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return TimelineItemContent_Message(
           event: dco_decode_box_autoadd_event_info(raw[1]),
           body: dco_decode_String(raw[2]),
+          formatted: dco_decode_opt_list_rich_block(raw[3]),
         );
       case 1:
         return TimelineItemContent_Media(
@@ -3761,6 +3897,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BlockKind sse_decode_block_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return BlockKind_Paragraph();
+      case 1:
+        var var_level = sse_decode_u_8(deserializer);
+        return BlockKind_Heading(level: var_level);
+      case 2:
+        var var_number = sse_decode_opt_box_autoadd_u_32(deserializer);
+        var var_depth = sse_decode_u_32(deserializer);
+        return BlockKind_ListItem(number: var_number, depth: var_depth);
+      case 3:
+        var var_language = sse_decode_opt_String(deserializer);
+        return BlockKind_Code(language: var_language);
+      case 4:
+        return BlockKind_Rule();
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -3992,6 +4153,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RichBlock> sse_decode_list_rich_block(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RichBlock>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_rich_block(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<RichSpan> sse_decode_list_rich_span(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RichSpan>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_rich_span(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<RoomListDiff> sse_decode_list_room_list_diff(
     SseDeserializer deserializer,
   ) {
@@ -4105,6 +4290,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_thumbnail = sse_decode_opt_String(deserializer);
     var var_filename = sse_decode_String(deserializer);
     var var_caption = sse_decode_opt_String(deserializer);
+    var var_formattedCaption = sse_decode_opt_list_rich_block(deserializer);
     var var_mimeType = sse_decode_opt_String(deserializer);
     var var_size = sse_decode_opt_box_autoadd_i_64(deserializer);
     var var_width = sse_decode_opt_box_autoadd_u_32(deserializer);
@@ -4116,6 +4302,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       thumbnail: var_thumbnail,
       filename: var_filename,
       caption: var_caption,
+      formattedCaption: var_formattedCaption,
       mimeType: var_mimeType,
       size: var_size,
       width: var_width,
@@ -4196,6 +4383,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RichBlock>? sse_decode_opt_list_rich_block(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_rich_block(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   List<VerificationEmoji>? sse_decode_opt_list_verification_emoji(
     SseDeserializer deserializer,
   ) {
@@ -4237,6 +4437,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sender: var_sender,
       senderName: var_senderName,
       text: var_text,
+    );
+  }
+
+  @protected
+  RichBlock sse_decode_rich_block(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_block_kind(deserializer);
+    var var_quoteDepth = sse_decode_u_32(deserializer);
+    var var_spans = sse_decode_list_rich_span(deserializer);
+    return RichBlock(
+      kind: var_kind,
+      quoteDepth: var_quoteDepth,
+      spans: var_spans,
+    );
+  }
+
+  @protected
+  RichSpan sse_decode_rich_span(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_text = sse_decode_String(deserializer);
+    var var_bold = sse_decode_bool(deserializer);
+    var var_italic = sse_decode_bool(deserializer);
+    var var_strike = sse_decode_bool(deserializer);
+    var var_underline = sse_decode_bool(deserializer);
+    var var_code = sse_decode_bool(deserializer);
+    var var_spoiler = sse_decode_bool(deserializer);
+    var var_link = sse_decode_opt_String(deserializer);
+    var var_mention = sse_decode_opt_String(deserializer);
+    var var_color = sse_decode_opt_String(deserializer);
+    return RichSpan(
+      text: var_text,
+      bold: var_bold,
+      italic: var_italic,
+      strike: var_strike,
+      underline: var_underline,
+      code: var_code,
+      spoiler: var_spoiler,
+      link: var_link,
+      mention: var_mention,
+      color: var_color,
     );
   }
 
@@ -4507,7 +4747,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 0:
         var var_event = sse_decode_box_autoadd_event_info(deserializer);
         var var_body = sse_decode_String(deserializer);
-        return TimelineItemContent_Message(event: var_event, body: var_body);
+        var var_formatted = sse_decode_opt_list_rich_block(deserializer);
+        return TimelineItemContent_Message(
+          event: var_event,
+          body: var_body,
+          formatted: var_formatted,
+        );
       case 1:
         var var_event = sse_decode_box_autoadd_event_info(deserializer);
         var var_media = sse_decode_box_autoadd_media_message(deserializer);
@@ -4908,6 +5153,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_block_kind(BlockKind self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case BlockKind_Paragraph():
+        sse_encode_i_32(0, serializer);
+      case BlockKind_Heading(level: final level):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_8(level, serializer);
+      case BlockKind_ListItem(number: final number, depth: final depth):
+        sse_encode_i_32(2, serializer);
+        sse_encode_opt_box_autoadd_u_32(number, serializer);
+        sse_encode_u_32(depth, serializer);
+      case BlockKind_Code(language: final language):
+        sse_encode_i_32(3, serializer);
+        sse_encode_opt_String(language, serializer);
+      case BlockKind_Rule():
+        sse_encode_i_32(4, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -5139,6 +5405,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_rich_block(
+    List<RichBlock> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_rich_block(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_rich_span(
+    List<RichSpan> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_rich_span(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_room_list_diff(
     List<RoomListDiff> self,
     SseSerializer serializer,
@@ -5242,6 +5532,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.thumbnail, serializer);
     sse_encode_String(self.filename, serializer);
     sse_encode_opt_String(self.caption, serializer);
+    sse_encode_opt_list_rich_block(self.formattedCaption, serializer);
     sse_encode_opt_String(self.mimeType, serializer);
     sse_encode_opt_box_autoadd_i_64(self.size, serializer);
     sse_encode_opt_box_autoadd_u_32(self.width, serializer);
@@ -5318,6 +5609,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_list_rich_block(
+    List<RichBlock>? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_rich_block(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_list_verification_emoji(
     List<VerificationEmoji>? self,
     SseSerializer serializer,
@@ -5352,6 +5656,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.sender, serializer);
     sse_encode_opt_String(self.senderName, serializer);
     sse_encode_opt_String(self.text, serializer);
+  }
+
+  @protected
+  void sse_encode_rich_block(RichBlock self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_block_kind(self.kind, serializer);
+    sse_encode_u_32(self.quoteDepth, serializer);
+    sse_encode_list_rich_span(self.spans, serializer);
+  }
+
+  @protected
+  void sse_encode_rich_span(RichSpan self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.text, serializer);
+    sse_encode_bool(self.bold, serializer);
+    sse_encode_bool(self.italic, serializer);
+    sse_encode_bool(self.strike, serializer);
+    sse_encode_bool(self.underline, serializer);
+    sse_encode_bool(self.code, serializer);
+    sse_encode_bool(self.spoiler, serializer);
+    sse_encode_opt_String(self.link, serializer);
+    sse_encode_opt_String(self.mention, serializer);
+    sse_encode_opt_String(self.color, serializer);
   }
 
   @protected
@@ -5562,10 +5889,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case TimelineItemContent_Message(event: final event, body: final body):
+      case TimelineItemContent_Message(
+        event: final event,
+        body: final body,
+        formatted: final formatted,
+      ):
         sse_encode_i_32(0, serializer);
         sse_encode_box_autoadd_event_info(event, serializer);
         sse_encode_String(body, serializer);
+        sse_encode_opt_list_rich_block(formatted, serializer);
       case TimelineItemContent_Media(event: final event, media: final media):
         sse_encode_i_32(1, serializer);
         sse_encode_box_autoadd_event_info(event, serializer);
@@ -6043,11 +6375,13 @@ class TimelineImpl extends RustOpaque implements Timeline {
     required String item,
     required String body,
     required bool caption,
+    required bool markdown,
   }) => RustLib.instance.api.crateApiTimelineTimelineEdit(
     that: this,
     item: item,
     body: body,
     caption: caption,
+    markdown: markdown,
   );
 
   /// Sends the message `item` (an event ID) again in the user's room `to_room`, as it is
@@ -6114,6 +6448,7 @@ class TimelineImpl extends RustOpaque implements Timeline {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   }) => RustLib.instance.api.crateApiTimelineTimelineSendData(
     that: this,
     data: data,
@@ -6121,6 +6456,7 @@ class TimelineImpl extends RustOpaque implements Timeline {
     mimeType: mimeType,
     caption: caption,
     compress: compress,
+    markdown: markdown,
   );
 
   /// Sends the file at `path` with an optional caption; see [`Self::send_data`].
@@ -6133,12 +6469,14 @@ class TimelineImpl extends RustOpaque implements Timeline {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   }) => RustLib.instance.api.crateApiTimelineTimelineSendFile(
     that: this,
     path: path,
     mimeType: mimeType,
     caption: caption,
     compress: compress,
+    markdown: markdown,
   );
 
   /// Sends a plain-text reply to the event `reply_to`.
@@ -6146,12 +6484,16 @@ class TimelineImpl extends RustOpaque implements Timeline {
   /// # Errors
   ///
   /// [`CoreError::InvalidId`], or if the reply can't be queued.
-  Future<void> sendReply({required String body, required String replyTo}) =>
-      RustLib.instance.api.crateApiTimelineTimelineSendReply(
-        that: this,
-        body: body,
-        replyTo: replyTo,
-      );
+  Future<void> sendReply({
+    required String body,
+    required String replyTo,
+    required bool markdown,
+  }) => RustLib.instance.api.crateApiTimelineTimelineSendReply(
+    that: this,
+    body: body,
+    replyTo: replyTo,
+    markdown: markdown,
+  );
 
   /// Queues a plain-text message. It shows at once as a local echo in [`SendState::Sending`];
   /// the room is encrypted transparently if it is an encrypted room.
@@ -6159,8 +6501,12 @@ class TimelineImpl extends RustOpaque implements Timeline {
   /// # Errors
   ///
   /// Only if the message can't be queued; a failed send shows as [`SendState::Failed`].
-  Future<void> sendText({required String body}) => RustLib.instance.api
-      .crateApiTimelineTimelineSendText(that: this, body: body);
+  Future<void> sendText({required String body, required bool markdown}) =>
+      RustLib.instance.api.crateApiTimelineTimelineSendText(
+        that: this,
+        body: body,
+        markdown: markdown,
+      );
 
   /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
   /// loaded so far.

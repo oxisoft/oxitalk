@@ -17,8 +17,8 @@ use matrix_sdk::{
         events::room::{
             MediaSource,
             message::{
-                MessageType, RoomMessageEventContent, RoomMessageEventContentWithoutRelation,
-                TextMessageEventContent,
+                FormattedBody, MessageFormat, MessageType, RoomMessageEventContent,
+                RoomMessageEventContentWithoutRelation, TextMessageEventContent,
             },
         },
     },
@@ -36,6 +36,7 @@ use tokio::task::AbortHandle;
 use super::{
     error::{CoreError, parse_id},
     media_prep::prepare_image,
+    rich_text::{RichBlock, rich_text},
     session::Session,
 };
 use crate::frb_generated::StreamSink;
@@ -58,8 +59,13 @@ pub struct TimelineItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimelineItemContent {
-    /// A text message (for other message types without a file, their fallback body).
-    Message { event: EventInfo, body: String },
+    /// A text message (for other message types without a file, their fallback body), and
+    /// its formatting if it has any.
+    Message {
+        event: EventInfo,
+        body: String,
+        formatted: Option<Vec<RichBlock>>,
+    },
     /// An image, video, audio or other file.
     Media {
         event: EventInfo,
@@ -144,6 +150,8 @@ pub struct MediaMessage {
     pub filename: String,
     /// Text the sender wrote with the file.
     pub caption: Option<String>,
+    /// The caption's formatting, if it has any.
+    pub formatted_caption: Option<Vec<RichBlock>>,
     pub mime_type: Option<String>,
     /// In bytes.
     pub size: Option<i64>,
@@ -279,10 +287,13 @@ impl Timeline {
     /// # Errors
     ///
     /// Only if the message can't be queued; a failed send shows as [`SendState::Failed`].
-    pub async fn send_text(&self, body: String) -> Result<(), CoreError> {
-        self.inner
-            .send(RoomMessageEventContent::text_plain(body).into())
-            .await?;
+    pub async fn send_text(&self, body: String, markdown: bool) -> Result<(), CoreError> {
+        let content = if markdown {
+            RoomMessageEventContent::text_markdown(body)
+        } else {
+            RoomMessageEventContent::text_plain(body)
+        };
+        self.inner.send(content.into()).await?;
         Ok(())
     }
 
@@ -291,13 +302,15 @@ impl Timeline {
     /// # Errors
     ///
     /// [`CoreError::InvalidId`], or if the reply can't be queued.
-    pub async fn send_reply(&self, body: String, reply_to: String) -> Result<(), CoreError> {
+    pub async fn send_reply(
+        &self,
+        body: String,
+        reply_to: String,
+        markdown: bool,
+    ) -> Result<(), CoreError> {
         let reply_to: OwnedEventId = parse_id(&reply_to)?;
         self.inner
-            .send_reply(
-                RoomMessageEventContentWithoutRelation::text_plain(body),
-                reply_to,
-            )
+            .send_reply(text_content(body, markdown), reply_to)
             .await?;
         Ok(())
     }
@@ -319,15 +332,21 @@ impl Timeline {
     /// # Errors
     ///
     /// If the item isn't the user's or isn't in the timeline.
-    pub async fn edit(&self, item: String, body: String, caption: bool) -> Result<(), CoreError> {
+    pub async fn edit(
+        &self,
+        item: String,
+        body: String,
+        caption: bool,
+        markdown: bool,
+    ) -> Result<(), CoreError> {
         let content = if caption {
             EditedContent::MediaCaption {
+                formatted_caption: markdown.then(|| FormattedBody::markdown(&body)).flatten(),
                 caption: (!body.is_empty()).then_some(body),
-                formatted_caption: None,
                 mentions: None,
             }
         } else {
-            EditedContent::RoomMessage(RoomMessageEventContentWithoutRelation::text_plain(body))
+            EditedContent::RoomMessage(text_content(body, markdown))
         };
         self.inner.edit(&item_id(&item)?, content).await?;
         Ok(())
@@ -376,13 +395,14 @@ impl Timeline {
         mime_type: String,
         caption: Option<String>,
         compress: bool,
+        markdown: bool,
     ) -> Result<(), CoreError> {
         let data = std::fs::read(&path).map_err(|error| CoreError::internal(&error))?;
         let filename = std::path::Path::new(&path).file_name().map_or_else(
             || "file".to_owned(),
             |name| name.to_string_lossy().into_owned(),
         );
-        self.send_data(data, filename, mime_type, caption, compress)
+        self.send_data(data, filename, mime_type, caption, compress, markdown)
             .await
     }
 
@@ -401,11 +421,18 @@ impl Timeline {
         mime_type: String,
         caption: Option<String>,
         compress: bool,
+        markdown: bool,
     ) -> Result<(), CoreError> {
         let mut config = AttachmentConfig {
             caption: caption
                 .filter(|caption| !caption.is_empty())
-                .map(TextMessageEventContent::plain),
+                .map(|caption| {
+                    if markdown {
+                        TextMessageEventContent::markdown(caption)
+                    } else {
+                        TextMessageEventContent::plain(caption)
+                    }
+                }),
             ..AttachmentConfig::default()
         };
         let (data, filename, mime_type) = if mime_type.starts_with("image/") {
@@ -627,6 +654,7 @@ fn event_content(event: &EventTimelineItem, own: &UserId) -> TimelineItemContent
         TimelineItemContent::Message {
             event: info,
             body: message.body().to_owned(),
+            formatted: formatted_text(message.msgtype()),
         }
     } else if content.is_unable_to_decrypt() {
         TimelineItemContent::UnableToDecrypt { event: info }
@@ -643,6 +671,7 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
         thumbnail: None,
         filename: filename.to_owned(),
         caption: caption.map(ToOwned::to_owned),
+        formatted_caption: None,
         mime_type: None,
         size: None,
         width: None,
@@ -657,6 +686,7 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
                 image.filename(),
                 image.caption(),
             );
+            m.formatted_caption = image.formatted_caption().and_then(rich_html);
             if let Some(info) = &image.info {
                 m.thumbnail = info.thumbnail_source.as_ref().map(source_json);
                 m.mime_type.clone_from(&info.mimetype);
@@ -673,6 +703,7 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
                 video.filename(),
                 video.caption(),
             );
+            m.formatted_caption = video.formatted_caption().and_then(rich_html);
             if let Some(info) = &video.info {
                 m.thumbnail = info.thumbnail_source.as_ref().map(source_json);
                 m.mime_type.clone_from(&info.mimetype);
@@ -690,6 +721,7 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
                 audio.filename(),
                 audio.caption(),
             );
+            m.formatted_caption = audio.formatted_caption().and_then(rich_html);
             if let Some(info) = &audio.info {
                 m.mime_type.clone_from(&info.mimetype);
                 m.size = info.size.map(int);
@@ -704,6 +736,7 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
                 file.filename(),
                 file.caption(),
             );
+            m.formatted_caption = file.formatted_caption().and_then(rich_html);
             if let Some(info) = &file.info {
                 m.thumbnail = info.thumbnail_source.as_ref().map(source_json);
                 m.mime_type.clone_from(&info.mimetype);
@@ -713,6 +746,25 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
         }
         _ => return None,
     })
+}
+
+/// The formatting of a text, notice or emote message, if it has any.
+fn formatted_text(msgtype: &MessageType) -> Option<Vec<RichBlock>> {
+    match msgtype {
+        MessageType::Text(text) => text.formatted.as_ref(),
+        MessageType::Notice(notice) => notice.formatted.as_ref(),
+        MessageType::Emote(emote) => emote.formatted.as_ref(),
+        _ => None,
+    }
+    .and_then(rich_html)
+}
+
+/// The blocks of an HTML body; `None` for another format, or if nothing is left to show.
+fn rich_html(formatted: &FormattedBody) -> Option<Vec<RichBlock>> {
+    if formatted.format != MessageFormat::Html {
+        return None;
+    }
+    Some(rich_text(&formatted.body)).filter(|blocks| !blocks.is_empty())
 }
 
 fn source_json(source: &MediaSource) -> String {
@@ -763,5 +815,15 @@ fn item_id(id: &str) -> Result<TimelineEventItemId, CoreError> {
         Ok(TimelineEventItemId::EventId(parse_id(id)?))
     } else {
         Ok(TimelineEventItemId::TransactionId(id.into()))
+    }
+}
+
+/// A text message's content: from markdown (sent as HTML too, if it has any formatting), or
+/// as typed.
+fn text_content(body: String, markdown: bool) -> RoomMessageEventContentWithoutRelation {
+    if markdown {
+        RoomMessageEventContentWithoutRelation::text_markdown(body)
+    } else {
+        RoomMessageEventContentWithoutRelation::text_plain(body)
     }
 }

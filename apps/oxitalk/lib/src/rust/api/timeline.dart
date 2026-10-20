@@ -8,9 +8,11 @@ import 'error.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+
+import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `fetch_missing_replies`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `reply_quote`, `small`, `source_json`, `timeline_diff`
+// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `fetch_missing_replies`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `reply_quote`, `rich_html`, `small`, `source_json`, `text_content`, `timeline_diff`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
@@ -29,6 +31,7 @@ abstract class Timeline implements RustOpaqueInterface {
     required String item,
     required String body,
     required bool caption,
+    required bool markdown,
   });
 
   /// Sends the message `item` (an event ID) again in the user's room `to_room`, as it is
@@ -84,6 +87,7 @@ abstract class Timeline implements RustOpaqueInterface {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   });
 
   /// Sends the file at `path` with an optional caption; see [`Self::send_data`].
@@ -96,6 +100,7 @@ abstract class Timeline implements RustOpaqueInterface {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
   });
 
   /// Sends a plain-text reply to the event `reply_to`.
@@ -103,7 +108,11 @@ abstract class Timeline implements RustOpaqueInterface {
   /// # Errors
   ///
   /// [`CoreError::InvalidId`], or if the reply can't be queued.
-  Future<void> sendReply({required String body, required String replyTo});
+  Future<void> sendReply({
+    required String body,
+    required String replyTo,
+    required bool markdown,
+  });
 
   /// Queues a plain-text message. It shows at once as a local echo in [`SendState::Sending`];
   /// the room is encrypted transparently if it is an encrypted room.
@@ -111,7 +120,7 @@ abstract class Timeline implements RustOpaqueInterface {
   /// # Errors
   ///
   /// Only if the message can't be queued; a failed send shows as [`SendState::Failed`].
-  Future<void> sendText({required String body});
+  Future<void> sendText({required String body, required bool markdown});
 
   /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
   /// loaded so far.
@@ -222,6 +231,9 @@ class MediaMessage {
 
   /// Text the sender wrote with the file.
   final String? caption;
+
+  /// The caption's formatting, if it has any.
+  final List<RichBlock>? formattedCaption;
   final String? mimeType;
 
   /// In bytes.
@@ -236,6 +248,7 @@ class MediaMessage {
     this.thumbnail,
     required this.filename,
     this.caption,
+    this.formattedCaption,
     this.mimeType,
     this.size,
     this.width,
@@ -250,6 +263,7 @@ class MediaMessage {
       thumbnail.hashCode ^
       filename.hashCode ^
       caption.hashCode ^
+      formattedCaption.hashCode ^
       mimeType.hashCode ^
       size.hashCode ^
       width.hashCode ^
@@ -266,6 +280,7 @@ class MediaMessage {
           thumbnail == other.thumbnail &&
           filename == other.filename &&
           caption == other.caption &&
+          formattedCaption == other.formattedCaption &&
           mimeType == other.mimeType &&
           size == other.size &&
           width == other.width &&
@@ -389,10 +404,12 @@ class TimelineItem {
 sealed class TimelineItemContent with _$TimelineItemContent {
   const TimelineItemContent._();
 
-  /// A text message (for other message types without a file, their fallback body).
+  /// A text message (for other message types without a file, their fallback body), and
+  /// its formatting if it has any.
   const factory TimelineItemContent.message({
     required EventInfo event,
     required String body,
+    List<RichBlock>? formatted,
   }) = TimelineItemContent_Message;
 
   /// An image, video, audio or other file.

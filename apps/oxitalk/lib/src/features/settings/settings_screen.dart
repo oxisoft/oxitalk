@@ -47,6 +47,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               if (ref.watch(activeAccountProvider) case final account?)
                 _AccountPictures(account: account),
+              const _SectionTitle('Messages'),
+              SwitchListTile(
+                key: const Key('settings.markdown'),
+                title: const Text('Use markdown'),
+                subtitle: const Text(
+                  'Send **bold**, *italic*, `code`, lists, quotes and links '
+                  'formatted, as Element does. Off sends exactly what you '
+                  'typed.',
+                ),
+                value: ref.watch(useMarkdownProvider),
+                onChanged: (on) =>
+                    ref.read(useMarkdownProvider.notifier).set(on: on),
+              ),
               const _MediaSettings(),
               const _SectionTitle('Diagnostics'),
               SwitchListTile(

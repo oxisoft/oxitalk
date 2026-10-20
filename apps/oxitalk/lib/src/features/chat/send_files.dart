@@ -24,6 +24,7 @@ Future<void> confirmAndSendFiles(
     builder: (_) => _SendFilesDialog(files: files),
   );
   final timeline = ref.read(roomTimelineProvider(account, roomId)).value;
+  final markdown = ref.read(useMarkdownProvider);
   if (choice == null || timeline == null) return;
   for (final (index, file) in files.indexed) {
     try {
@@ -35,6 +36,7 @@ Future<void> confirmAndSendFiles(
             ? choice.caption
             : null,
         compress: choice.compress,
+        markdown: markdown,
       );
     } on MatrixFailure catch (failure) {
       messenger.showSnackBar(

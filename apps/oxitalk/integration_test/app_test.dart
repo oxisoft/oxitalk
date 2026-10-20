@@ -164,6 +164,25 @@ void main() {
         )
         .timeout(_timeout);
 
+    // Markdown goes formatted, as Element sends it: bold here, and at Bob's.
+    await _type(
+      tester,
+      find.byKey(const Key('composer.text')),
+      '**Meeting** at *ten*',
+    );
+    await tester.tap(find.byKey(const Key('composer.send')));
+    await bobTimeline.entries
+        .firstWhere(
+          (entries) => entries.any(
+            (e) =>
+                e is MessageEntry &&
+                e.body == '**Meeting** at *ten*' &&
+                (e.formatted?.first.spans.first.bold ?? false),
+          ),
+        )
+        .timeout(_timeout);
+    await _pumpUntil(tester, find.text('Meeting at ten'));
+
     // Alice sends a photo with a caption through 📎; Bob gets it, and reacts to her text.
     files.picked = [PendingFile('office.png', 'image/png', png)];
     await tester.tap(find.byKey(const Key('composer.attach')));

@@ -13,6 +13,7 @@ import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
+import '../../ui/rich_text_view.dart';
 import '../../app/file_actions.dart';
 import 'emoji.dart';
 import 'media_views.dart';
@@ -393,7 +394,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         body,
         style: const TextStyle(fontSize: 40, height: 1.2),
       ),
-      MessageEntry(:final body) => Text(body),
+      MessageEntry(:final formatted?) => RichTextView(
+        blocks: formatted,
+        onLink: _openLink,
+      ),
+      MessageEntry(:final body) => LinkifiedText(text: body, onLink: _openLink),
       MediaEntry(:final media) => MediaMessageView(
         account: widget.account,
         media: media,
@@ -454,6 +459,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           : null,
       child: body,
     );
+  }
+
+  void _openLink(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri != null) unawaited(ref.read(fileActionsProvider).launch(uri));
   }
 
   /// In group chats, the sender's picture beside the last of their consecutive messages and
@@ -859,19 +869,25 @@ class _ComposerState extends ConsumerState<Composer> {
     _text.clear();
     _setMode(null);
     _focus.requestFocus();
+    final markdown = ref.read(useMarkdownProvider);
     try {
       switch (mode) {
         case null:
-          await timeline.send(text);
+          await timeline.send(text, markdown: markdown);
         case Replying(:final entry):
           final eventId = eventFields(entry)?.meta.eventId;
           eventId == null
-              ? await timeline.send(text)
-              : await timeline.sendReply(text, eventId);
+              ? await timeline.send(text, markdown: markdown)
+              : await timeline.sendReply(text, eventId, markdown: markdown);
         case Editing(:final entry):
           final ref = eventFields(entry)?.meta.ref;
           if (ref != null) {
-            await timeline.edit(ref, text, caption: entry is MediaEntry);
+            await timeline.edit(
+              ref,
+              text,
+              caption: entry is MediaEntry,
+              markdown: markdown,
+            );
           }
       }
     } on MatrixFailure catch (failure) {

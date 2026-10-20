@@ -458,6 +458,63 @@ abstract class _$RailHidden extends $Notifier<bool> {
   }
 }
 
+/// Whether messages are sent formatted from their markdown, as Element sends them.
+
+@ProviderFor(UseMarkdown)
+final useMarkdownProvider = UseMarkdownProvider._();
+
+/// Whether messages are sent formatted from their markdown, as Element sends them.
+final class UseMarkdownProvider extends $NotifierProvider<UseMarkdown, bool> {
+  /// Whether messages are sent formatted from their markdown, as Element sends them.
+  UseMarkdownProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'useMarkdownProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$useMarkdownHash();
+
+  @$internal
+  @override
+  UseMarkdown create() => UseMarkdown();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$useMarkdownHash() => r'4ba820f57ca3b191e9f1394b28d67d500c5e3b59';
+
+/// Whether messages are sent formatted from their markdown, as Element sends them.
+
+abstract class _$UseMarkdown extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// `main` sets the real window; tests and phones have none of the app's own.
 
 @ProviderFor(windowControls)

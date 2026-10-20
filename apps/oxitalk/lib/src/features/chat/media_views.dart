@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/format.dart';
+import '../../ui/rich_text_view.dart';
 
 /// Opens a message's file in the system's app for it, downloading it into the cache first.
 Future<void> openMedia(
@@ -105,10 +106,27 @@ class MediaMessageView extends ConsumerWidget {
           MediaKind.file => FileRow(account: account, media: media),
         },
         if (caption != null && caption.isNotEmpty)
-          Padding(padding: const EdgeInsets.only(top: 4), child: Text(caption)),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: switch (media.formattedCaption) {
+              final blocks? => RichTextView(
+                blocks: blocks,
+                onLink: (url) => _openLink(ref, url),
+              ),
+              null => LinkifiedText(
+                text: caption,
+                onLink: (url) => _openLink(ref, url),
+              ),
+            },
+          ),
       ],
     );
   }
+}
+
+void _openLink(WidgetRef ref, String url) {
+  final uri = Uri.tryParse(url);
+  if (uri != null) unawaited(ref.read(fileActionsProvider).launch(uri));
 }
 
 /// An image or a video's picture, at its shape within [maxSize]; a video gets a ▶ and its

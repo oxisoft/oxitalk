@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/profile.dart';
+import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
 import 'api/sections.dart';
@@ -137,6 +138,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  BlockKind dco_decode_block_kind(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -206,6 +210,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Reaction> dco_decode_list_reaction(dynamic raw);
 
   @protected
+  List<RichBlock> dco_decode_list_rich_block(dynamic raw);
+
+  @protected
+  List<RichSpan> dco_decode_list_rich_span(dynamic raw);
+
+  @protected
   List<RoomListDiff> dco_decode_list_room_list_diff(dynamic raw);
 
   @protected
@@ -257,6 +267,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
+  List<RichBlock>? dco_decode_opt_list_rich_block(dynamic raw);
+
+  @protected
   List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw);
 
   @protected
@@ -267,6 +280,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReplyQuote dco_decode_reply_quote(dynamic raw);
+
+  @protected
+  RichBlock dco_decode_rich_block(dynamic raw);
+
+  @protected
+  RichSpan dco_decode_rich_span(dynamic raw);
 
   @protected
   RoomDetails dco_decode_room_details(dynamic raw);
@@ -437,6 +456,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  BlockKind sse_decode_block_kind(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -514,6 +536,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Reaction> sse_decode_list_reaction(SseDeserializer deserializer);
 
   @protected
+  List<RichBlock> sse_decode_list_rich_block(SseDeserializer deserializer);
+
+  @protected
+  List<RichSpan> sse_decode_list_rich_span(SseDeserializer deserializer);
+
+  @protected
   List<RoomListDiff> sse_decode_list_room_list_diff(
     SseDeserializer deserializer,
   );
@@ -575,6 +603,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  List<RichBlock>? sse_decode_opt_list_rich_block(SseDeserializer deserializer);
+
+  @protected
   List<VerificationEmoji>? sse_decode_opt_list_verification_emoji(
     SseDeserializer deserializer,
   );
@@ -587,6 +618,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReplyQuote sse_decode_reply_quote(SseDeserializer deserializer);
+
+  @protected
+  RichBlock sse_decode_rich_block(SseDeserializer deserializer);
+
+  @protected
+  RichSpan sse_decode_rich_span(SseDeserializer deserializer);
 
   @protected
   RoomDetails sse_decode_room_details(SseDeserializer deserializer);
@@ -786,6 +823,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_block_kind(BlockKind self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -891,6 +931,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_reaction(List<Reaction> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_rich_block(
+    List<RichBlock> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_rich_span(List<RichSpan> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_room_list_diff(
     List<RoomListDiff> self,
     SseSerializer serializer,
@@ -966,6 +1015,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_list_rich_block(
+    List<RichBlock>? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_list_verification_emoji(
     List<VerificationEmoji>? self,
     SseSerializer serializer,
@@ -979,6 +1034,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_reply_quote(ReplyQuote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rich_block(RichBlock self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rich_span(RichSpan self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_details(RoomDetails self, SseSerializer serializer);

@@ -352,8 +352,12 @@ final class FakeTimeline implements RoomTimeline {
     return true;
   }
 
+  /// Whether the last message sent was sent as markdown.
+  bool? lastSentAsMarkdown;
+
   @override
-  Future<void> send(String text) async {
+  Future<void> send(String text, {bool markdown = false}) async {
+    lastSentAsMarkdown = markdown;
     entryList = [
       ...entryList,
       MessageEntry(
@@ -370,9 +374,13 @@ final class FakeTimeline implements RoomTimeline {
   Future<void> markAsRead() async => readMarks++;
 
   @override
-  Future<void> sendReply(String text, String eventId) async {
+  Future<void> sendReply(
+    String text,
+    String eventId, {
+    bool markdown = false,
+  }) async {
     calls.add('reply $eventId $text');
-    await send(text);
+    await send(text, markdown: markdown);
   }
 
   /// Gives or takes back the user's reaction on the entry named [ref], as the server would.
@@ -419,8 +427,12 @@ final class FakeTimeline implements RoomTimeline {
   }
 
   @override
-  Future<void> edit(String ref, String text, {bool caption = false}) async =>
-      calls.add('edit $ref${caption ? ' caption' : ''} $text');
+  Future<void> edit(
+    String ref,
+    String text, {
+    bool caption = false,
+    bool markdown = false,
+  }) async => calls.add('edit $ref${caption ? ' caption' : ''} $text');
 
   @override
   Future<void> redact(String ref) async => calls.add('redact $ref');
@@ -438,6 +450,7 @@ final class FakeTimeline implements RoomTimeline {
     required String mimeType,
     String? caption,
     bool compress = false,
+    bool markdown = false,
   }) async => files[filename] = (caption, compress);
 
   @override

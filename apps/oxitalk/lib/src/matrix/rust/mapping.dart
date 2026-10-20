@@ -1,4 +1,5 @@
 import '../../rust/api/error.dart';
+import '../../rust/api/rich_text.dart' as rust;
 import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/sections.dart' as rust;
@@ -78,17 +79,23 @@ List<TimelineEntry> entriesOf(Iterable<rust.TimelineItem> items) => [
 ];
 
 TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
-  rust.TimelineItemContent_Message(:final event, :final body) => MessageEntry(
-    id: item.id,
-    sender: event.sender,
-    senderName: event.senderName,
-    senderAvatarUrl: event.senderAvatarUrl,
-    time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
-    body: body,
-    isOwn: event.isOwn,
-    sendState: sendStateOf(event.sendState),
-    meta: metaOf(event),
-  ),
+  rust.TimelineItemContent_Message(
+    :final event,
+    :final body,
+    :final formatted,
+  ) =>
+    MessageEntry(
+      formatted: formatted == null ? null : richOf(formatted),
+      id: item.id,
+      sender: event.sender,
+      senderName: event.senderName,
+      senderAvatarUrl: event.senderAvatarUrl,
+      time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
+      body: body,
+      isOwn: event.isOwn,
+      sendState: sendStateOf(event.sendState),
+      meta: metaOf(event),
+    ),
   rust.TimelineItemContent_Media(:final event, :final media) => MediaEntry(
     id: item.id,
     sender: event.sender,
@@ -109,6 +116,10 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
       thumbnail: media.thumbnail,
       filename: media.filename,
       caption: media.caption,
+      formattedCaption: switch (media.formattedCaption) {
+        final blocks? => richOf(blocks),
+        null => null,
+      },
       mimeType: media.mimeType,
       size: media.size,
       width: media.width,
@@ -241,3 +252,35 @@ EventMeta metaOf(rust.EventInfo event) => EventMeta(
   isEditable: event.isEditable,
   uploadPercent: event.uploadPercent,
 );
+
+List<RichBlock> richOf(List<rust.RichBlock> blocks) => [
+  for (final block in blocks)
+    RichBlock(
+      switch (block.kind) {
+        rust.BlockKind_Paragraph() => const ParagraphBlock(),
+        rust.BlockKind_Heading(:final level) => HeadingBlock(level),
+        rust.BlockKind_ListItem(:final number, :final depth) => ListItemBlock(
+          number: number,
+          depth: depth,
+        ),
+        rust.BlockKind_Code(:final language) => CodeBlock(language),
+        rust.BlockKind_Rule() => const RuleBlock(),
+      },
+      [
+        for (final span in block.spans)
+          RichSpan(
+            span.text,
+            bold: span.bold,
+            italic: span.italic,
+            strike: span.strike,
+            underline: span.underline,
+            code: span.code,
+            spoiler: span.spoiler,
+            link: span.link,
+            mention: span.mention,
+            color: span.color,
+          ),
+      ],
+      quoteDepth: block.quoteDepth,
+    ),
+];

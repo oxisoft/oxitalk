@@ -49,6 +49,82 @@ final class Room {
 
 enum SendState { sending, sent, failed }
 
+/// What kind of block of formatted text.
+sealed class BlockKind {
+  const BlockKind();
+}
+
+final class ParagraphBlock extends BlockKind {
+  const ParagraphBlock();
+}
+
+final class HeadingBlock extends BlockKind {
+  const HeadingBlock(this.level);
+
+  /// 1–6.
+  final int level;
+}
+
+/// A list item: [number] is `null` for a bullet; [depth] is 1 for a top-level list.
+final class ListItemBlock extends BlockKind {
+  const ListItemBlock({this.number, this.depth = 1});
+
+  final int? number;
+  final int depth;
+}
+
+final class CodeBlock extends BlockKind {
+  const CodeBlock([this.language]);
+
+  final String? language;
+}
+
+final class RuleBlock extends BlockKind {
+  const RuleBlock();
+}
+
+/// A block of formatted text, perhaps in quotes.
+final class RichBlock {
+  const RichBlock(this.kind, this.spans, {this.quoteDepth = 0});
+
+  final BlockKind kind;
+  final List<RichSpan> spans;
+  final int quoteDepth;
+}
+
+/// A run of text in one style.
+final class RichSpan {
+  const RichSpan(
+    this.text, {
+    this.bold = false,
+    this.italic = false,
+    this.strike = false,
+    this.underline = false,
+    this.code = false,
+    this.spoiler = false,
+    this.link,
+    this.mention,
+    this.color,
+  });
+
+  final String text;
+  final bool bold;
+  final bool italic;
+  final bool strike;
+  final bool underline;
+  final bool code;
+
+  /// Hidden until clicked.
+  final bool spoiler;
+  final String? link;
+
+  /// The user ID of a user mentioned.
+  final String? mention;
+
+  /// A CSS colour like `#ff0000`.
+  final String? color;
+}
+
 /// One emoji (or other key) given to a message, and by whom.
 final class Reaction {
   const Reaction(this.key, this.senders, {this.mine = false});
@@ -125,6 +201,7 @@ final class MessageEntry extends TimelineEntry {
     required this.sender,
     required this.time,
     required this.body,
+    this.formatted,
     this.senderName,
     this.senderAvatarUrl,
     this.isOwn = false,
@@ -133,6 +210,9 @@ final class MessageEntry extends TimelineEntry {
   }) : super(id);
 
   final EventMeta meta;
+
+  /// The formatted version of [body], if the sender formatted it.
+  final List<RichBlock>? formatted;
 
   final String sender;
   final String? senderName;
@@ -155,6 +235,7 @@ final class MediaInfo {
     required this.filename,
     this.thumbnail,
     this.caption,
+    this.formattedCaption,
     this.mimeType,
     this.size,
     this.width,
@@ -173,6 +254,9 @@ final class MediaInfo {
 
   /// Text the sender wrote with the file.
   final String? caption;
+
+  /// The caption's formatting, if any.
+  final List<RichBlock>? formattedCaption;
   final String? mimeType;
 
   /// In bytes.

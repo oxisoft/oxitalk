@@ -158,16 +158,22 @@ abstract interface class RoomTimeline {
   /// Loads older messages. Returns `true` once the start of the room is reached.
   Future<bool> loadOlder();
 
-  Future<void> send(String text);
+  /// Sends [text]; with [markdown], formatted from its markdown as Element sends it.
+  Future<void> send(String text, {bool markdown = false});
 
   /// Sends [text] as a reply to the event [eventId].
-  Future<void> sendReply(String text, String eventId);
+  Future<void> sendReply(String text, String eventId, {bool markdown = false});
 
   /// Gives the message [ref] ([EventMeta.ref]) the user's reaction [key], or takes it back.
   Future<void> toggleReaction(String ref, String key);
 
   /// Replaces the text of the user's message, or with [caption] the caption of their file.
-  Future<void> edit(String ref, String text, {bool caption = false});
+  Future<void> edit(
+    String ref,
+    String text, {
+    bool caption = false,
+    bool markdown = false,
+  });
 
   /// Deletes the message for everyone; a local echo is just not sent.
   Future<void> redact(String ref);
@@ -186,6 +192,7 @@ abstract interface class RoomTimeline {
     required String mimeType,
     String? caption,
     bool compress = false,
+    bool markdown = false,
   });
 
   /// Sends the message [eventId] again in the account's room [roomId].

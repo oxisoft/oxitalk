@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn an_id_that_does_not_parse_is_reported_as_given() {
         assert_eq!(
-            parse_id::<matrix_sdk::ruma::OwnedUserId>("not-a-user"),
+            parse_id::<ruma::OwnedUserId>("not-a-user"),
             Err(CoreError::InvalidId {
                 id: "not-a-user".to_owned()
             })

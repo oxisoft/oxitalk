@@ -1008,10 +1008,10 @@ return timelineStart(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( EventInfo event,  String body)?  message,TResult Function( EventInfo event,  MediaMessage media)?  media,TResult Function( EventInfo event)?  unableToDecrypt,TResult Function( EventInfo event)?  redacted,TResult Function( EventInfo event)?  otherEvent,TResult Function( PlatformInt64 timestampMs)?  dateDivider,TResult Function()?  readMarker,TResult Function()?  timelineStart,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( EventInfo event,  String body,  List<RichBlock>? formatted)?  message,TResult Function( EventInfo event,  MediaMessage media)?  media,TResult Function( EventInfo event)?  unableToDecrypt,TResult Function( EventInfo event)?  redacted,TResult Function( EventInfo event)?  otherEvent,TResult Function( PlatformInt64 timestampMs)?  dateDivider,TResult Function()?  readMarker,TResult Function()?  timelineStart,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case TimelineItemContent_Message() when message != null:
-return message(_that.event,_that.body);case TimelineItemContent_Media() when media != null:
+return message(_that.event,_that.body,_that.formatted);case TimelineItemContent_Media() when media != null:
 return media(_that.event,_that.media);case TimelineItemContent_UnableToDecrypt() when unableToDecrypt != null:
 return unableToDecrypt(_that.event);case TimelineItemContent_Redacted() when redacted != null:
 return redacted(_that.event);case TimelineItemContent_OtherEvent() when otherEvent != null:
@@ -1036,10 +1036,10 @@ return timelineStart();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( EventInfo event,  String body)  message,required TResult Function( EventInfo event,  MediaMessage media)  media,required TResult Function( EventInfo event)  unableToDecrypt,required TResult Function( EventInfo event)  redacted,required TResult Function( EventInfo event)  otherEvent,required TResult Function( PlatformInt64 timestampMs)  dateDivider,required TResult Function()  readMarker,required TResult Function()  timelineStart,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( EventInfo event,  String body,  List<RichBlock>? formatted)  message,required TResult Function( EventInfo event,  MediaMessage media)  media,required TResult Function( EventInfo event)  unableToDecrypt,required TResult Function( EventInfo event)  redacted,required TResult Function( EventInfo event)  otherEvent,required TResult Function( PlatformInt64 timestampMs)  dateDivider,required TResult Function()  readMarker,required TResult Function()  timelineStart,}) {final _that = this;
 switch (_that) {
 case TimelineItemContent_Message():
-return message(_that.event,_that.body);case TimelineItemContent_Media():
+return message(_that.event,_that.body,_that.formatted);case TimelineItemContent_Media():
 return media(_that.event,_that.media);case TimelineItemContent_UnableToDecrypt():
 return unableToDecrypt(_that.event);case TimelineItemContent_Redacted():
 return redacted(_that.event);case TimelineItemContent_OtherEvent():
@@ -1060,10 +1060,10 @@ return timelineStart();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( EventInfo event,  String body)?  message,TResult? Function( EventInfo event,  MediaMessage media)?  media,TResult? Function( EventInfo event)?  unableToDecrypt,TResult? Function( EventInfo event)?  redacted,TResult? Function( EventInfo event)?  otherEvent,TResult? Function( PlatformInt64 timestampMs)?  dateDivider,TResult? Function()?  readMarker,TResult? Function()?  timelineStart,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( EventInfo event,  String body,  List<RichBlock>? formatted)?  message,TResult? Function( EventInfo event,  MediaMessage media)?  media,TResult? Function( EventInfo event)?  unableToDecrypt,TResult? Function( EventInfo event)?  redacted,TResult? Function( EventInfo event)?  otherEvent,TResult? Function( PlatformInt64 timestampMs)?  dateDivider,TResult? Function()?  readMarker,TResult? Function()?  timelineStart,}) {final _that = this;
 switch (_that) {
 case TimelineItemContent_Message() when message != null:
-return message(_that.event,_that.body);case TimelineItemContent_Media() when media != null:
+return message(_that.event,_that.body,_that.formatted);case TimelineItemContent_Media() when media != null:
 return media(_that.event,_that.media);case TimelineItemContent_UnableToDecrypt() when unableToDecrypt != null:
 return unableToDecrypt(_that.event);case TimelineItemContent_Redacted() when redacted != null:
 return redacted(_that.event);case TimelineItemContent_OtherEvent() when otherEvent != null:
@@ -1082,11 +1082,20 @@ return timelineStart();case _:
 
 
 class TimelineItemContent_Message extends TimelineItemContent {
-  const TimelineItemContent_Message({required this.event, required this.body}): super._();
+  const TimelineItemContent_Message({required this.event, required this.body,  List<RichBlock>? formatted}): _formatted = formatted,super._();
   
 
  final  EventInfo event;
  final  String body;
+ final  List<RichBlock>? _formatted;
+ List<RichBlock>? get formatted {
+  final value = _formatted;
+  if (value == null) return null;
+  if (_formatted is EqualUnmodifiableListView) return _formatted;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
 
 /// Create a copy of TimelineItemContent
 /// with the given fields replaced by the non-null parameter values.
@@ -1098,18 +1107,18 @@ $TimelineItemContent_MessageCopyWith<TimelineItemContent_Message> get copyWith =
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is TimelineItemContent_Message&&(identical(other.event, event) || other.event == event)&&(identical(other.body, body) || other.body == body));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is TimelineItemContent_Message&&(identical(other.event, event) || other.event == event)&&(identical(other.body, body) || other.body == body)&&const DeepCollectionEquality().equals(other.formatted, _formatted));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,event,body);
+    return Object.hash(runtimeType,event,body,const DeepCollectionEquality().hash(_formatted));
 }
 
 @override
 String toString() {
-    return 'TimelineItemContent.message(event: $event, body: $body)';
+    return 'TimelineItemContent.message(event: $event, body: $body, formatted: $formatted)';
 }
 
 
@@ -1120,7 +1129,7 @@ abstract mixin class $TimelineItemContent_MessageCopyWith<$Res> implements $Time
   factory $TimelineItemContent_MessageCopyWith(TimelineItemContent_Message value, $Res Function(TimelineItemContent_Message) _then) = _$TimelineItemContent_MessageCopyWithImpl;
 @useResult
 $Res call({
- EventInfo event, String body
+ EventInfo event, String body, List<RichBlock>? formatted
 });
 
 
@@ -1137,11 +1146,12 @@ class _$TimelineItemContent_MessageCopyWithImpl<$Res>
 
 /// Create a copy of TimelineItemContent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? event = null,Object? body = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? event = null,Object? body = null,Object? formatted = freezed,}) {
   return _then(TimelineItemContent_Message(
 event: null == event ? _self.event : event // ignore: cast_nullable_to_non_nullable
 as EventInfo,body: null == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
-as String,
+as String,formatted: freezed == formatted ? _self._formatted : formatted // ignore: cast_nullable_to_non_nullable
+as List<RichBlock>?,
   ));
 }
 

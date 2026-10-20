@@ -493,23 +493,39 @@ final class RustRoomTimeline implements RoomTimeline {
   Future<bool> loadOlder() => guarded(() => _timeline.paginateBack(count: 20));
 
   @override
-  Future<void> send(String text) =>
-      guarded(() => _timeline.sendText(body: text));
+  Future<void> send(String text, {bool markdown = false}) =>
+      guarded(() => _timeline.sendText(body: text, markdown: markdown));
 
   @override
   Future<void> markAsRead() => guarded(_timeline.markAsRead);
 
   @override
-  Future<void> sendReply(String text, String eventId) =>
-      guarded(() => _timeline.sendReply(body: text, replyTo: eventId));
+  Future<void> sendReply(
+    String text,
+    String eventId, {
+    bool markdown = false,
+  }) => guarded(
+    () => _timeline.sendReply(body: text, replyTo: eventId, markdown: markdown),
+  );
 
   @override
   Future<void> toggleReaction(String ref, String key) =>
       guarded(() => _timeline.toggleReaction(item: ref, key: key));
 
   @override
-  Future<void> edit(String ref, String text, {bool caption = false}) =>
-      guarded(() => _timeline.edit(item: ref, body: text, caption: caption));
+  Future<void> edit(
+    String ref,
+    String text, {
+    bool caption = false,
+    bool markdown = false,
+  }) => guarded(
+    () => _timeline.edit(
+      item: ref,
+      body: text,
+      caption: caption,
+      markdown: markdown,
+    ),
+  );
 
   @override
   Future<void> redact(String ref) => guarded(() => _timeline.redact(item: ref));
@@ -528,6 +544,7 @@ final class RustRoomTimeline implements RoomTimeline {
     required String mimeType,
     String? caption,
     bool compress = false,
+    bool markdown = false,
   }) => guarded(
     () => _timeline.sendData(
       data: data,
@@ -535,6 +552,7 @@ final class RustRoomTimeline implements RoomTimeline {
       mimeType: mimeType,
       caption: caption,
       compress: compress,
+      markdown: markdown,
     ),
   );
 

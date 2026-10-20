@@ -26,6 +26,7 @@ use matrix_sdk::{
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
+    rich_text::BlockKind,
     room_info::MemberRole,
     room_list::{Membership, RoomSummary},
     sections::{CustomSection, RoomTags, SectionSettings, SectionsUpdate},
@@ -145,18 +146,22 @@ async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
     let bob_timeline = bob.timeline(room_id.clone()).await?;
     let mut bob_items = watch_timeline(&bob_timeline).await;
 
-    alice_timeline.send_text("hello Bob".to_owned()).await?;
+    alice_timeline
+        .send_text("hello Bob".to_owned(), false)
+        .await?;
     bob_items
         .wait_until(|items| messages(items).contains(&("hello Bob", false)))
         .await?;
-    bob_timeline.send_text("hello Alice".to_owned()).await?;
+    bob_timeline
+        .send_text("hello Alice".to_owned(), false)
+        .await?;
     alice_items
         .wait_until(|items| messages(items).contains(&("hello Alice", false)))
         .await?;
     alice_items
         .wait_until(|items| {
             items.iter().any(|item| {
-                matches!(&item.content, TimelineItemContent::Message { event, body }
+                matches!(&item.content, TimelineItemContent::Message { event, body, .. }
                     if body == "hello Bob" && event.is_own && event.send_state == SendState::Sent)
             })
         })
@@ -184,7 +189,7 @@ async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
         .await?;
 
     alice_timeline
-        .send_text("after the restart".to_owned())
+        .send_text("after the restart".to_owned(), false)
         .await?;
     bob_items
         .wait_until(|items| messages(items).contains(&("after the restart", false)))
@@ -240,13 +245,15 @@ async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
         .await?;
 
     let alice_timeline = alice.timeline(room_id.clone()).await?;
-    alice_timeline.send_text("look at me".to_owned()).await?;
+    alice_timeline
+        .send_text("look at me".to_owned(), false)
+        .await?;
     let bob_timeline = bob.timeline(room_id).await?;
     let mut bob_items = watch_timeline(&bob_timeline).await;
     bob_items
         .wait_until(|items| {
             items.iter().any(|item| {
-                matches!(&item.content, TimelineItemContent::Message { event, body }
+                matches!(&item.content, TimelineItemContent::Message { event, body, .. }
                     if body == "look at me" && event.sender_avatar_url.as_ref() == Some(&avatar))
             })
         })
@@ -386,8 +393,8 @@ async fn marking_a_chat_read_clears_its_unread_count() -> TestResult {
         .await?;
     bob.join(room_id.clone()).await?;
     let alice_timeline = alice.timeline(room_id.clone()).await?;
-    alice_timeline.send_text("one".to_owned()).await?;
-    alice_timeline.send_text("two".to_owned()).await?;
+    alice_timeline.send_text("one".to_owned(), false).await?;
+    alice_timeline.send_text("two".to_owned(), false).await?;
     let unread = |rooms: &[RoomSummary]| {
         rooms
             .iter()
@@ -474,9 +481,11 @@ async fn pictures_and_files_arrive_and_are_cached() -> TestResult {
     )
     .await?;
     let alice_timeline = alice.timeline(room_id.clone()).await?;
-    alice_timeline.send_text("no link".to_owned()).await?;
     alice_timeline
-        .send_text("see https://oxisoft.io/docs".to_owned())
+        .send_text("no link".to_owned(), false)
+        .await?;
+    alice_timeline
+        .send_text("see https://oxisoft.io/docs".to_owned(), false)
         .await?;
 
     let bob_timeline = bob.timeline(room_id.clone()).await?;
@@ -570,7 +579,7 @@ async fn a_direct_chat_shows_its_details_and_members() -> TestResult {
 /// The event of the text message `body` in `items`, once there is one.
 fn event_of<'a>(items: &'a [TimelineItem], body: &str) -> Option<&'a EventInfo> {
     items.iter().find_map(|item| match &item.content {
-        TimelineItemContent::Message { event, body: b } if b == body => Some(event),
+        TimelineItemContent::Message { event, body: b, .. } if b == body => Some(event),
         _ => None,
     })
 }
@@ -584,7 +593,7 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
     let mut alice_items = watch_timeline(&alice_timeline).await;
     let bob_timeline = bob.timeline(room_id).await?;
     let mut bob_items = watch_timeline(&bob_timeline).await;
-    alice_timeline.send_text("hello".to_owned()).await?;
+    alice_timeline.send_text("hello".to_owned(), false).await?;
     bob_items
         .wait_until(|items| event_of(items, "hello").is_some_and(|e| e.event_id.is_some()))
         .await?;
@@ -613,7 +622,7 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
         .await?;
 
     bob_timeline
-        .send_reply("hi back".to_owned(), id.clone())
+        .send_reply("hi back".to_owned(), id.clone(), false)
         .await?;
     alice_items
         .wait_until(|items| {
@@ -626,7 +635,7 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
         .await?;
 
     alice_timeline
-        .edit(id.clone(), "hello there".to_owned(), false)
+        .edit(id.clone(), "hello there".to_owned(), false, false)
         .await?;
     bob_items
         .wait_until(|items| event_of(items, "hello there").is_some_and(|e| e.is_edited))
@@ -659,6 +668,7 @@ async fn photos_go_compressed_with_a_caption_and_forward() -> TestResult {
             "beach.png".to_owned(),
             "image/png".to_owned(),
             Some("At the beach".to_owned()),
+            true,
             true,
         )
         .await?;
@@ -714,6 +724,54 @@ fn noise_png(width: u32, height: u32) -> Result<Vec<u8>, Box<dyn Error>> {
         image::ImageFormat::Png,
     )?;
     Ok(data)
+}
+
+/// Markdown goes as Element sends it, and arrives as formatted blocks; plain text stays plain.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn markdown_arrives_formatted() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    alice_timeline
+        .send_text(
+            "**Battery low:** at *20 %*\n\n- one\n- two".to_owned(),
+            true,
+        )
+        .await?;
+    alice_timeline
+        .send_text("just *text*".to_owned(), false)
+        .await?;
+    let bob_timeline = bob.timeline(room_id).await?;
+    let mut items = watch_timeline(&bob_timeline).await;
+    bob_timeline.paginate_back(20).await?;
+    let formatted_of = |items: &[TimelineItem], start: &str| {
+        items.iter().find_map(|item| match &item.content {
+            TimelineItemContent::Message {
+                body, formatted, ..
+            } if body.starts_with(start) => Some(formatted.clone()),
+            _ => None,
+        })
+    };
+    items
+        .wait_until(|items| {
+            formatted_of(items, "**Battery").is_some() && formatted_of(items, "just").is_some()
+        })
+        .await?;
+    let blocks = formatted_of(&items.items, "**Battery")
+        .flatten()
+        .ok_or("no formatting")?;
+    assert_eq!(blocks[0].spans[0].text, "Battery low:");
+    assert!(blocks[0].spans[0].bold);
+    assert!(blocks[0].spans.iter().any(|s| s.italic && s.text == "20 %"));
+    assert_eq!(
+        blocks[1].kind,
+        BlockKind::ListItem {
+            number: None,
+            depth: 1
+        }
+    );
+    assert_eq!(formatted_of(&items.items, "just"), Some(None));
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -839,12 +897,12 @@ async fn the_recovery_key_verifies_and_restores_history() -> TestResult {
     let timeline = first.timeline(room_id.clone()).await?;
     let mut items = watch_timeline(&timeline).await;
     timeline
-        .send_text("before the new device".to_owned())
+        .send_text("before the new device".to_owned(), false)
         .await?;
     items
         .wait_until(|items| {
             items.iter().any(|item| {
-                matches!(&item.content, TimelineItemContent::Message { event, body }
+                matches!(&item.content, TimelineItemContent::Message { event, body, .. }
                     if body == "before the new device" && event.send_state == SendState::Sent)
             })
         })
