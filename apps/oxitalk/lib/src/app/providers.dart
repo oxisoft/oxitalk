@@ -94,6 +94,23 @@ class UseMarkdown extends _$UseMarkdown {
   }
 }
 
+/// Whether the user's typing is shown to the others in the chat.
+@Riverpod(keepAlive: true)
+class SendTyping extends _$SendTyping {
+  @override
+  bool build() => ref.watch(uiPrefsProvider).sendTyping;
+
+  void set({required bool on}) {
+    state = on;
+    unawaited(ref.read(uiPrefsProvider).setSendTyping(on: on));
+  }
+}
+
+/// Who is typing in [account]'s rooms: room ID → names.
+@riverpod
+Stream<Map<String, List<String>>> typing(Ref ref, String account) =>
+    _session(ref, account)?.typing ?? Stream.value(const {});
+
 /// `main` sets the real window; tests and phones have none of the app's own.
 @Riverpod(keepAlive: true)
 WindowControls windowControls(Ref ref) => const PlatformWindowControls();

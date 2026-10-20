@@ -252,6 +252,12 @@ final class FakeSession implements MatrixSession {
     ..remove(emoji)
     ..insert(0, emoji);
 
+  /// Who types where; tests change it.
+  final typingState = Latest(const <String, List<String>>{});
+
+  @override
+  Stream<Map<String, List<String>>> get typing => typingState.stream;
+
   @override
   Stream<Sections> get sections => sectionState.stream;
 
@@ -372,6 +378,12 @@ final class FakeTimeline implements RoomTimeline {
 
   @override
   Future<void> markAsRead() async => readMarks++;
+
+  /// What [setTyping] was told, in order.
+  final typingSent = <bool>[];
+
+  @override
+  Future<void> setTyping(bool typing) async => typingSent.add(typing);
 
   @override
   Future<void> sendReply(

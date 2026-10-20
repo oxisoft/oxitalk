@@ -60,6 +60,10 @@ class ChatPane extends ConsumerWidget {
         ?.where((room) => room.id == roomId)
         .firstOrNull;
     final name = room?.name ?? roomId;
+    final typing = typingLabel(
+      ref.watch(typingProvider(account)).value?[roomId],
+      direct: room?.isDm ?? false,
+    );
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -102,7 +106,14 @@ class ChatPane extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (room?.isEncrypted ?? false)
+                          if (typing != null)
+                            Text(
+                              typing,
+                              key: const Key('chat.typing'),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: OxiColors.accent),
+                            )
+                          else if (room?.isEncrypted ?? false)
                             Text(
                               'end-to-end encrypted',
                               style: Theme.of(context).textTheme.bodySmall,
@@ -845,13 +856,58 @@ class _ComposerState extends ConsumerState<Composer> {
   final _text = TextEditingController();
   final _focus = FocusNode();
 
+  /// Ends the user's typing after a pause.
+  Timer? _typingPause;
+  var _typing = false;
+
+  /// Where the last notice went; `ref` can't be used once the composer is gone.
+  RoomTimeline? _typingIn;
+
   (String, String) get _chat => (widget.account, widget.roomId);
 
   @override
+  void initState() {
+    super.initState();
+    _text.addListener(_onText);
+  }
+
+  @override
   void dispose() {
+    _typingPause?.cancel();
+    if (_typing) {
+      unawaited(_typingIn?.setTyping(false).catchError((Object _) {}));
+    }
     _text.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Tells the room the user types while there is text and keys are pressed, and stops
+  /// after [_typingTimeout] without a change, or when the text is gone.
+  void _onText() {
+    if (!ref.read(sendTypingProvider)) return;
+    _typingPause?.cancel();
+    if (_text.text.trim().isEmpty) {
+      if (_typing) _sendTyping(false);
+      return;
+    }
+    _sendTyping(true);
+    _typingPause = Timer(_typingTimeout, () => _sendTyping(false));
+  }
+
+  static const _typingTimeout = Duration(seconds: 5);
+
+  void _sendTyping(bool typing) {
+    _typing = typing;
+    final timeline = ref
+        .read(roomTimelineProvider(widget.account, widget.roomId))
+        .value;
+    _typingIn = timeline;
+    unawaited(
+      timeline?.setTyping(typing).catchError((Object _) {
+        // Only the others' view of the user's typing; nothing to tell the user.
+      }),
+    );
   }
 
   void _setMode(ComposerMode? mode) =>

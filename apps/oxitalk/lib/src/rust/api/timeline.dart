@@ -12,7 +12,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `fetch_missing_replies`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `reply_quote`, `rich_html`, `small`, `source_json`, `text_content`, `timeline_diff`
+// These functions are ignored because they are not marked as `pub`: `dart_int`, `event_content`, `fetch_missing_replies`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `small`, `source_json`, `text_content`, `timeline_diff`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
@@ -121,6 +121,14 @@ abstract class Timeline implements RustOpaqueInterface {
   ///
   /// Only if the message can't be queued; a failed send shows as [`SendState::Failed`].
   Future<void> sendText({required String body, required bool markdown});
+
+  /// Tells the room whether the user is typing. Calls come as often as keys are pressed;
+  /// the SDK sends a notice only when it changes or the last one is about to run out.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers; [`CoreError::Internal`] if the user isn't in the room.
+  Future<void> setTyping({required bool typing});
 
   /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
   /// loaded so far.

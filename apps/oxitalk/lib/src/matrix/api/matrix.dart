@@ -95,6 +95,10 @@ abstract interface class MatrixSession {
   /// image bytes.
   Future<Uint8List> thumbnail(String mxcUrl, int size);
 
+  /// Who is typing in which room: room ID → their names, the user left out; rooms where
+  /// nobody types are absent. The current state, then every change.
+  Stream<Map<String, List<String>>> get typing;
+
   /// The room list sections (empty until they are read), then every change.
   Stream<Sections> get sections;
 
@@ -197,6 +201,9 @@ abstract interface class RoomTimeline {
 
   /// Sends the message [eventId] again in the account's room [roomId].
   Future<void> forward(String eventId, String roomId);
+
+  /// Tells the room whether the user is typing; call it as often as the text changes.
+  Future<void> setTyping(bool typing);
 
   /// Marks the room read up to its latest message, for the other members and the user's
   /// other devices.

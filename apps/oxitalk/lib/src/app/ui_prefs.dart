@@ -10,12 +10,16 @@ abstract interface class UiPrefs {
   /// Whether messages are sent formatted from their markdown; on unless turned off.
   bool get useMarkdown;
 
+  /// Whether the user's typing is shown to the others; on unless turned off.
+  bool get sendTyping;
+
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
   Future<void> setNarrowList({required bool narrow});
   Future<void> setRailHidden({required bool hidden});
   Future<void> setUseMarkdown({required bool on});
+  Future<void> setSendTyping({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
 }
 
@@ -55,6 +59,9 @@ final class FileUiPrefs implements UiPrefs {
   bool get useMarkdown => _json['useMarkdown'] != false;
 
   @override
+  bool get sendTyping => _json['sendTyping'] != false;
+
+  @override
   String? lastRoom(String account) => _rooms[account] as String?;
 
   @override
@@ -68,6 +75,10 @@ final class FileUiPrefs implements UiPrefs {
   @override
   Future<void> setUseMarkdown({required bool on}) =>
       _save(() => _json['useMarkdown'] = on);
+
+  @override
+  Future<void> setSendTyping({required bool on}) =>
+      _save(() => _json['sendTyping'] = on);
 
   @override
   Future<void> setLastRoom(String account, String? roomId) => _save(() {
@@ -93,6 +104,7 @@ final class MemoryUiPrefs implements UiPrefs {
     this.narrowList = false,
     this.railHidden = false,
     this.useMarkdown = true,
+    this.sendTyping = true,
     Map<String, String>? lastRooms,
   }) : lastRooms = {...?lastRooms};
 
@@ -104,6 +116,9 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   bool useMarkdown;
+
+  @override
+  bool sendTyping;
 
   final Map<String, String> lastRooms;
 
@@ -120,6 +135,9 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   Future<void> setUseMarkdown({required bool on}) async => useMarkdown = on;
+
+  @override
+  Future<void> setSendTyping({required bool on}) async => sendTyping = on;
 
   @override
   Future<void> setLastRoom(String account, String? roomId) async {

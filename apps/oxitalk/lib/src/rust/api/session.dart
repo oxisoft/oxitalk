@@ -15,6 +15,7 @@ import 'room_list.dart';
 import 'sections.dart';
 import 'sync.dart';
 import 'timeline.dart';
+import 'typing.dart';
 import 'verification.dart';
 part 'session.freezed.dart';
 
@@ -259,6 +260,9 @@ abstract class Session implements RustOpaqueInterface {
 
   /// Sends the current [`SyncState`], then every change.
   Stream<SyncState> subscribeSyncState();
+
+  /// Sends who is typing, for every room, whenever it changes.
+  Stream<RoomTyping> subscribeTyping();
 
   /// Sends every verification request that arrives from another device of the user.
   Stream<VerificationRequestInfo> subscribeVerificationRequests();

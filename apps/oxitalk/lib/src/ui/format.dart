@@ -65,3 +65,15 @@ String mediaDuration(Duration duration) {
   final seconds = _two(duration.inSeconds % 60);
   return hours > 0 ? '$hours:${_two(minutes)}:$seconds' : '$minutes:$seconds';
 }
+
+/// What shows while people type: `typing…` in a direct chat, else `Bob is typing…`,
+/// `Bob and Carol are typing…`, `3 people are typing…`; `null` when nobody is.
+String? typingLabel(List<String>? names, {required bool direct}) {
+  if (names == null || names.isEmpty) return null;
+  if (direct) return 'typing…';
+  return switch (names) {
+    [final one] => '$one is typing…',
+    [final one, final two] => '$one and $two are typing…',
+    _ => '${names.length} people are typing…',
+  };
+}

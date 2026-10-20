@@ -14,6 +14,7 @@ import 'api/sections.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
 import 'api/timeline.dart';
+import 'api/typing.dart';
 import 'api/verification.dart';
 
 import 'dart:async';
@@ -108,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<List<TimelineDiff>>
   dco_decode_StreamSink_list_timeline_diff_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<RoomTyping> dco_decode_StreamSink_room_typing_Sse(dynamic raw);
 
   @protected
   RustStreamSink<SectionsUpdate> dco_decode_StreamSink_sections_update_Sse(
@@ -303,6 +307,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomTags dco_decode_room_tags(dynamic raw);
 
   @protected
+  RoomTyping dco_decode_room_typing(dynamic raw);
+
+  @protected
   SectionSettings dco_decode_section_settings(dynamic raw);
 
   @protected
@@ -420,6 +427,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<List<TimelineDiff>>
   sse_decode_StreamSink_list_timeline_diff_Sse(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<RoomTyping> sse_decode_StreamSink_room_typing_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<SectionsUpdate> sse_decode_StreamSink_sections_update_Sse(
@@ -641,6 +653,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomTags sse_decode_room_tags(SseDeserializer deserializer);
 
   @protected
+  RoomTyping sse_decode_room_typing(SseDeserializer deserializer);
+
+  @protected
   SectionSettings sse_decode_section_settings(SseDeserializer deserializer);
 
   @protected
@@ -780,6 +795,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_list_timeline_diff_Sse(
     RustStreamSink<List<TimelineDiff>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_room_typing_Sse(
+    RustStreamSink<RoomTyping> self,
     SseSerializer serializer,
   );
 
@@ -1055,6 +1076,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_tags(RoomTags self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_typing(RoomTyping self, SseSerializer serializer);
 
   @protected
   void sse_encode_section_settings(

@@ -15,6 +15,7 @@ pub mod sections;
 pub mod session;
 pub mod sync;
 pub mod timeline;
+pub mod typing;
 pub mod verification;
 
 /// Sets up the bridge's default logging and panic handling and installs ring as the TLS

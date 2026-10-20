@@ -515,6 +515,149 @@ abstract class _$UseMarkdown extends $Notifier<bool> {
   }
 }
 
+/// Whether the user's typing is shown to the others in the chat.
+
+@ProviderFor(SendTyping)
+final sendTypingProvider = SendTypingProvider._();
+
+/// Whether the user's typing is shown to the others in the chat.
+final class SendTypingProvider extends $NotifierProvider<SendTyping, bool> {
+  /// Whether the user's typing is shown to the others in the chat.
+  SendTypingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'sendTypingProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$sendTypingHash();
+
+  @$internal
+  @override
+  SendTyping create() => SendTyping();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$sendTypingHash() => r'e510795c448f95c910f869647daf6ffe7b4171ce';
+
+/// Whether the user's typing is shown to the others in the chat.
+
+abstract class _$SendTyping extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// Who is typing in [account]'s rooms: room ID → names.
+
+@ProviderFor(typing)
+final typingProvider = TypingFamily._();
+
+/// Who is typing in [account]'s rooms: room ID → names.
+
+final class TypingProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Map<String, List<String>>>,
+          Map<String, List<String>>,
+          Stream<Map<String, List<String>>>
+        >
+    with
+        $FutureModifier<Map<String, List<String>>>,
+        $StreamProvider<Map<String, List<String>>> {
+  /// Who is typing in [account]'s rooms: room ID → names.
+  TypingProvider._({
+    required TypingFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'typingProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$typingHash();
+
+  @override
+  String toString() {
+    return r'typingProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<Map<String, List<String>>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<Map<String, List<String>>> create(Ref ref) {
+    final argument = this.argument as String;
+    return typing(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is TypingProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$typingHash() => r'b4efffffc411d66ffcaab482e89233a7c18c14dc';
+
+/// Who is typing in [account]'s rooms: room ID → names.
+
+final class TypingFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<Map<String, List<String>>>, String> {
+  TypingFamily._()
+    : super(
+        retry: null,
+        name: r'typingProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Who is typing in [account]'s rooms: room ID → names.
+
+  TypingProvider call(String account) =>
+      TypingProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'typingProvider';
+}
+
 /// `main` sets the real window; tests and phones have none of the app's own.
 
 @ProviderFor(windowControls)

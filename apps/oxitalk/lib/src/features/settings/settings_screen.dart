@@ -60,6 +60,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onChanged: (on) =>
                     ref.read(useMarkdownProvider.notifier).set(on: on),
               ),
+              SwitchListTile(
+                key: const Key('settings.sendTyping'),
+                title: const Text('Send typing notifications'),
+                subtitle: const Text(
+                  'Others see when you are typing. Off keeps it to yourself; '
+                  'you still see theirs.',
+                ),
+                value: ref.watch(sendTypingProvider),
+                onChanged: (on) =>
+                    ref.read(sendTypingProvider.notifier).set(on: on),
+              ),
               const _MediaSettings(),
               const _SectionTitle('Diagnostics'),
               SwitchListTile(

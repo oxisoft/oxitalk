@@ -560,6 +560,10 @@ class RoomTile extends ConsumerWidget {
     bool invited,
   ) {
     if (narrow) return _narrowTile(context, ref, theme, invited);
+    final typing = typingLabel(
+      ref.watch(typingProvider(account)).value?[room.id],
+      direct: room.isDm,
+    );
     return ListTile(
       selected: selected,
       selectedTileColor: theme.colorScheme.primaryContainer,
@@ -594,10 +598,12 @@ class RoomTile extends ConsumerWidget {
         children: [
           Expanded(
             child: Text(
-              invited ? 'Invitation — tap to join' : room.lastMessage ?? '',
+              invited
+                  ? 'Invitation — tap to join'
+                  : typing ?? room.lastMessage ?? '',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: invited
+              style: invited || typing != null
                   ? TextStyle(color: theme.colorScheme.primary)
                   : null,
             ),

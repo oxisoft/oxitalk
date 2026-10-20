@@ -36,7 +36,7 @@ use tokio::task::AbortHandle;
 use super::{
     error::{CoreError, parse_id},
     media_prep::prepare_image,
-    rich_text::{RichBlock, rich_text},
+    rich_text::{RichBlock, plain_line, rich_text},
     session::Session,
 };
 use crate::frb_generated::StreamSink;
@@ -205,6 +205,11 @@ impl Session {
 }
 
 impl Timeline {
+    /// The room of this timeline.
+    pub(crate) fn room(&self) -> &matrix_sdk::Room {
+        self.inner.room()
+    }
+
     pub(crate) fn new(inner: Arc<timeline::Timeline>, tasks: Mutex<Vec<AbortHandle>>) -> Self {
         Self { inner, tasks }
     }
@@ -746,6 +751,17 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
         }
         _ => return None,
     })
+}
+
+/// A message as one line of plain text, for the chat list: its formatted text (or a file's
+/// formatted caption) without the markup, else its body.
+pub(crate) fn preview_text(message: &timeline::Message) -> String {
+    let blocks = formatted_text(message.msgtype())
+        .or_else(|| media_message(message.msgtype()).and_then(|media| media.formatted_caption));
+    match blocks {
+        Some(blocks) => plain_line(&blocks),
+        None => message.body().to_owned(),
+    }
 }
 
 /// The formatting of a text, notice or emote message, if it has any.

@@ -217,6 +217,15 @@ final class RustMatrixSession implements MatrixSession {
         }),
       )
       ..add(
+        _session.subscribeTyping().listen(
+          (update) => _typing.value = {
+            for (final entry in _typing.value.entries)
+              if (entry.key != update.roomId) entry.key: entry.value,
+            if (update.names.isNotEmpty) update.roomId: update.names,
+          },
+        ),
+      )
+      ..add(
         _session.subscribeSections().listen(
           (update) =>
               _sections.value = applySectionsUpdate(_sections.value, update),
@@ -266,6 +275,7 @@ final class RustMatrixSession implements MatrixSession {
   final _rooms = Latest<List<Room>?>(null);
   final _profile = Latest(const Profile());
   final _sections = Latest(const Sections());
+  final _typing = Latest(const <String, List<String>>{});
   final _verificationStatus = Latest(VerificationStatus.unknown);
   final _verificationRequests =
       StreamController<VerificationRequest>.broadcast();
@@ -344,6 +354,9 @@ final class RustMatrixSession implements MatrixSession {
 
   @override
   Stream<Sections> get sections => _sections.stream;
+
+  @override
+  Stream<Map<String, List<String>>> get typing => _typing.stream;
 
   @override
   Future<void> setRoomSection(String roomId, String? tag) =>
@@ -465,6 +478,7 @@ final class RustMatrixSession implements MatrixSession {
     unawaited(_rooms.close());
     unawaited(_profile.close());
     unawaited(_sections.close());
+    unawaited(_typing.close());
     unawaited(_verificationStatus.close());
     unawaited(_verificationRequests.close());
     _session.dispose();
@@ -498,6 +512,10 @@ final class RustRoomTimeline implements RoomTimeline {
 
   @override
   Future<void> markAsRead() => guarded(_timeline.markAsRead);
+
+  @override
+  Future<void> setTyping(bool typing) =>
+      guarded(() => _timeline.setTyping(typing: typing));
 
   @override
   Future<void> sendReply(
