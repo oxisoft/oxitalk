@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/theme.dart';
 import '../matrix/api/models.dart';
@@ -108,24 +111,7 @@ class _RichTextViewState extends State<RichTextView> {
           ],
         ),
       ),
-      CodeBlock() => Container(
-        key: const Key('rich.code'),
-        width: double.infinity,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.6,
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Text(
-            block.spans.map((span) => span.text).join(),
-            style: codeStyle.copyWith(fontSize: 13),
-          ),
-        ),
-      ),
+      CodeBlock() => _CodeBlock(block.spans.map((span) => span.text).join()),
       RuleBlock() => const Divider(height: 12),
     };
   }
@@ -280,4 +266,86 @@ Color? parseCssColor(String? css) {
   if (hex.length != 6) return null;
   final value = int.tryParse(hex, radix: 16);
   return value == null ? null : Color(0xFF000000 | value);
+}
+
+/// A code block, with a button that copies all of it: shown while the mouse is over the
+/// block, and always where there is no mouse to hover.
+class _CodeBlock extends StatefulWidget {
+  const _CodeBlock(this.code);
+
+  final String code;
+
+  @override
+  State<_CodeBlock> createState() => _CodeBlockState();
+}
+
+class _CodeBlockState extends State<_CodeBlock> {
+  var _hovered = false;
+  var _copied = false;
+  Timer? _reset;
+
+  @override
+  void dispose() {
+    _reset?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.code));
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(const SnackBar(content: Text('Code copied')));
+    setState(() => _copied = true);
+    _reset?.cancel();
+    _reset = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final touch = switch (theme.platform) {
+      TargetPlatform.android ||
+      TargetPlatform.iOS ||
+      TargetPlatform.fuchsia => true,
+      _ => false,
+    };
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Stack(
+        children: [
+          Container(
+            key: const Key('rich.code'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.6,
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(widget.code, style: codeStyle.copyWith(fontSize: 13)),
+            ),
+          ),
+          if (touch || _hovered || _copied)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: IconButton.filledTonal(
+                key: const Key('rich.code.copy'),
+                tooltip: 'Copy code',
+                iconSize: 16,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => unawaited(_copy()),
+                icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

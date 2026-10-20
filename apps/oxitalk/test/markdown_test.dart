@@ -1,4 +1,7 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
@@ -162,6 +165,81 @@ void main() {
     await tester.tap(find.byKey(const Key('composer.send')));
     await tester.pumpAndSettle();
     expect(timeline.lastSentAsMarkdown, isFalse);
+  });
+
+  group('a code block’s copy button', () {
+    String? copied;
+    final entries = [
+      MessageEntry(
+        id: 'c',
+        sender: '@bot:acme.com',
+        time: DateTime(2026, 10, 20, 9),
+        body: '```\nls -la\ncd /tmp\n```',
+        formatted: const [
+          RichBlock(CodeBlock('sh'), [RichSpan('ls -la\ncd /tmp')]),
+        ],
+      ),
+    ];
+
+    Future<void> open(WidgetTester tester) async {
+      copied = null;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied =
+                (call.arguments as Map<Object?, Object?>)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      await _open(tester, entries: entries);
+    }
+
+    testWidgets('shows on hover on desktop and copies the whole block', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await open(tester);
+        final copy = find.byKey(const Key('rich.code.copy'));
+        expect(copy, findsNothing);
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        addTearDown(mouse.removePointer);
+        await mouse.moveTo(
+          tester.getCenter(find.byKey(const Key('rich.code'))),
+        );
+        await tester.pumpAndSettle();
+        expect(copy, findsOneWidget);
+        await tester.tap(copy);
+        await tester.pump();
+        expect(copied, 'ls -la\ncd /tmp');
+        expect(find.text('Code copied'), findsOneWidget);
+        expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+        // Leaving hides it again once the tick is gone.
+        await mouse.moveTo(Offset.zero);
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pumpAndSettle();
+        expect(copy, findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('is always there on a touch screen', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        await open(tester);
+        await tester.tap(find.byKey(const Key('rich.code.copy')));
+        await tester.pump();
+        expect(copied, 'ls -la\ncd /tmp');
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
   });
 
   test('CSS colours are read', () {
