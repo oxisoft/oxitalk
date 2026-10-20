@@ -733,13 +733,13 @@ async fn markdown_arrives_formatted() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     let alice_timeline = alice.timeline(room_id.clone()).await?;
     alice_timeline
+        .send_text("just *text*".to_owned(), false)
+        .await?;
+    alice_timeline
         .send_text(
             "**Battery low:** at *20 %*\n\n- one\n- two".to_owned(),
             true,
         )
-        .await?;
-    alice_timeline
-        .send_text("just *text*".to_owned(), false)
         .await?;
     let bob_timeline = bob.timeline(room_id).await?;
     let mut items = watch_timeline(&bob_timeline).await;
@@ -771,6 +771,49 @@ async fn markdown_arrives_formatted() -> TestResult {
         }
     );
     assert_eq!(formatted_of(&items.items, "just"), Some(None));
+
+    // The chat list shows the latest message as plain text, without the markdown.
+    let mut rooms = watch_rooms(&bob).await?;
+    rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.last_message.as_deref() == Some("Battery low: at 20 % one two"))
+        })
+        .await?;
+    Ok(())
+}
+
+/// The other side sees the user typing, and stopping.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs the Synapse test homeserver (test-infra/)"]
+async fn typing_shows_on_the_other_side() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    // The room list subscribes the rooms whose typing comes with the sync.
+    let _bob_rooms = watch_rooms(&bob).await?;
+    let mut typing = bob.typing_updates();
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let alice_id = alice.user_id();
+    let mut wait_for = async |typing_now: bool| -> TestResult {
+        tokio::time::timeout(TIMEOUT, async {
+            while let Some(update) = typing.next().await {
+                let alice_typing = update
+                    .names
+                    .iter()
+                    .any(|name| alice_id.contains(name.as_str()));
+                if update.room_id == room_id && alice_typing == typing_now {
+                    return Ok(());
+                }
+            }
+            Err("the stream ended".into())
+        })
+        .await
+        .map_err(|_| format!("timed out waiting for typing = {typing_now}"))?
+    };
+    alice_timeline.set_typing(true).await?;
+    wait_for(true).await?;
+    alice_timeline.set_typing(false).await?;
+    wait_for(false).await?;
     Ok(())
 }
 

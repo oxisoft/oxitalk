@@ -78,6 +78,32 @@ pub(crate) fn rich_text(html: &str) -> Vec<RichBlock> {
     builder.finish()
 }
 
+/// The blocks as one line of plain text, for a preview: no styles, blocks joined with spaces,
+/// spoilers hidden as `…`.
+pub(crate) fn plain_line(blocks: &[RichBlock]) -> String {
+    let mut line = String::new();
+    for block in blocks {
+        let mut text = String::new();
+        for span in &block.spans {
+            if span.spoiler {
+                if !text.ends_with('…') {
+                    text.push('…');
+                }
+            } else {
+                text.push_str(&span.text);
+            }
+        }
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        if !text.is_empty() {
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(&text);
+        }
+    }
+    line
+}
+
 /// Walks the HTML; internal to the core.
 #[frb(ignore)]
 #[derive(Default)]
@@ -485,6 +511,16 @@ mod tests {
                 },
             ])]
         );
+    }
+
+    #[test]
+    fn a_preview_is_one_plain_line_without_spoilers() {
+        let blocks = rich_text(
+            "<p><strong>Battery low:</strong> at <em>20 %</em></p>\
+             <ul><li>one</li><li>two\nlines</li></ul><span data-mx-spoiler>secret</span>",
+        );
+        assert_eq!(plain_line(&blocks), "Battery low: at 20 % one two lines …");
+        assert_eq!(plain_line(&[]), "");
     }
 
     #[test]

@@ -10,7 +10,11 @@ use matrix_sdk_ui::{
     timeline::{LatestEventValue, RoomExt},
 };
 
-use super::{error::CoreError, session::Session, timeline::dart_int};
+use super::{
+    error::CoreError,
+    session::Session,
+    timeline::{dart_int, preview_text},
+};
 use crate::frb_generated::StreamSink;
 
 /// How many rooms the list holds. M0 has no paging; this is far above any real account.
@@ -154,9 +158,7 @@ async fn summary(room: RoomListItem) -> RoomSummary {
         | LatestEventValue::Local {
             timestamp, content, ..
         } => (
-            content
-                .as_message()
-                .map(|message| message.body().to_owned()),
+            content.as_message().map(preview_text),
             Some(timestamp.0.into()),
         ),
         LatestEventValue::RemoteInvite { timestamp, .. } => (None, Some(timestamp.0.into())),
