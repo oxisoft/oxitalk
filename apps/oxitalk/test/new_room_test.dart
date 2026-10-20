@@ -218,25 +218,106 @@ void main() {
     expect(session.roomList.first.name, '@alina:acme.com');
   });
 
-  testWidgets('people are invited from the room’s members', (tester) async {
-    final session = await _open(tester);
+  Future<void> openInvite(WidgetTester tester) async {
     await tester.tap(find.text('Team'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('chat.title')));
     await tester.pumpAndSettle();
-    final info = find.byType(ChatInfoPane);
     await tester.tap(
-      find.descendant(of: info, matching: find.byKey(const Key('info.invite'))),
+      find.descendant(
+        of: find.byType(ChatInfoPane),
+        matching: find.byKey(const Key('info.invite')),
+      ),
     );
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('a typed user ID is invited', (tester) async {
+    final session = await _open(tester);
+    await openInvite(tester);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('invite.send')))
+          .onPressed,
+      isNull,
+    );
     await tester.enterText(
-      find.byKey(const Key('invite.userId')),
+      find.byKey(const Key('invite.search')),
       '@carol:acme.com',
     );
+    await _settle(tester);
+    await tester.tap(find.byKey(const Key('invite.typed')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('invite.send')));
     await tester.pumpAndSettle();
     expect(session.invited, ['!team:acme.com @carol:acme.com']);
     expect(find.text('Invited @carol:acme.com'), findsOneWidget);
+  });
+
+  testWidgets('several people are picked from a list; members are greyed', (
+    tester,
+  ) async {
+    final session = await _open(tester);
+    session
+      ..known = const [
+        Person('@alice:acme.com', displayName: 'Alice'),
+        Person('@bob:acme.com', displayName: 'Bob'),
+        Person('@dan:acme.com', displayName: 'Dan'),
+      ]
+      ..directory = const [Person('@alina:acme.com', displayName: 'Alina')]
+      ..members['!team:acme.com'] = const [
+        RoomMember(userId: _me),
+        RoomMember(userId: '@dan:acme.com', displayName: 'Dan', invited: true),
+      ];
+    await openInvite(tester);
+    // People known first; those already here greyed at the end, not to be picked.
+    expect(
+      find.byKey(const Key('invite.person.@alice:acme.com')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('invite.person.@dan:acme.com')), findsNothing);
+    expect(
+      find.byKey(const Key('invite.member.@dan:acme.com')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('invite')),
+        matching: find.text('Invited'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('invite.member.$_me')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('invite')),
+        matching: find.text('In the room'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('invite.person.@bob:acme.com')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('invite.chip.@bob:acme.com')), findsOneWidget);
+    // Filtered as typed, then the server's matches.
+    await tester.enterText(find.byKey(const Key('invite.search')), 'ali');
+    await _settle(tester);
+    expect(find.byKey(const Key('invite.person.@bob:acme.com')), findsNothing);
+    await tester.tap(find.byKey(const Key('invite.person.@alina:acme.com')));
+    await tester.pumpAndSettle();
+    // Picking clears the search for the next name.
+    expect(
+      find.byKey(const Key('invite.person.@bob:acme.com')),
+      findsOneWidget,
+    );
+    expect(find.text('Invite 2'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('invite.send')));
+    await tester.pumpAndSettle();
+    expect(session.invited, [
+      '!team:acme.com @bob:acme.com',
+      '!team:acme.com @alina:acme.com',
+    ]);
+    expect(find.text('Invited 2 people'), findsOneWidget);
   });
 
   test('addresses are made from names', () {

@@ -25,12 +25,20 @@ class _FinderDialog extends StatelessWidget {
     required this.title,
     required this.field,
     required this.children,
+    this.above,
+    this.action,
     super.key,
   });
 
   final String title;
   final TextField field;
   final List<Widget> children;
+
+  /// Shown between the field and the list.
+  final Widget? above;
+
+  /// The main button, beside Cancel.
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +53,7 @@ class _FinderDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             field,
+            ?above,
             const SizedBox(height: 8),
             Expanded(child: ListView(children: children)),
           ],
@@ -55,6 +64,7 @@ class _FinderDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
+        ?action,
       ],
     );
   }
@@ -96,21 +106,59 @@ class _Note extends StatelessWidget {
 /// Picks someone to chat with: people the user knows, filtered as they type, then matches
 /// from the server's user directory; a typed full user ID can be picked as it is. Gives back
 /// the user ID.
-class NewChatDialog extends StatefulWidget {
-  const NewChatDialog({
+Widget newChatDialog({
+  required String account,
+  required MatrixSession session,
+}) => PeopleDialog(
+  account: account,
+  session: session,
+  keyPrefix: 'newChat',
+  title: 'New chat',
+);
+
+/// Picks people to invite to a room, as [newChatDialog] finds them; several can be ticked.
+/// [members] are greyed at the end, not to be picked: user ID → what they are (`In the
+/// room`, `Invited`). Gives back the picked user IDs.
+Widget inviteDialog({
+  required String account,
+  required MatrixSession session,
+  required Map<String, String> members,
+}) => PeopleDialog(
+  account: account,
+  session: session,
+  keyPrefix: 'invite',
+  title: 'Invite to this room',
+  members: members,
+  multiple: true,
+);
+
+/// The people finder behind [newChatDialog] and [inviteDialog]. One pick pops the user ID;
+/// with [multiple], picks are ticked and the Invite button pops the list of them.
+class PeopleDialog extends StatefulWidget {
+  const PeopleDialog({
     required this.account,
     required this.session,
+    required this.keyPrefix,
+    required this.title,
+    this.members = const {},
+    this.multiple = false,
     super.key,
   });
 
   final String account;
   final MatrixSession session;
 
+  /// Starts the keys of its widgets, for tests: `<keyPrefix>.search` and so on.
+  final String keyPrefix;
+  final String title;
+  final Map<String, String> members;
+  final bool multiple;
+
   @override
-  State<NewChatDialog> createState() => _NewChatDialogState();
+  State<PeopleDialog> createState() => _PeopleDialogState();
 }
 
-class _NewChatDialogState extends State<NewChatDialog> {
+class _PeopleDialogState extends State<PeopleDialog> {
   final _term = TextEditingController();
   List<Person>? _known;
   List<Person> _found = const [];
@@ -119,6 +167,11 @@ class _NewChatDialogState extends State<NewChatDialog> {
   String _foundFor = '';
   var _searching = false;
   Timer? _delay;
+
+  /// Ticked so far, with [multiple]: user ID → the person, in the order ticked.
+  final _picked = <String, Person>{};
+
+  Key _key(String name) => Key('${widget.keyPrefix}.$name');
 
   @override
   void initState() {
@@ -173,42 +226,85 @@ class _NewChatDialogState extends State<NewChatDialog> {
         term.toLowerCase(),
       );
 
-  /// What the list offers now, in order: the typed ID, people known, people found.
-  ({String? typed, List<Person> known, List<Person> found}) _items() {
+  /// What the list offers now, in order: the typed ID, people known, people found, and
+  /// the room's members (not to be picked).
+  ({
+    String? typed,
+    List<Person> known,
+    List<Person> found,
+    List<Person> members,
+  })
+  _items() {
     final term = _term.text.trim();
+    final members = widget.members;
     final known = [
       for (final person in _known ?? const <Person>[])
-        if (_matches(person, term)) person,
+        if (!members.containsKey(person.userId) && _matches(person, term))
+          person,
     ];
     final knownIds = {for (final person in known) person.userId};
     final found = term.isEmpty || _foundFor != term
         ? const <Person>[]
         : [
             for (final person in _found)
-              if (!knownIds.contains(person.userId)) person,
+              if (!knownIds.contains(person.userId) &&
+                  !members.containsKey(person.userId))
+                person,
           ];
-    final listed = {...knownIds, for (final person in found) person.userId};
+    // Members with what is known of them; the rest by ID alone.
+    final everyone = {
+      for (final person in [...?_known, ..._found]) person.userId: person,
+    };
+    final inRoom = [
+      for (final userId in members.keys)
+        if (_matches(everyone[userId] ?? Person(userId), term))
+          everyone[userId] ?? Person(userId),
+    ];
+    final listed = {
+      ...knownIds,
+      for (final person in found) person.userId,
+      ...members.keys,
+    };
     final typed = _userId.hasMatch(term) && !listed.contains(term)
         ? term
         : null;
-    return (typed: typed, known: known, found: found);
+    return (typed: typed, known: known, found: found, members: inRoom);
   }
 
-  void _pick(String userId) => Navigator.of(context).pop(userId);
+  void _pick(Person person) {
+    if (!widget.multiple) {
+      Navigator.of(context).pop(person.userId);
+      return;
+    }
+    setState(() {
+      if (_picked.remove(person.userId) == null) {
+        _picked[person.userId] = person;
+        // Ready for the next name.
+        _term.clear();
+      }
+    });
+  }
 
   void _submit() {
     final items = _items();
-    final first =
-        items.typed ??
-        items.known.firstOrNull?.userId ??
-        items.found.firstOrNull?.userId;
-    if (first != null) _pick(first);
+    final typed = items.typed;
+    final first = typed != null
+        ? Person(typed)
+        : items.known.firstOrNull ?? items.found.firstOrNull;
+    if (first != null) {
+      _pick(first);
+    } else if (widget.multiple && _picked.isNotEmpty) {
+      _done();
+    }
   }
+
+  void _done() => Navigator.of(context).pop(_picked.keys.toList());
 
   Widget _tile(Person person) {
     final name = person.displayName ?? person.userId;
+    final picked = _picked.containsKey(person.userId);
     return ListTile(
-      key: Key('newChat.person.${person.userId}'),
+      key: _key('person.${person.userId}'),
       leading: MatrixAvatar(
         account: widget.account,
         url: person.avatarUrl,
@@ -220,7 +316,38 @@ class _NewChatDialogState extends State<NewChatDialog> {
       subtitle: person.displayName == null
           ? null
           : Text(person.userId, maxLines: 1, overflow: TextOverflow.ellipsis),
-      onTap: () => _pick(person.userId),
+      trailing: widget.multiple
+          ? Icon(
+              picked
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: picked ? Theme.of(context).colorScheme.primary : null,
+            )
+          : null,
+      onTap: () => _pick(person),
+    );
+  }
+
+  Widget _memberTile(Person person) {
+    final name = person.displayName ?? person.userId;
+    return Opacity(
+      opacity: 0.5,
+      child: ListTile(
+        key: _key('member.${person.userId}'),
+        enabled: false,
+        leading: MatrixAvatar(
+          account: widget.account,
+          url: person.avatarUrl,
+          name: name,
+          seed: person.userId,
+          radius: 18,
+        ),
+        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: Text(
+          widget.members[person.userId] ?? '',
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+      ),
     );
   }
 
@@ -230,10 +357,10 @@ class _NewChatDialogState extends State<NewChatDialog> {
     final items = _items();
     final typed = items.typed;
     return _FinderDialog(
-      key: const Key('newChat'),
-      title: 'New chat',
+      key: Key(widget.keyPrefix),
+      title: widget.title,
       field: TextField(
-        key: const Key('newChat.search'),
+        key: _key('search'),
         controller: _term,
         autofocus: true,
         decoration: const InputDecoration(
@@ -242,16 +369,54 @@ class _NewChatDialogState extends State<NewChatDialog> {
         ),
         onSubmitted: (_) => _submit(),
       ),
+      above: _picked.isEmpty
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final person in _picked.values)
+                    InputChip(
+                      key: _key('chip.${person.userId}'),
+                      avatar: MatrixAvatar(
+                        account: widget.account,
+                        url: person.avatarUrl,
+                        name: person.displayName ?? person.userId,
+                        seed: person.userId,
+                        radius: 12,
+                      ),
+                      label: Text(person.displayName ?? person.userId),
+                      onDeleted: () =>
+                          setState(() => _picked.remove(person.userId)),
+                    ),
+                ],
+              ),
+            ),
+      action: widget.multiple
+          ? FilledButton(
+              key: _key('send'),
+              onPressed: _picked.isEmpty ? null : _done,
+              child: Text(
+                _picked.length < 2 ? 'Invite' : 'Invite ${_picked.length}',
+              ),
+            )
+          : null,
       children: [
         if (typed != null)
           ListTile(
-            key: const Key('newChat.typed'),
+            key: _key('typed'),
             leading: const CircleAvatar(
               radius: 18,
               child: Icon(Icons.person_add_alt_rounded, size: 20),
             ),
-            title: Text('Chat with $typed'),
-            onTap: () => _pick(typed),
+            title: Text(
+              widget.multiple ? 'Add $typed' : 'Chat with $typed',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onTap: () => _pick(Person(typed)),
           ),
         if (_known == null)
           const Padding(
@@ -281,11 +446,15 @@ class _NewChatDialogState extends State<NewChatDialog> {
             items.known.isEmpty &&
             items.found.isEmpty)
           _Note(
-            key: const Key('newChat.none'),
+            key: _key('none'),
             term.isEmpty
                 ? 'Type a name, or a full user ID like @name:server.org.'
                 : 'No one found. Type their full user ID, like @name:server.org.',
           ),
+        if (items.members.isNotEmpty) ...[
+          const _Header('Already here'),
+          ...items.members.map(_memberTile),
+        ],
       ],
     );
   }

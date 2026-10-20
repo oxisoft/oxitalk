@@ -261,7 +261,7 @@ class _NewRoomDialogState extends ConsumerState<NewRoomDialog> {
   }
 }
 
-/// Asks for a user ID and invites them to the room; failures show as a snack bar.
+/// Lets the user pick people, invites each to the room, and says how it went in a snack bar.
 Future<void> inviteToRoom(
   BuildContext context,
   WidgetRef ref,
@@ -269,70 +269,50 @@ Future<void> inviteToRoom(
   String roomId,
 ) async {
   final messenger = ScaffoldMessenger.of(context);
-  final userId = await showDialog<String>(
-    context: context,
-    builder: (_) => const _InviteDialog(),
-  );
   final session = ref.read(accountsProvider).value?.byId(account);
-  if (userId == null || userId.isEmpty || session == null) return;
+  if (session == null) return;
+  List<RoomMember> members;
   try {
-    await session.invite(roomId, userId);
-    ref.invalidate(roomMembersProvider(account, roomId));
-    messenger.showSnackBar(SnackBar(content: Text('Invited $userId')));
-  } on MatrixFailure catch (failure) {
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          failure.kind == FailureKind.invalidId
-              ? 'That isn’t a user ID, like @name:server.org'
-              : 'Can’t invite: ${failure.kind.name}',
-        ),
-      ),
-    );
+    members = await ref.read(roomMembersProvider(account, roomId).future);
+  } on MatrixFailure {
+    members = const [];
   }
-}
-
-class _InviteDialog extends StatefulWidget {
-  const _InviteDialog();
-
-  @override
-  State<_InviteDialog> createState() => _InviteDialogState();
-}
-
-class _InviteDialogState extends State<_InviteDialog> {
-  final _user = TextEditingController();
-
-  @override
-  void dispose() {
-    _user.dispose();
-    super.dispose();
-  }
-
-  void _invite() => Navigator.of(context).pop(_user.text.trim());
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Invite to this room'),
-    content: TextField(
-      key: const Key('invite.userId'),
-      controller: _user,
-      autofocus: true,
-      decoration: const InputDecoration(
-        labelText: 'User ID',
-        hintText: '@name:server.org',
-      ),
-      onSubmitted: (_) => _invite(),
+  if (!context.mounted) return;
+  final userIds = await showDialog<List<String>>(
+    context: context,
+    builder: (_) => inviteDialog(
+      account: account,
+      session: session,
+      members: {
+        for (final member in members)
+          member.userId: member.invited ? 'Invited' : 'In the room',
+      },
     ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+  );
+  if (userIds == null || userIds.isEmpty) return;
+  final failed = <String>[];
+  for (final userId in userIds) {
+    try {
+      await session.invite(roomId, userId);
+    } on MatrixFailure catch (failure) {
+      failed.add(
+        failure.kind == FailureKind.invalidId
+            ? '$userId (not a user ID)'
+            : '$userId (${failure.kind.name})',
+      );
+    }
+  }
+  ref.invalidate(roomMembersProvider(account, roomId));
+  final invited = userIds.length - failed.length;
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(
+        failed.isEmpty
+            ? (invited == 1
+                  ? 'Invited ${userIds.single}'
+                  : 'Invited $invited people')
+            : 'Can’t invite ${failed.join(', ')}',
       ),
-      FilledButton(
-        key: const Key('invite.send'),
-        onPressed: _invite,
-        child: const Text('Invite'),
-      ),
-    ],
+    ),
   );
 }

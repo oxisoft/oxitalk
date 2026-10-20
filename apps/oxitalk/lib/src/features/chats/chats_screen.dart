@@ -358,7 +358,7 @@ class ChatListPane extends ConsumerWidget {
     if (session == null) return;
     final userId = await showDialog<String>(
       context: context,
-      builder: (_) => NewChatDialog(account: account, session: session),
+      builder: (_) => newChatDialog(account: account, session: session),
     );
     if (userId == null || !context.mounted) return;
     final existing = session.dmWith(userId);
