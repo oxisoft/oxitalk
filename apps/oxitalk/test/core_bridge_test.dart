@@ -7,6 +7,6 @@ void main() {
   setUpAll(initRustCore);
 
   test('the Rust core answers through the bridge', () {
-    expect(coreVersion(), '0.1.19');
+    expect(coreVersion(), '0.1.20');
   });
 }
