@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=OxiTalk
+GenericName=Matrix chat
+Comment=Chat on Matrix, end-to-end encrypted
+Exec=oxitalk %U
+Icon=io.oxisoft.oxitalk
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+Keywords=Matrix;Chat;Messenger;E2EE;
+StartupWMClass=io.oxisoft.oxitalk
+StartupNotify=true

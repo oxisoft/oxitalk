@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +11,7 @@ import 'src/app/account_pictures.dart';
 import 'src/app/app.dart';
 import 'src/app/collapsed_sections.dart';
 import 'src/app/diagnostics.dart';
+import 'src/app/linux_desktop_entry.dart';
 import 'src/app/media_prefs.dart';
 import 'src/app/providers.dart';
 import 'src/app/ui_prefs.dart';
@@ -17,6 +21,8 @@ import 'src/util/log.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // GNOME and other Wayland desktops show the name and icon of an installed entry only.
+  if (Platform.isLinux) unawaited(registerThisLinuxApp());
   // The bundled fonts' licences, in About → View licenses.
   LicenseRegistry.addLicense(() async* {
     for (final (name, file) in [
