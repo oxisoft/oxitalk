@@ -77,7 +77,11 @@ jobs:
           cargo clippy --workspace --locked --target aarch64-apple-ios -- -D warnings
       - run: flutter pub get --enforce-lockfile
       - run: flutter test
+      # No signing on CI (no certificates): the entitlements need a provisioning profile.
       - run: flutter build macos --debug
+        env:
+          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: "NO"
+          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: "NO"
       - run: flutter build ios --debug --no-codesign
 
   windows:
