@@ -14,6 +14,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../app/file_actions.dart';
+import '../chats/badges.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
 import 'media_views.dart';
@@ -106,10 +107,24 @@ class ChatPane extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (room?.isMuted ?? false) ...[
+                                const SizedBox(width: 6),
+                                const MutedIcon(
+                                  key: Key('chat.muted'),
+                                  size: 16,
+                                ),
+                              ],
+                            ],
                           ),
                           if (typing != null)
                             Text(
@@ -220,10 +235,35 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     thread: widget.thread,
   );
 
+  /// Whether the room's unread mark was taken away since it was opened; once only, so
+  /// marking it unread while it is open sticks.
+  var _unmarked = false;
+
   @override
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onResume: () => unawaited(_markRead()));
+    if (widget.thread == null) {
+      ref.listenManual(
+        roomsProvider(widget.account),
+        (_, rooms) => _clearUnreadMark(rooms.value),
+        fireImmediately: true,
+      );
+    }
+  }
+
+  /// Opening a room takes away its unread mark, as Element does.
+  void _clearUnreadMark(List<Room>? rooms) {
+    final room = rooms?.where((room) => room.id == widget.roomId).firstOrNull;
+    if (_unmarked || room == null || !room.markedUnread) return;
+    _unmarked = true;
+    final session = ref.read(accountsProvider).value?.byId(widget.account);
+    unawaited(
+      session?.setMarkedUnread(widget.roomId, false).catchError((Object _) {
+        // Tried again when the room list changes.
+        _unmarked = false;
+      }),
+    );
   }
 
   @override

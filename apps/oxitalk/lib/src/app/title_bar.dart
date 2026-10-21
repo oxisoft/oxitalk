@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/chats/badges.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -134,6 +135,10 @@ class _Title extends ConsumerWidget {
               style: theme.textTheme.bodyMedium?.copyWith(color: muted),
             ),
           ),
+          if (room.isMuted) ...[
+            const SizedBox(width: 6),
+            MutedIcon(key: const Key('titleBar.muted'), size: 14, color: muted),
+          ],
         ],
       ],
     );

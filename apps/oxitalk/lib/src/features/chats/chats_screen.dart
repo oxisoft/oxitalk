@@ -15,8 +15,11 @@ import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
 import '../chat/threads.dart';
 import '../chat_info/chat_info.dart';
+import '../chat_info/room_notifications.dart';
+import 'badges.dart';
 import 'finders.dart';
 import 'new_room.dart';
+import 'notification_actions.dart';
 import 'room_groups.dart';
 import 'section_actions.dart';
 
@@ -27,6 +30,7 @@ class ChatsScreen extends ConsumerWidget {
   const ChatsScreen({
     this.roomId,
     this.showInfo = false,
+    this.showNotifications = false,
     this.thread,
     this.showThreads = false,
     super.key,
@@ -37,6 +41,9 @@ class ChatsScreen extends ConsumerWidget {
 
   /// The open chat's info, in the chat's place.
   final bool showInfo;
+
+  /// The open chat's notification settings, in the chat's place.
+  final bool showNotifications;
 
   /// The thread open beside the chat: the event ID of its first message.
   final String? thread;
@@ -81,6 +88,11 @@ class ChatsScreen extends ConsumerWidget {
               // every pane of the window.
               child: ScaffoldMessenger(
                 child: switch (roomId) {
+                  final id? when showNotifications => RoomNotificationsPane(
+                    key: ValueKey((account, id, 'notifications')),
+                    account: account,
+                    roomId: id,
+                  ),
                   final id? when showInfo => ChatInfoPane(
                     key: ValueKey((account, id, 'info')),
                     account: account,
@@ -519,7 +531,7 @@ class SectionHeader extends ConsumerWidget {
                 ),
               ),
               // Folded, the count says what is hidden.
-              if (collapsed && unread > 0) _Badge(count: unread),
+              if (collapsed && unread > 0) CountBadge(count: unread),
               if (group.isMovable)
                 PopupMenuButton<VoidCallback>(
                   key: Key('sectionMenu.${group.tag}'),
@@ -596,6 +608,7 @@ class RoomTile extends ConsumerWidget {
         ref.read(sectionsProvider(account)).value ?? const Sections();
     final current = sectionOf(room, sections);
     final actions = SectionActions(context, ref, account);
+    final notifications = RoomNotificationActions(context, ref, account);
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final action = await showMenu<VoidCallback>(
@@ -605,6 +618,25 @@ class RoomTile extends ConsumerWidget {
         Offset.zero & overlay.size,
       ),
       items: [
+        PopupMenuItem(
+          key: Key(
+            room.hasUnread ? 'roomMenu.markRead' : 'roomMenu.markUnread',
+          ),
+          value: () => unawaited(notifications.toggleRead(room)),
+          child: Text(room.hasUnread ? 'Mark as read' : 'Mark as unread'),
+        ),
+        PopupMenuItem(
+          key: const Key('roomMenu.notifications'),
+          // A submenu: it opens where this menu was.
+          value: () => unawaited(notifications.showMenuFor(room, at)),
+          child: const Row(
+            children: [
+              Expanded(child: Text('Notifications')),
+              Icon(Icons.arrow_right_rounded),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
         PopupMenuItem(
           value: () => unawaited(
             actions.setSection(
@@ -701,7 +733,12 @@ class RoomTile extends ConsumerWidget {
                   : null,
             ),
           ),
-          if (room.unreadCount > 0) _Badge(count: room.unreadCount),
+          if (room.isMuted && !invited)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: MutedIcon(key: Key('muted.${room.id}')),
+            ),
+          RoomBadgeView(room: room),
         ],
       ),
       onTap: () => unawaited(_open(context, ref)),
@@ -723,17 +760,10 @@ class RoomTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Column(
             children: [
-              Badge(
-                isLabelVisible: invited || room.unreadCount > 0,
-                backgroundColor: OxiColors.accent,
-                label: Text(
-                  invited
-                      ? '!'
-                      : room.unreadCount > 99
-                      ? '99+'
-                      : '${room.unreadCount}',
-                ),
-                child: MatrixAvatar(
+              narrowBadge(
+                context,
+                room,
+                MatrixAvatar(
                   account: account,
                   url: room.avatarUrl,
                   name: room.name,
@@ -770,30 +800,6 @@ class RoomTile extends ConsumerWidget {
     }
     router.go(Routes.room(room.id));
   }
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(left: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(
-      color: OxiColors.accent,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      count > 999 ? '999+' : '$count',
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
 }
 
 void showFailure(BuildContext context, String what, MatrixFailure failure) =>

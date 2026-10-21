@@ -8,6 +8,7 @@ import '../features/auth/login_screen.dart';
 import '../features/chat/chat_pane.dart';
 import '../features/chat/threads.dart';
 import '../features/chat_info/chat_info.dart';
+import '../features/chat_info/room_notifications.dart';
 import '../features/chats/chats_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/verify/verify_screen.dart';
@@ -32,6 +33,10 @@ abstract final class Routes {
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
 
   static String roomInfo(String roomId) => '${room(roomId)}/info';
+
+  /// The chat's notification settings, under its info.
+  static String roomNotifications(String roomId) =>
+      '${roomInfo(roomId)}/notifications';
 
   /// The thread that starts at [rootEventId].
   static String thread(String roomId, String rootEventId) =>
@@ -150,6 +155,28 @@ GoRouter router(Ref ref) {
                           child: ChatInfoScreen(roomId: roomId),
                         );
                 },
+                routes: [
+                  GoRoute(
+                    path: 'notifications',
+                    pageBuilder: (context, state) {
+                      final roomId = state.pathParameters['roomId']!;
+                      // Wide: in the info's place. Narrow: a page of its own over it.
+                      return MediaQuery.sizeOf(context).width >=
+                              wideLayoutBreakpoint
+                          ? NoTransitionPage(
+                              key: state.pageKey,
+                              child: ChatsScreen(
+                                roomId: roomId,
+                                showNotifications: true,
+                              ),
+                            )
+                          : MaterialPage(
+                              key: state.pageKey,
+                              child: RoomNotificationsScreen(roomId: roomId),
+                            );
+                    },
+                  ),
+                ],
               ),
               GoRoute(
                 path: 'thread/:rootId',

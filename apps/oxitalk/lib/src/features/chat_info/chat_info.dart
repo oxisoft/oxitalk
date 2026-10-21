@@ -12,6 +12,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../chat/media_views.dart';
 import '../chats/new_room.dart';
+import '../chats/notification_actions.dart';
 import 'member_actions.dart';
 
 /// A chat's info of the active account as a page of its own (narrow windows).
@@ -101,6 +102,9 @@ class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
                   child: Center(child: CircularProgressIndicator()),
                 ),
               },
+            ),
+            SliverToBoxAdapter(
+              child: _NotificationsRow(account: account, roomId: roomId),
             ),
             const SliverToBoxAdapter(
               child: TabBar(
@@ -227,6 +231,42 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The chat's notification mode; opens its notification settings.
+class _NotificationsRow extends ConsumerWidget {
+  const _NotificationsRow({required this.account, required this.roomId});
+
+  final String account;
+  final String roomId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final room = ref
+        .watch(roomsProvider(account))
+        .value
+        ?.where((room) => room.id == roomId)
+        .firstOrNull;
+    final mode = room?.notificationMode;
+    return ListTile(
+      key: const Key('info.notifications'),
+      leading: Icon(
+        room?.isMuted ?? false
+            ? Icons.notifications_off_outlined
+            : Icons.notifications_outlined,
+      ),
+      title: const Text('Notifications'),
+      subtitle: room == null
+          ? null
+          : Text(
+              mode == null
+                  ? 'Default (${notificationModeLabel(room.defaultNotificationMode)})'
+                  : notificationModeLabel(mode),
+            ),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: () => context.go(Routes.roomNotifications(roomId)),
     );
   }
 }
