@@ -7,6 +7,7 @@ import '../frb_generated.dart';
 import 'directory.dart';
 import 'error.dart';
 import 'notifications.dart';
+import 'notify.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -420,6 +421,10 @@ abstract class Session implements RustOpaqueInterface {
   /// Sends the account's notification settings, then the settings after every change, made
   /// here or on another device.
   Stream<NotificationSettingsState> subscribeNotificationSettings();
+
+  /// Sends every message that should show as an OS notification from now on: it notifies
+  /// by the push rules (decrypted first if it is encrypted), and it isn't the user's own.
+  Stream<NotificationItem> subscribeNotifications();
 
   /// Sends the room list as batches of diffs. The first batch is a `Reset` with the whole
   /// list.

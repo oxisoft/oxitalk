@@ -9,6 +9,7 @@ pub mod media;
 mod media_prep;
 pub mod moderation;
 pub mod notifications;
+pub mod notify;
 pub mod profile;
 pub mod rich_text;
 pub mod room_info;

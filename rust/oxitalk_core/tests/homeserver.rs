@@ -10,7 +10,7 @@ mod support;
 use std::{
     error::Error,
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use futures_util::{Stream, StreamExt};
@@ -30,6 +30,7 @@ use matrix_sdk::{
             uiaa,
         },
         events::{Mentions, room::message::RoomMessageEventContent},
+        push::{AnyPushRuleRef, RuleKind},
         serde::Raw,
     },
 };
@@ -37,6 +38,7 @@ use oxitalk_core::api::{
     error::CoreError,
     init_app,
     notifications::{InconsistentDefault, NotificationSettingsState, RoomNotificationMode},
+    notify::NotificationItem,
     rich_text::BlockKind,
     room_info::{MemberRole, RoomMember},
     room_list::{Membership, RoomSummary},
@@ -510,7 +512,7 @@ async fn pictures_and_files_arrive_and_are_cached() -> TestResult {
             if let Err(error) = bob_timeline.paginate_back(20).await {
                 return error;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
     };
     tokio::select! {
@@ -1029,7 +1031,7 @@ async fn rooms_are_created_joined_and_invited_to() -> TestResult {
             if details.alias.is_some() {
                 return Ok::<_, CoreError>(details);
             }
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
         }
     })
     .await??;
@@ -1072,7 +1074,7 @@ async fn people_and_public_rooms_are_found() -> TestResult {
             if found.iter().any(|p| p.user_id == bob.user_id()) {
                 return Ok::<_, CoreError>(());
             }
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
     })
     .await
@@ -1103,7 +1105,7 @@ async fn people_and_public_rooms_are_found() -> TestResult {
             if rooms.len() == 2 {
                 return Ok::<_, CoreError>(rooms);
             }
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
     })
     .await
@@ -1164,7 +1166,7 @@ async fn members_get_roles_and_are_removed_and_banned() -> TestResult {
                 if let Some(member) = members.iter().find(|m| m.user_id == user && wanted(m)) {
                     return Ok::<_, CoreError>(member.clone());
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                tokio::time::sleep(Duration::from_millis(300)).await;
             }
         })
         .await
@@ -1246,7 +1248,7 @@ async fn wait_until_gone(session: &Session, room: &str, user: &str, when: &str) 
             if !members.iter().any(|m| m.user_id == user) {
                 return Ok::<_, CoreError>(());
             }
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
     })
     .await
@@ -1458,7 +1460,7 @@ async fn wait_until_known(session: &Session, other: &Session) -> TestResult {
             if device.is_some() {
                 return Ok::<_, Box<dyn Error>>(());
             }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     })
     .await
@@ -1783,4 +1785,219 @@ async fn chats_are_marked_unread_and_read() -> TestResult {
         Err(CoreError::RoomNotFound { .. })
     ));
     Ok(())
+}
+
+/// The OS notifications `session` would show, as they come.
+fn watch_notifications(session: &Session) -> mpsc::UnboundedReceiver<NotificationItem> {
+    let mut items = session.notification_items();
+    let (sender, receiver) = mpsc::unbounded_channel();
+    tokio::spawn(async move {
+        while let Some(item) = items.next().await {
+            if sender.send(item).is_err() {
+                break;
+            }
+        }
+    });
+    receiver
+}
+
+/// The next notification: every message that shouldn't notify was sent before the one that
+/// should, so one that wrongly notifies comes first and fails the test.
+async fn next_notification(
+    notifications: &mut mpsc::UnboundedReceiver<NotificationItem>,
+) -> Result<NotificationItem, Box<dyn Error>> {
+    Ok(tokio::time::timeout(TIMEOUT, notifications.recv())
+        .await
+        .map_err(|_| "timed out waiting for a notification")?
+        .ok_or("the notifications stream ended")?)
+}
+
+/// Nothing more notifies for a while (an encrypted event may wait for its key first).
+async fn no_more_notifications(
+    notifications: &mut mpsc::UnboundedReceiver<NotificationItem>,
+) -> TestResult {
+    let more = tokio::time::timeout(Duration::from_secs(5), notifications.recv()).await;
+    if let Ok(Some(item)) = more {
+        return Err(format!("unexpected notification: {item:?}").into());
+    }
+    Ok(())
+}
+
+/// Waits until the push rules `session`'s sync judges events by (not only its settings
+/// copy) give the room exactly the rules of `kinds`, so the next message meets them.
+async fn wait_for_room_rules(session: &Session, room_id: &str, kinds: &[RuleKind]) -> TestResult {
+    poll_until("the sync has the room's push rules", || async {
+        let rules = session
+            .sdk()
+            .account()
+            .push_rules()
+            .await
+            .map_err(|error| CoreError::Internal {
+                message: error.to_string(),
+            })?;
+        let found: Vec<RuleKind> = rules
+            .iter()
+            .filter(|rule| rule.rule_id() == room_id)
+            .filter_map(|rule| match rule {
+                AnyPushRuleRef::Override(_) => Some(RuleKind::Override),
+                AnyPushRuleRef::Room(_) => Some(RuleKind::Room),
+                _ => None,
+            })
+            .collect();
+        Ok(
+            (found.len() == kinds.len() && kinds.iter().all(|kind| found.contains(kind)))
+                .then_some(()),
+        )
+    })
+    .await
+}
+
+/// Sends `text` mentioning `user` through the send queue the timeline uses, so it goes after
+/// what the timeline sent before.
+async fn send_mention(session: &Session, room_id: &str, text: &str, user: &str) -> TestResult {
+    let user: OwnedUserId = user.try_into()?;
+    let room = session
+        .sdk()
+        .get_room(&OwnedRoomId::try_from(room_id)?)
+        .ok_or("no room")?;
+    room.send_queue()
+        .send(
+            RoomMessageEventContent::text_plain(text)
+                .add_mentions(Mentions::with_user_ids([user]))
+                .into(),
+        )
+        .await?;
+    Ok(())
+}
+
+/// In an encrypted DM: the other person's message notifies with its decrypted text, the
+/// user's own doesn't, a muted room doesn't, and a room for mentions only notifies only for
+/// the mention, which the server can't see inside the encrypted event.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn encrypted_messages_notify_by_the_push_rules() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let mut notifications = watch_notifications(&bob);
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+
+    alice_timeline
+        .send_text("hello Bob".to_owned(), false)
+        .await?;
+    let item = next_notification(&mut notifications).await?;
+    assert_eq!(item.body_preview.as_deref(), Some("hello Bob"), "{item:?}");
+    assert_eq!(item.room_id, room_id);
+    assert_eq!(item.sender_id, alice.user_id());
+    assert!(item.event_id.is_some());
+    // As the chat list marks the room: Bob's side never marks it direct on Tuwunel (seen
+    // 2026-10-21), on Synapse it does.
+    let bob_room = bob
+        .sdk()
+        .get_room(&OwnedRoomId::try_from(room_id.as_str())?)
+        .ok_or("no room")?;
+    assert_eq!(item.is_dm, bob_room.is_direct().await?);
+    assert!(!item.is_highlight && !item.is_invite);
+    assert!(item.thread_root.is_none());
+    // The default rule for a direct chat rings.
+    assert!(item.sound);
+
+    // The user's own message, then messages in a muted room.
+    bob.timeline(room_id.clone())
+        .await?
+        .send_text("from Bob".to_owned(), false)
+        .await?;
+    bob.set_room_notification_mode(room_id.clone(), Some(RoomNotificationMode::Mute))
+        .await?;
+    wait_for_room_rules(&bob, &room_id, &[RuleKind::Override]).await?;
+    alice_timeline
+        .send_text("while muted".to_owned(), false)
+        .await?;
+
+    // Mentions only: chatter is quiet, the mention notifies and highlights.
+    bob.set_room_notification_mode(
+        room_id.clone(),
+        Some(RoomNotificationMode::MentionsAndKeywordsOnly),
+    )
+    .await?;
+    wait_for_room_rules(&bob, &room_id, &[RuleKind::Room]).await?;
+    alice_timeline
+        .send_text("chatter".to_owned(), false)
+        .await?;
+    send_mention(&alice, &room_id, "Bob, look", &bob.user_id()).await?;
+    let item = next_notification(&mut notifications).await?;
+    assert_eq!(item.body_preview.as_deref(), Some("Bob, look"), "{item:?}");
+    assert!(item.is_highlight);
+    no_more_notifications(&mut notifications).await
+}
+
+/// In an unencrypted group: a message notifies with the room's name and no DM mark, a thread
+/// reply names its thread, and mentions only works there too.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn group_messages_notify_with_their_thread() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice = alice_user
+        .login(&alice_store.path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room_id = alice
+        .create_room(NewRoom {
+            name: "Open".to_owned(),
+            topic: None,
+            public: true,
+            alias: None,
+            encrypted: false,
+            avatar: None,
+        })
+        .await?;
+    bob.join(room_id.clone()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms.iter().any(|r| {
+                r.room_id == room_id && r.membership == Membership::Joined && r.name == "Open"
+            })
+        })
+        .await?;
+    let mut notifications = watch_notifications(&bob);
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+
+    alice_timeline
+        .send_text("welcome".to_owned(), false)
+        .await?;
+    let item = next_notification(&mut notifications).await?;
+    assert_eq!(item.body_preview.as_deref(), Some("welcome"), "{item:?}");
+    assert_eq!(item.room_name, "Open");
+    assert!(!item.is_dm && !item.is_highlight);
+    let root = item.event_id.ok_or("no event ID")?;
+
+    alice
+        .thread_timeline(room_id.clone(), root.clone())
+        .await?
+        .send_text("in the thread".to_owned(), false)
+        .await?;
+    let item = next_notification(&mut notifications).await?;
+    assert_eq!(
+        item.body_preview.as_deref(),
+        Some("in the thread"),
+        "{item:?}"
+    );
+    assert_eq!(item.thread_root.as_deref(), Some(root.as_str()));
+
+    bob.set_room_notification_mode(
+        room_id.clone(),
+        Some(RoomNotificationMode::MentionsAndKeywordsOnly),
+    )
+    .await?;
+    wait_for_room_rules(&bob, &room_id, &[RuleKind::Room]).await?;
+    alice_timeline
+        .send_text("chatter".to_owned(), false)
+        .await?;
+    send_mention(&alice, &room_id, "Bob, look", &bob.user_id()).await?;
+    let item = next_notification(&mut notifications).await?;
+    assert_eq!(item.body_preview.as_deref(), Some("Bob, look"), "{item:?}");
+    assert!(item.is_highlight);
+    no_more_notifications(&mut notifications).await
 }

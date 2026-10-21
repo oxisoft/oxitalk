@@ -8,6 +8,7 @@ import 'api/directory.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/notifications.dart';
+import 'api/notify.dart';
 import 'api/profile.dart';
 import 'api/rich_text.dart';
 import 'api/room_info.dart';
@@ -139,6 +140,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<List<TimelineDiff>>
   dco_decode_StreamSink_list_timeline_diff_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<NotificationItem> dco_decode_StreamSink_notification_item_Sse(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<NotificationSettingsState>
@@ -323,6 +329,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NewRoom dco_decode_new_room(dynamic raw);
+
+  @protected
+  NotificationItem dco_decode_notification_item(dynamic raw);
 
   @protected
   NotificationSettingsState dco_decode_notification_settings_state(dynamic raw);
@@ -558,6 +567,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_StreamSink_list_timeline_diff_Sse(SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<NotificationItem> sse_decode_StreamSink_notification_item_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<NotificationSettingsState>
   sse_decode_StreamSink_notification_settings_state_Sse(
     SseDeserializer deserializer,
@@ -772,6 +786,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NewRoom sse_decode_new_room(SseDeserializer deserializer);
+
+  @protected
+  NotificationItem sse_decode_notification_item(SseDeserializer deserializer);
 
   @protected
   NotificationSettingsState sse_decode_notification_settings_state(
@@ -1046,6 +1063,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_list_timeline_diff_Sse(
     RustStreamSink<List<TimelineDiff>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_notification_item_Sse(
+    RustStreamSink<NotificationItem> self,
     SseSerializer serializer,
   );
 
@@ -1327,6 +1350,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_new_room(NewRoom self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_notification_item(
+    NotificationItem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_notification_settings_state(

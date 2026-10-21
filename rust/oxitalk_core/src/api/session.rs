@@ -17,10 +17,11 @@ use matrix_sdk::{
     store::RoomLoadSettings,
 };
 use matrix_sdk_ui::sync_service::SyncService;
-use tokio::{runtime::Handle, task::AbortHandle};
+use tokio::{runtime::Handle, sync::broadcast, task::AbortHandle};
 
 use super::{
     error::{CoreError, parse_id},
+    notify::{self, Candidate},
     sync::new_sync_service,
 };
 use crate::frb_generated::StreamSink;
@@ -55,6 +56,8 @@ pub struct Session {
     /// The one copy of the push rules the session keeps: the SDK makes a new one, with its own
     /// event handler, on every `Client::notification_settings` call.
     pub(crate) notification_settings: NotificationSettings,
+    /// What the sync hands over for OS notifications; each subscription listens to it.
+    pub(crate) notification_candidates: broadcast::Sender<Candidate>,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -141,10 +144,12 @@ impl Session {
     async fn new(client: Client) -> Result<Self, CoreError> {
         let sync = new_sync_service(client.clone()).await?;
         let notification_settings = client.notification_settings().await;
+        let notification_candidates = notify::register(&client).await;
         Ok(Self {
             client,
             sync,
             notification_settings,
+            notification_candidates,
             tasks: Mutex::default(),
             runtime: Handle::current(),
         })
@@ -218,8 +223,8 @@ impl Session {
                 loop {
                     match receiver.recv().await {
                         Ok(change) => return Some((session_change(&change), receiver)),
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                        Err(tokio::sync::broadcast::error::RecvError::Closed) => return None,
+                        Err(broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(broadcast::error::RecvError::Closed) => return None,
                     }
                 }
             },
