@@ -207,7 +207,7 @@ void main() {
       (e) => e.body == 'Hi Bob!',
     );
     await bobTimeline.toggleReaction(hiBob.meta.ref!, '👍');
-    await _pumpUntil(tester, find.text('👍 1'));
+    await _pumpUntil(tester, find.byKey(const Key('reactionChip.👍')));
 
     // Bob answers "Hi Bob!" in a thread: Alice sees "1 reply" under it, not the reply. She
     // opens the thread and answers there; Bob gets it in the thread. Esc closes it.

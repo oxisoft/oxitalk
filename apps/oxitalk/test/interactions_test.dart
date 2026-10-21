@@ -105,13 +105,65 @@ void main() {
           ),
         ],
       );
-      expect(find.text('👍 2'), findsOneWidget);
-      expect(find.text('🎉 1'), findsOneWidget);
+      // A count shows from two up only.
+      expect(find.text('👍'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('🎉'), findsOneWidget);
+      expect(find.byKey(const Key('reactionChip.🎉.count')), findsNothing);
+      expect(find.text('1'), findsNothing);
 
-      await tester.tap(find.text('🎉 1'));
+      await tester.tap(find.byKey(const Key('reactionChip.🎉')));
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'react $hello 🎉']);
-      expect(find.text('🎉 2'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('reactionChip.🎉.count')))
+            .data,
+        '2',
+      );
+    });
+
+    testWidgets('a count is smaller and quieter than its emoji, so 3️⃣ 2 '
+        'reads right; the user’s own stays highlighted', (tester) async {
+      await _open(
+        tester,
+        entries: [
+          _message(
+            'hello',
+            'Hello there',
+            meta: const EventMeta(
+              eventId: r'$hello',
+              reactions: [
+                Reaction('3️⃣', [_bob, _me], mine: true),
+                Reaction('👀', [_bob, '@carol:acme.com']),
+              ],
+            ),
+          ),
+        ],
+      );
+      final emoji = tester.widget<Text>(
+        find.byKey(const Key('reactionChip.3️⃣.emoji')),
+      );
+      final count = tester.widget<Text>(
+        find.byKey(const Key('reactionChip.3️⃣.count')),
+      );
+      final ratio = count.style!.fontSize! / emoji.style!.fontSize!;
+      expect(ratio, inInclusiveRange(0.70, 0.75));
+      final theme = Theme.of(
+        tester.element(find.byKey(const Key('reactionChip.3️⃣'))),
+      );
+      expect(count.style!.color, theme.colorScheme.onSurfaceVariant);
+      expect(
+        tester.getSize(find.byKey(const Key('reactionChip.3️⃣.count'))).height,
+        lessThan(
+          tester
+              .getSize(find.byKey(const Key('reactionChip.3️⃣.emoji')))
+              .height,
+        ),
+      );
+      Color chipColor(String key) =>
+          tester.widget<Material>(find.byKey(Key('reactionChip.$key'))).color!;
+      expect(chipColor('3️⃣'), isNot(chipColor('👀')));
     });
 
     testWidgets('the toolbar’s React offers the quick ones and remembers the '
@@ -129,7 +181,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'react $hello ❤️']);
       expect(session.recent, ['❤️']);
-      expect(find.text('❤️ 1'), findsOneWidget);
+      expect(find.byKey(const Key('reactionChip.❤️')), findsOneWidget);
+      expect(find.byKey(const Key('reactionChip.❤️.count')), findsNothing);
     });
   });
 

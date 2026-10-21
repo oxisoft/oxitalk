@@ -336,8 +336,8 @@ class _ForwardDialogState extends ConsumerState<_ForwardDialog> {
   }
 }
 
-/// The reactions under a message: an emoji and its count each, the user's own highlighted; a
-/// click gives or takes back the user's, hovering shows who gave it.
+/// The reactions under a message: an emoji each, with a count from two up, the user's own
+/// highlighted; a click gives or takes back the user's, hovering shows who gave it.
 class ReactionChips extends StatelessWidget {
   const ReactionChips({
     required this.reactions,
@@ -380,16 +380,54 @@ class ReactionChips extends StatelessWidget {
                       horizontal: 8,
                       vertical: 2,
                     ),
-                    child: Text(
-                      '${reaction.key} ${reaction.senders.length}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    child: _ReactionLabel(reaction: reaction),
                   ),
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Sizes of a reaction's emoji and its count. The count is about 73% of the emoji and muted,
+/// so a keycap emoji like 3️⃣ doesn't read as a count (bkv, 2026-10-21).
+const reactionEmojiSize = 15.0;
+const reactionCountSize = 11.0;
+
+/// A reaction's emoji, and its count when more than one person gave it.
+class _ReactionLabel extends StatelessWidget {
+  const _ReactionLabel({required this.reaction});
+
+  final Reaction reaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = reaction.senders.length;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          reaction.key,
+          key: Key('reactionChip.${reaction.key}.emoji'),
+          style: const TextStyle(fontSize: reactionEmojiSize),
+        ),
+        if (count > 1) ...[
+          const SizedBox(width: 4),
+          Text(
+            '$count',
+            key: Key('reactionChip.${reaction.key}.count'),
+            style: TextStyle(
+              fontSize: reactionCountSize,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
