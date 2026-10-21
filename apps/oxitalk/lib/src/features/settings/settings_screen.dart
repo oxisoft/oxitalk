@@ -119,6 +119,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(replaceEmoticonsProvider.notifier).set(on: on),
               ),
               const _MediaSettings(),
+              if (ref.watch(activeAccountProvider) != null) ...[
+                const _SectionTitle('Notifications'),
+                ListTile(
+                  key: const Key('settings.notifications'),
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: const Text('Notifications for this account'),
+                  subtitle: const Text(
+                    'Defaults for direct and group chats, @room, invitations '
+                    'and keywords; kept on your server, the same in Element.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.go(Routes.notificationSettings),
+                ),
+              ],
               const _SectionTitle('Diagnostics'),
               SwitchListTile(
                 key: const Key('settings.collectLogs'),

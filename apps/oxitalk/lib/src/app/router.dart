@@ -10,6 +10,7 @@ import '../features/chat/threads.dart';
 import '../features/chat_info/chat_info.dart';
 import '../features/chat_info/room_notifications.dart';
 import '../features/chats/chats_screen.dart';
+import '../features/settings/notification_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/verify/verify_screen.dart';
 import '../matrix/api/matrix.dart';
@@ -28,6 +29,7 @@ abstract final class Routes {
   static const verify = '/verify';
   static const addAccount = '/add-account';
   static const settings = '/settings';
+  static const notificationSettings = '/settings/notifications';
   static const chats = '/';
 
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
@@ -90,7 +92,9 @@ GoRouter router(Ref ref) {
       if (accounts.value?.sessions.isEmpty ?? true) {
         return location == Routes.login ? null : Routes.login;
       }
-      if (location == Routes.addAccount || location == Routes.settings) {
+      if (location == Routes.addAccount ||
+          location == Routes.settings ||
+          location == Routes.notificationSettings) {
         return null;
       }
       // An unverified account sees nothing else until it is verified (or logged out).
@@ -112,7 +116,16 @@ GoRouter router(Ref ref) {
             const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
-      GoRoute(path: Routes.settings, builder: (_, _) => const SettingsScreen()),
+      GoRoute(
+        path: Routes.settings,
+        builder: (_, _) => const SettingsScreen(),
+        routes: [
+          GoRoute(
+            path: 'notifications',
+            builder: (_, _) => const NotificationSettingsScreen(),
+          ),
+        ],
+      ),
       GoRoute(
         path: Routes.addAccount,
         builder: (_, _) => const LoginScreen(adding: true),
