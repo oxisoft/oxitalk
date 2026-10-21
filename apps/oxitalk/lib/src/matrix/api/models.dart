@@ -176,6 +176,51 @@ final class NotificationSettings {
   );
 }
 
+/// A message (or invitation) to show as an OS notification: it notifies by the push rules and
+/// isn't the user's own.
+final class MessageNotification {
+  const MessageNotification({
+    required this.roomId,
+    required this.roomName,
+    required this.senderId,
+    required this.senderName,
+    required this.time,
+    this.eventId,
+    this.threadRoot,
+    this.senderAvatarUrl,
+    this.text,
+    this.isDm = false,
+    this.isHighlight = false,
+    this.sound = false,
+    this.isInvite = false,
+  });
+
+  final String roomId;
+  final String? eventId;
+
+  /// The thread the message is a reply in.
+  final String? threadRoot;
+  final String roomName;
+  final String senderId;
+  final String senderName;
+
+  /// An `mxc://` URI.
+  final String? senderAvatarUrl;
+
+  /// The message as one line; `null` when there is none to show (it stayed encrypted, an
+  /// invitation, a poll).
+  final String? text;
+  final bool isDm;
+
+  /// It mentions the user, @room or a keyword.
+  final bool isHighlight;
+
+  /// The push rules ask for a sound.
+  final bool sound;
+  final bool isInvite;
+  final DateTime time;
+}
+
 enum SendState { sending, sent, failed }
 
 /// What kind of block of formatted text.

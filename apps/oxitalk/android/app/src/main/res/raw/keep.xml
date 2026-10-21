@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- flutter_local_notifications looks the notification icon up by name; keep it when
+     resources are shrunk. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/ic_launcher_monochrome" />

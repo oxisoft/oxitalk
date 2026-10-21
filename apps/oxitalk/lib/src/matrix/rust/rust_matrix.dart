@@ -240,6 +240,11 @@ final class RustMatrixSession implements MatrixSession {
         ),
       )
       ..add(
+        _session.subscribeNotifications().listen(
+          (item) => _notifications.add(messageNotificationOf(item)),
+        ),
+      )
+      ..add(
         _session.subscribeVerificationStatus().listen(
           (status) => _verificationStatus.value = verificationStatusOf(status),
         ),
@@ -284,6 +289,7 @@ final class RustMatrixSession implements MatrixSession {
   final _profile = Latest(const Profile());
   final _sections = Latest(const Sections());
   final _notificationSettings = Latest<NotificationSettings?>(null);
+  final _notifications = StreamController<MessageNotification>.broadcast();
   final _typing = Latest(const <String, List<String>>{});
   final _verificationStatus = Latest(VerificationStatus.unknown);
   final _verificationRequests =
@@ -384,6 +390,9 @@ final class RustMatrixSession implements MatrixSession {
           ),
         ),
       );
+
+  @override
+  Stream<MessageNotification> get notifications => _notifications.stream;
 
   @override
   Stream<NotificationSettings?> get notificationSettings =>
@@ -667,6 +676,7 @@ final class RustMatrixSession implements MatrixSession {
     unawaited(_profile.close());
     unawaited(_sections.close());
     unawaited(_notificationSettings.close());
+    unawaited(_notifications.close());
     unawaited(_typing.close());
     unawaited(_verificationStatus.close());
     unawaited(_verificationRequests.close());

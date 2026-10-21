@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/account_switcher.dart';
 import '../features/verify/incoming_verifications.dart';
+import 'notification_service.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -19,8 +20,10 @@ class OxiTalkApp extends ConsumerWidget {
     darkTheme: oxiTheme(Brightness.dark),
     themeMode: ref.watch(appThemeProvider),
     routerConfig: ref.watch(routerProvider),
-    builder: (_, child) => WithTitleBar(
-      child: IncomingVerifications(child: AccountHotkeys(child: child!)),
+    builder: (_, child) => OsNotifications(
+      child: WithTitleBar(
+        child: IncomingVerifications(child: AccountHotkeys(child: child!)),
+      ),
     ),
   );
 }

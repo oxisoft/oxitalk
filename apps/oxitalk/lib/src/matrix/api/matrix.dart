@@ -114,6 +114,10 @@ abstract interface class MatrixSession {
   /// made here or in another client.
   Stream<NotificationSettings?> get notificationSettings;
 
+  /// Every message from now on that should show as an OS notification: it notifies by the
+  /// push rules (encrypted ones are decrypted first), and it isn't the user's own.
+  Stream<MessageNotification> get notifications;
+
   /// Gives the room its own [mode], or with `null` lets it follow the default again.
   Future<void> setRoomNotificationMode(String roomId, NotificationMode? mode);
 

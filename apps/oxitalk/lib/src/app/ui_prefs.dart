@@ -19,6 +19,17 @@ abstract interface class UiPrefs {
   /// `light` or `dark`; anything else follows the system.
   String get theme;
 
+  /// Whether this device shows OS notifications; on unless turned off.
+  bool get notificationsEnabled;
+
+  /// Whether a notification shows the message's text, else only "New message"; on unless
+  /// turned off.
+  bool get notificationText;
+
+  /// Whether a notification plays a sound where the push rules ask for one; on unless turned
+  /// off.
+  bool get notificationSound;
+
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
@@ -28,6 +39,9 @@ abstract interface class UiPrefs {
   Future<void> setSendTyping({required bool on});
   Future<void> setReplaceEmoticons({required bool on});
   Future<void> setTheme(String theme);
+  Future<void> setNotificationsEnabled({required bool on});
+  Future<void> setNotificationText({required bool on});
+  Future<void> setNotificationSound({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
 }
 
@@ -76,6 +90,15 @@ final class FileUiPrefs implements UiPrefs {
   String get theme => _json['theme'] as String? ?? 'system';
 
   @override
+  bool get notificationsEnabled => _json['notificationsEnabled'] != false;
+
+  @override
+  bool get notificationText => _json['notificationText'] != false;
+
+  @override
+  bool get notificationSound => _json['notificationSound'] != false;
+
+  @override
   String? lastRoom(String account) => _rooms[account] as String?;
 
   @override
@@ -100,6 +123,18 @@ final class FileUiPrefs implements UiPrefs {
 
   @override
   Future<void> setTheme(String theme) => _save(() => _json['theme'] = theme);
+
+  @override
+  Future<void> setNotificationsEnabled({required bool on}) =>
+      _save(() => _json['notificationsEnabled'] = on);
+
+  @override
+  Future<void> setNotificationText({required bool on}) =>
+      _save(() => _json['notificationText'] = on);
+
+  @override
+  Future<void> setNotificationSound({required bool on}) =>
+      _save(() => _json['notificationSound'] = on);
 
   @override
   Future<void> setLastRoom(String account, String? roomId) => _save(() {
@@ -128,6 +163,9 @@ final class MemoryUiPrefs implements UiPrefs {
     this.sendTyping = true,
     this.replaceEmoticons = true,
     this.theme = 'system',
+    this.notificationsEnabled = true,
+    this.notificationText = true,
+    this.notificationSound = true,
     Map<String, String>? lastRooms,
   }) : lastRooms = {...?lastRooms};
 
@@ -148,6 +186,15 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   String theme;
+
+  @override
+  bool notificationsEnabled;
+
+  @override
+  bool notificationText;
+
+  @override
+  bool notificationSound;
 
   final Map<String, String> lastRooms;
 
@@ -174,6 +221,18 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   Future<void> setTheme(String theme) async => this.theme = theme;
+
+  @override
+  Future<void> setNotificationsEnabled({required bool on}) async =>
+      notificationsEnabled = on;
+
+  @override
+  Future<void> setNotificationText({required bool on}) async =>
+      notificationText = on;
+
+  @override
+  Future<void> setNotificationSound({required bool on}) async =>
+      notificationSound = on;
 
   @override
   Future<void> setLastRoom(String account, String? roomId) async {

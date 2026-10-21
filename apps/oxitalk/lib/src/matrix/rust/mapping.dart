@@ -1,5 +1,6 @@
 import '../../rust/api/error.dart';
 import '../../rust/api/notifications.dart' as rust;
+import '../../rust/api/notify.dart' as rust;
 import '../../rust/api/rich_text.dart' as rust;
 import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
@@ -357,3 +358,20 @@ List<RichBlock> richOf(List<rust.RichBlock> blocks) => [
       quoteDepth: block.quoteDepth,
     ),
 ];
+
+MessageNotification messageNotificationOf(rust.NotificationItem item) =>
+    MessageNotification(
+      roomId: item.roomId,
+      eventId: item.eventId,
+      threadRoot: item.threadRoot,
+      roomName: item.roomName,
+      senderId: item.senderId,
+      senderName: item.senderName,
+      senderAvatarUrl: item.senderAvatar,
+      text: item.bodyPreview,
+      isDm: item.isDm,
+      isHighlight: item.isHighlight,
+      sound: item.sound,
+      isInvite: item.isInvite,
+      time: DateTime.fromMillisecondsSinceEpoch(item.timestampMs),
+    );

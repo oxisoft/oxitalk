@@ -7,6 +7,8 @@ import 'package:oxitalk/src/app/collapsed_sections.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
+import 'package:oxitalk/src/app/notification_service.dart';
+import 'package:oxitalk/src/app/os_notifications.dart';
 import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
 import 'package:oxitalk/src/app/window_controls.dart';
@@ -26,6 +28,7 @@ Future<void> pumpApp(
   MemoryMediaPrefs? mediaPrefs,
   FakeFileActions? files,
   MemoryUiPrefs? ui,
+  FakeNotificationPresenter? notifications,
 }) async {
   tester.view
     ..physicalSize = size
@@ -47,6 +50,9 @@ Future<void> pumpApp(
         mediaPrefsProvider.overrideWithValue(mediaPrefs ?? MemoryMediaPrefs()),
         fileActionsProvider.overrideWithValue(files ?? FakeFileActions()),
         uiPrefsProvider.overrideWithValue(ui ?? MemoryUiPrefs()),
+        notificationPresenterProvider.overrideWithValue(
+          notifications ?? FakeNotificationPresenter(),
+        ),
         collapsedSectionsStoreProvider.overrideWithValue(
           collapsed ?? MemoryCollapsedSections(),
         ),

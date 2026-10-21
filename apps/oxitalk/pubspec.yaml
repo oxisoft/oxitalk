@@ -38,6 +38,7 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  flutter_local_notifications: ^22.3.1
   flutter_riverpod: ^3.4.3
   flutter_rust_bridge: 2.13.0
   flutter_rust_bridge_hooks: 2.13.0

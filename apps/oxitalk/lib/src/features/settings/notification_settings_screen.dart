@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/notification_service.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../matrix/api/matrix.dart';
@@ -135,6 +136,8 @@ class _NotificationSettingsPaneState
     final theme = Theme.of(context);
     return ListView(
       children: [
+        const DeviceNotificationSettings(),
+        _Heading('This account (${widget.account})'),
         if (settings == null)
           const Padding(
             padding: EdgeInsets.all(16),
@@ -258,6 +261,84 @@ class _NotificationSettingsPaneState
 }
 
 /// Asks for a word that makes a message notify; pops it, or `null` when cancelled.
+class _Heading extends StatelessWidget {
+  const _Heading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
+/// How notifications show on this device, for all its accounts, as Element Desktop has them:
+/// on or off, the message text or only "New message", sound.
+class DeviceNotificationSettings extends ConsumerWidget {
+  const DeviceNotificationSettings({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(deviceNotificationsProvider);
+    final notifier = ref.read(deviceNotificationsProvider.notifier);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Heading('This device (all accounts)'),
+        SwitchListTile(
+          key: const Key('settings.device.enabled'),
+          title: const Text('Enable notifications on this device'),
+          subtitle: const Text(
+            'While OxiTalk runs. On a phone, nothing comes once the system '
+            'has closed the app.',
+          ),
+          value: prefs.enabled,
+          onChanged: (on) async {
+            final enabled = await notifier.setEnabled(on: on);
+            if (on && !enabled && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Notifications are not allowed for OxiTalk in the system '
+                    'settings.',
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+        SwitchListTile(
+          key: const Key('settings.device.showText'),
+          title: const Text('Show message text'),
+          subtitle: const Text(
+            'Off shows only “New message”, so nobody reads along on your '
+            'screen.',
+          ),
+          value: prefs.showText,
+          onChanged: prefs.enabled
+              ? (on) => notifier.setShowText(on: on)
+              : null,
+        ),
+        SwitchListTile(
+          key: const Key('settings.device.sound'),
+          title: const Text('Sound'),
+          value: prefs.sound,
+          onChanged: prefs.enabled ? (on) => notifier.setSound(on: on) : null,
+        ),
+      ],
+    );
+  }
+}
+
 class _KeywordDialog extends StatefulWidget {
   const _KeywordDialog();
 

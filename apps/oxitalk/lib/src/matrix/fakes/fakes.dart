@@ -288,6 +288,12 @@ final class FakeSession implements MatrixSession {
     roomTags: sectionState.value.roomTags,
   );
 
+  /// What [notifications] sends; tests add to it.
+  final notificationItems = StreamController<MessageNotification>.broadcast();
+
+  @override
+  Stream<MessageNotification> get notifications => notificationItems.stream;
+
   /// The notification settings; tests change them.
   final notificationState = Latest<NotificationSettings?>(
     const NotificationSettings(),

@@ -124,10 +124,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   key: const Key('settings.notifications'),
                   leading: const Icon(Icons.notifications_outlined),
-                  title: const Text('Notifications for this account'),
+                  title: const Text('Notifications'),
                   subtitle: const Text(
-                    'Defaults for direct and group chats, @room, invitations '
-                    'and keywords; kept on your server, the same in Element.',
+                    'On this device: on or off, message text, sound. For the '
+                    'account: defaults for direct and group chats, @room, '
+                    'invitations and keywords, kept on your server, the same '
+                    'in Element.',
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => context.go(Routes.notificationSettings),
