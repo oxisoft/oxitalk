@@ -3,6 +3,21 @@ library;
 
 enum Membership { joined, invited, knocked, left, banned }
 
+/// What a room notifies for, as Element names the choices. The account's defaults are never
+/// [mute].
+enum NotificationMode {
+  allMessages,
+
+  /// Only messages that mention the user (or @room) or contain one of their keywords.
+  mentionsAndKeywords,
+
+  /// Nothing, and no count badge.
+  mute,
+}
+
+/// Keeps a field as it is in a `copyWith` whose `null` means something.
+const _keep = Object();
+
 final class Room {
   const Room({
     required this.id,
@@ -12,6 +27,11 @@ final class Room {
     this.lastMessage,
     this.lastActivity,
     this.unreadCount = 0,
+    this.unreadNotifications = 0,
+    this.unreadMentions = 0,
+    this.markedUnread = false,
+    this.notificationMode,
+    this.defaultNotificationMode = NotificationMode.allMessages,
     this.isDm = false,
     this.isEncrypted = false,
   });
@@ -26,14 +46,62 @@ final class Room {
   /// The latest text message, if the latest event is one.
   final String? lastMessage;
   final DateTime? lastActivity;
+
+  /// Unread messages, notifying or not.
   final int unreadCount;
+
+  /// Unread messages that notify by the room's mode: all, only mentions and keywords, or none
+  /// when muted.
+  final int unreadNotifications;
+
+  /// Unread messages that mention the user (or @room) or contain a keyword.
+  final int unreadMentions;
+
+  /// Marked unread by the user, here or in another client.
+  final bool markedUnread;
+
+  /// The room's own mode; `null` while it follows [defaultNotificationMode].
+  final NotificationMode? notificationMode;
+
+  /// The account's default for this kind of room.
+  final NotificationMode defaultNotificationMode;
   final bool isDm;
   final bool isEncrypted;
 
+  /// The mode the room notifies by.
+  NotificationMode get effectiveNotificationMode =>
+      notificationMode ?? defaultNotificationMode;
+
+  bool get isMuted => effectiveNotificationMode == NotificationMode.mute;
+
+  /// What the room adds to its section's and its account's count, as Element X counts: one for
+  /// an invitation, nothing when muted, else its notifying unread messages (a mention
+  /// notifies even where the count missed it).
+  int get notifyingCount {
+    if (membership == Membership.invited) return 1;
+    if (isMuted) return 0;
+    return unreadNotifications > unreadMentions
+        ? unreadNotifications
+        : unreadMentions;
+  }
+
+  /// Anything unread, notifying or not, or marked unread.
+  bool get hasUnread =>
+      unreadCount > 0 ||
+      unreadNotifications > 0 ||
+      unreadMentions > 0 ||
+      markedUnread;
+
+  /// With [notificationMode] `null` the room follows its default again.
   Room copyWith({
     Membership? membership,
     String? lastMessage,
     int? unreadCount,
+    int? unreadNotifications,
+    int? unreadMentions,
+    bool? markedUnread,
+    Object? notificationMode = _keep,
+    NotificationMode? defaultNotificationMode,
   }) => Room(
     id: id,
     name: name,
@@ -42,8 +110,63 @@ final class Room {
     lastMessage: lastMessage ?? this.lastMessage,
     lastActivity: lastActivity,
     unreadCount: unreadCount ?? this.unreadCount,
+    unreadNotifications: unreadNotifications ?? this.unreadNotifications,
+    unreadMentions: unreadMentions ?? this.unreadMentions,
+    markedUnread: markedUnread ?? this.markedUnread,
+    notificationMode: identical(notificationMode, _keep)
+        ? this.notificationMode
+        : notificationMode as NotificationMode?,
+    defaultNotificationMode:
+        defaultNotificationMode ?? this.defaultNotificationMode,
     isDm: isDm,
     isEncrypted: isEncrypted,
+  );
+}
+
+/// The account's notification settings, kept on the server and shared with Element.
+final class NotificationSettings {
+  const NotificationSettings({
+    this.dmDefault = NotificationMode.allMessages,
+    this.groupDefault = NotificationMode.allMessages,
+    this.roomMentions,
+    this.invites,
+    this.keywords = const [],
+    this.inconsistent = false,
+  });
+
+  /// The default for direct chats (rooms of exactly two people).
+  final NotificationMode dmDefault;
+
+  /// The default for every other room.
+  final NotificationMode groupDefault;
+
+  /// Whether @room notifies; `null` if the server has no such rule.
+  final bool? roomMentions;
+
+  /// Whether an invitation notifies; `null` if the server has no such rule.
+  final bool? invites;
+
+  /// Words that make a message notify wherever it is sent.
+  final List<String> keywords;
+
+  /// Another client left the defaults for encrypted and unencrypted rooms different; the
+  /// defaults show as "All messages" until fixed.
+  final bool inconsistent;
+
+  NotificationSettings copyWith({
+    NotificationMode? dmDefault,
+    NotificationMode? groupDefault,
+    bool? roomMentions,
+    bool? invites,
+    List<String>? keywords,
+    bool? inconsistent,
+  }) => NotificationSettings(
+    dmDefault: dmDefault ?? this.dmDefault,
+    groupDefault: groupDefault ?? this.groupDefault,
+    roomMentions: roomMentions ?? this.roomMentions,
+    invites: invites ?? this.invites,
+    keywords: keywords ?? this.keywords,
+    inconsistent: inconsistent ?? this.inconsistent,
   );
 }
 

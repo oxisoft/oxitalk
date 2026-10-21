@@ -450,12 +450,18 @@ Future<bool> canRedactOthers(Ref ref, String account, String roomId) async =>
 Stream<List<Room>?> rooms(Ref ref, String account) =>
     _session(ref, account)?.rooms ?? Stream.value(null);
 
-/// What the account switcher shows: unread messages plus invites.
+/// What the account switcher shows: notifying unread messages plus invites, as Element X
+/// counts; muted rooms count nothing.
 @riverpod
 int unreadCount(Ref ref, String account) => [
   for (final room in ref.watch(roomsProvider(account)).value ?? const <Room>[])
-    room.membership == Membership.invited ? 1 : room.unreadCount,
+    room.notifyingCount,
 ].fold(0, (sum, count) => sum + count);
+
+/// The account's notification settings; `null` until they are read.
+@riverpod
+Stream<NotificationSettings?> notificationSettings(Ref ref, String account) =>
+    _session(ref, account)?.notificationSettings ?? Stream.value(null);
 
 /// A room's timeline, or with [thread] the thread that starts at that event.
 @riverpod

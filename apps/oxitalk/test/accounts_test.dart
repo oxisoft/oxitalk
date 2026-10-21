@@ -14,7 +14,12 @@ const _globex = '@me:globex.org';
 FakeSession _acmeSession() => FakeSession(
   userId: _acme,
   rooms: const [
-    Room(id: '!a1:acme.com', name: 'Acme team', unreadCount: 2),
+    Room(
+      id: '!a1:acme.com',
+      name: 'Acme team',
+      unreadCount: 2,
+      unreadNotifications: 2,
+    ),
     Room(id: '!a2:acme.com', name: 'Acme support'),
   ],
 );
@@ -22,7 +27,12 @@ FakeSession _acmeSession() => FakeSession(
 FakeSession _globexSession() => FakeSession(
   userId: _globex,
   rooms: const [
-    Room(id: '!g1:globex.org', name: 'Globex board', unreadCount: 5),
+    Room(
+      id: '!g1:globex.org',
+      name: 'Globex board',
+      unreadCount: 5,
+      unreadNotifications: 5,
+    ),
     Room(
       id: '!g2:globex.org',
       name: 'Globex invite',

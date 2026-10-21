@@ -17,12 +17,8 @@ final class RoomGroup {
   bool get isMovable =>
       isCustom || tag == SectionTags.people || tag == SectionTags.rooms;
 
-  /// Unread messages plus invites.
-  int get unread => rooms.fold(
-    0,
-    (sum, room) =>
-        sum + (room.membership == Membership.invited ? 1 : room.unreadCount),
-  );
+  /// Notifying unread messages plus invites; muted rooms count nothing.
+  int get unread => rooms.fold(0, (sum, room) => sum + room.notifyingCount);
 }
 
 /// The movable sections in order, as Element orders them: as stored, without the ones that

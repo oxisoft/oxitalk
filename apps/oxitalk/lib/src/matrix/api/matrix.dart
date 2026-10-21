@@ -110,6 +110,39 @@ abstract interface class MatrixSession {
   /// Saves the user's sections and the order of the movable ones.
   Future<void> saveSections(List<CustomSection> custom, List<String> order);
 
+  /// The account's notification settings (`null` until they are read), then every change,
+  /// made here or in another client.
+  Stream<NotificationSettings?> get notificationSettings;
+
+  /// Gives the room its own [mode], or with `null` lets it follow the default again.
+  Future<void> setRoomNotificationMode(String roomId, NotificationMode? mode);
+
+  /// Sets the default for direct chats or for group chats; [mode] is never
+  /// [NotificationMode.mute].
+  Future<void> setDefaultNotificationMode({
+    required bool directChats,
+    required NotificationMode mode,
+  });
+
+  /// Makes defaults that another client left inconsistent consistent, as Element X does.
+  Future<void> fixNotificationDefaults();
+
+  /// Whether @room notifies.
+  Future<void> setRoomMentionsEnabled(bool enabled);
+
+  /// Whether an invitation notifies.
+  Future<void> setInvitesEnabled(bool enabled);
+
+  Future<void> addNotificationKeyword(String keyword);
+
+  Future<void> removeNotificationKeyword(String keyword);
+
+  /// Marks the room unread for the user's devices, or takes the mark away.
+  Future<void> setMarkedUnread(String roomId, bool unread);
+
+  /// Marks the room read up to its latest message and takes away its unread mark.
+  Future<void> markRoomRead(String roomId);
+
   /// The whole file of a message ([MediaInfo.source]), from the cache or the server.
   Future<Uint8List> mediaContent(String source);
 

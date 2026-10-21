@@ -2594,16 +2594,19 @@ final class RoomsFamily extends $Family
   String toString() => r'roomsProvider';
 }
 
-/// What the account switcher shows: unread messages plus invites.
+/// What the account switcher shows: notifying unread messages plus invites, as Element X
+/// counts; muted rooms count nothing.
 
 @ProviderFor(unreadCount)
 final unreadCountProvider = UnreadCountFamily._();
 
-/// What the account switcher shows: unread messages plus invites.
+/// What the account switcher shows: notifying unread messages plus invites, as Element X
+/// counts; muted rooms count nothing.
 
 final class UnreadCountProvider extends $FunctionalProvider<int, int, int>
     with $Provider<int> {
-  /// What the account switcher shows: unread messages plus invites.
+  /// What the account switcher shows: notifying unread messages plus invites, as Element X
+  /// counts; muted rooms count nothing.
   UnreadCountProvider._({
     required UnreadCountFamily super.from,
     required String super.argument,
@@ -2655,9 +2658,10 @@ final class UnreadCountProvider extends $FunctionalProvider<int, int, int>
   }
 }
 
-String _$unreadCountHash() => r'cd69ef890e31b24c72de8cf1dbe614c5a74b865e';
+String _$unreadCountHash() => r'177c4c530e29f78bfa754c0f6dcc4d461296cfe3';
 
-/// What the account switcher shows: unread messages plus invites.
+/// What the account switcher shows: notifying unread messages plus invites, as Element X
+/// counts; muted rooms count nothing.
 
 final class UnreadCountFamily extends $Family
     with $FunctionalFamilyOverride<int, String> {
@@ -2670,13 +2674,101 @@ final class UnreadCountFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// What the account switcher shows: unread messages plus invites.
+  /// What the account switcher shows: notifying unread messages plus invites, as Element X
+  /// counts; muted rooms count nothing.
 
   UnreadCountProvider call(String account) =>
       UnreadCountProvider._(argument: account, from: this);
 
   @override
   String toString() => r'unreadCountProvider';
+}
+
+/// The account's notification settings; `null` until they are read.
+
+@ProviderFor(notificationSettings)
+final notificationSettingsProvider = NotificationSettingsFamily._();
+
+/// The account's notification settings; `null` until they are read.
+
+final class NotificationSettingsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<NotificationSettings?>,
+          NotificationSettings?,
+          Stream<NotificationSettings?>
+        >
+    with
+        $FutureModifier<NotificationSettings?>,
+        $StreamProvider<NotificationSettings?> {
+  /// The account's notification settings; `null` until they are read.
+  NotificationSettingsProvider._({
+    required NotificationSettingsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'notificationSettingsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$notificationSettingsHash();
+
+  @override
+  String toString() {
+    return r'notificationSettingsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<NotificationSettings?> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<NotificationSettings?> create(Ref ref) {
+    final argument = this.argument as String;
+    return notificationSettings(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is NotificationSettingsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$notificationSettingsHash() =>
+    r'2bef8399b08a9d11ec728db8f46e82e1ee4f5315';
+
+/// The account's notification settings; `null` until they are read.
+
+final class NotificationSettingsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<NotificationSettings?>, String> {
+  NotificationSettingsFamily._()
+    : super(
+        retry: null,
+        name: r'notificationSettingsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The account's notification settings; `null` until they are read.
+
+  NotificationSettingsProvider call(String account) =>
+      NotificationSettingsProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'notificationSettingsProvider';
 }
 
 /// A room's timeline, or with [thread] the thread that starts at that event.

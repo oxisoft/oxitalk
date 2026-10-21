@@ -53,7 +53,12 @@ FakeSession _session() =>
         profile: const Profile(displayName: 'Bob K'),
         rooms: const [
           Room(id: '!team', name: 'Team'),
-          Room(id: '!news', name: 'News', unreadCount: 3),
+          Room(
+            id: '!news',
+            name: 'News',
+            unreadCount: 3,
+            unreadNotifications: 3,
+          ),
         ],
       )
       ..timelines['!team'] = FakeTimeline(

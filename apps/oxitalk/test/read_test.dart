@@ -23,7 +23,15 @@ Future<FakeTimeline> _openChat(WidgetTester tester, {int count = 3}) async {
   );
   final session = FakeSession(
     userId: _me,
-    rooms: const [Room(id: '!bob', name: 'Bob', isDm: true, unreadCount: 3)],
+    rooms: const [
+      Room(
+        id: '!bob',
+        name: 'Bob',
+        isDm: true,
+        unreadCount: 3,
+        unreadNotifications: 3,
+      ),
+    ],
   );
   session.timelines['!bob'] = timeline;
   await pumpApp(tester, FakeMatrixClientFactory(saved: [session]), size: _wide);

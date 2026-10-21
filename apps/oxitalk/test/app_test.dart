@@ -13,6 +13,7 @@ const _rooms = [
     name: 'Team',
     lastMessage: 'Standup at 10',
     unreadCount: 3,
+    unreadNotifications: 3,
   ),
   Room(
     id: '!bob:example.org',

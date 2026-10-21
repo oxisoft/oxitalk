@@ -288,6 +288,110 @@ final class FakeSession implements MatrixSession {
     roomTags: sectionState.value.roomTags,
   );
 
+  /// The notification settings; tests change them.
+  final notificationState = Latest<NotificationSettings?>(
+    const NotificationSettings(),
+  );
+
+  /// What the notification calls did, like `mode !room:x mute`, `default dm mentions`,
+  /// `markRead !room:x`.
+  final notificationCalls = <String>[];
+
+  void _changeRoom(String roomId, Room Function(Room room) change) => roomList =
+      [for (final room in roomList) room.id == roomId ? change(room) : room];
+
+  NotificationSettings get _settings =>
+      notificationState.value ?? const NotificationSettings();
+
+  @override
+  Stream<NotificationSettings?> get notificationSettings =>
+      notificationState.stream;
+
+  @override
+  Future<void> setRoomNotificationMode(
+    String roomId,
+    NotificationMode? mode,
+  ) async {
+    notificationCalls.add('mode $roomId ${mode?.name ?? 'default'}');
+    _changeRoom(roomId, (room) => room.copyWith(notificationMode: mode));
+  }
+
+  @override
+  Future<void> setDefaultNotificationMode({
+    required bool directChats,
+    required NotificationMode mode,
+  }) async {
+    notificationCalls.add(
+      'default ${directChats ? 'dm' : 'group'} ${mode.name}',
+    );
+    notificationState.value = directChats
+        ? _settings.copyWith(dmDefault: mode, inconsistent: false)
+        : _settings.copyWith(groupDefault: mode, inconsistent: false);
+    roomList = [
+      for (final room in roomList)
+        room.isDm == directChats
+            ? room.copyWith(defaultNotificationMode: mode)
+            : room,
+    ];
+  }
+
+  @override
+  Future<void> fixNotificationDefaults() async {
+    notificationCalls.add('fix');
+    notificationState.value = _settings.copyWith(inconsistent: false);
+  }
+
+  @override
+  Future<void> setRoomMentionsEnabled(bool enabled) async {
+    notificationCalls.add('roomMentions $enabled');
+    notificationState.value = _settings.copyWith(roomMentions: enabled);
+  }
+
+  @override
+  Future<void> setInvitesEnabled(bool enabled) async {
+    notificationCalls.add('invites $enabled');
+    notificationState.value = _settings.copyWith(invites: enabled);
+  }
+
+  @override
+  Future<void> addNotificationKeyword(String keyword) async {
+    notificationCalls.add('keyword+ $keyword');
+    notificationState.value = _settings.copyWith(
+      keywords: [..._settings.keywords, keyword],
+    );
+  }
+
+  @override
+  Future<void> removeNotificationKeyword(String keyword) async {
+    notificationCalls.add('keyword- $keyword');
+    notificationState.value = _settings.copyWith(
+      keywords: [
+        for (final word in _settings.keywords)
+          if (word != keyword) word,
+      ],
+    );
+  }
+
+  @override
+  Future<void> setMarkedUnread(String roomId, bool unread) async {
+    notificationCalls.add('markedUnread $roomId $unread');
+    _changeRoom(roomId, (room) => room.copyWith(markedUnread: unread));
+  }
+
+  @override
+  Future<void> markRoomRead(String roomId) async {
+    notificationCalls.add('markRead $roomId');
+    _changeRoom(
+      roomId,
+      (room) => room.copyWith(
+        unreadCount: 0,
+        unreadNotifications: 0,
+        unreadMentions: 0,
+        markedUnread: false,
+      ),
+    );
+  }
+
   @override
   Future<String> createDm(String userId) async {
     if (!userId.startsWith('@') || !userId.contains(':')) {

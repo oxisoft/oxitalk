@@ -234,6 +234,12 @@ final class RustMatrixSession implements MatrixSession {
         ),
       )
       ..add(
+        _session.subscribeNotificationSettings().listen(
+          (state) =>
+              _notificationSettings.value = notificationSettingsOf(state),
+        ),
+      )
+      ..add(
         _session.subscribeVerificationStatus().listen(
           (status) => _verificationStatus.value = verificationStatusOf(status),
         ),
@@ -277,6 +283,7 @@ final class RustMatrixSession implements MatrixSession {
   final _rooms = Latest<List<Room>?>(null);
   final _profile = Latest(const Profile());
   final _sections = Latest(const Sections());
+  final _notificationSettings = Latest<NotificationSettings?>(null);
   final _typing = Latest(const <String, List<String>>{});
   final _verificationStatus = Latest(VerificationStatus.unknown);
   final _verificationRequests =
@@ -377,6 +384,61 @@ final class RustMatrixSession implements MatrixSession {
           ),
         ),
       );
+
+  @override
+  Stream<NotificationSettings?> get notificationSettings =>
+      _notificationSettings.stream;
+
+  @override
+  Future<void> setRoomNotificationMode(String roomId, NotificationMode? mode) =>
+      guarded(
+        () => _session.setRoomNotificationMode(
+          roomId: roomId,
+          mode: switch (mode) {
+            final mode? => rustNotificationMode(mode),
+            null => null,
+          },
+        ),
+      );
+
+  @override
+  Future<void> setDefaultNotificationMode({
+    required bool directChats,
+    required NotificationMode mode,
+  }) => guarded(
+    () => _session.setDefaultNotificationMode(
+      oneToOne: directChats,
+      mode: rustNotificationMode(mode),
+    ),
+  );
+
+  @override
+  Future<void> fixNotificationDefaults() =>
+      guarded(_session.fixInconsistentNotificationDefaults);
+
+  @override
+  Future<void> setRoomMentionsEnabled(bool enabled) =>
+      guarded(() => _session.setRoomMentionsEnabled(enabled: enabled));
+
+  @override
+  Future<void> setInvitesEnabled(bool enabled) =>
+      guarded(() => _session.setInvitesEnabled(enabled: enabled));
+
+  @override
+  Future<void> addNotificationKeyword(String keyword) =>
+      guarded(() => _session.addNotificationKeyword(keyword: keyword));
+
+  @override
+  Future<void> removeNotificationKeyword(String keyword) =>
+      guarded(() => _session.removeNotificationKeyword(keyword: keyword));
+
+  @override
+  Future<void> setMarkedUnread(String roomId, bool unread) =>
+      guarded(() => _session.setMarkedUnread(roomId: roomId, unread: unread));
+
+  @override
+  Future<void> markRoomRead(String roomId) =>
+      guarded(() => _session.markRoomRead(roomId: roomId));
 
   @override
   Future<Uint8List> mediaContent(String source) =>
@@ -604,6 +666,7 @@ final class RustMatrixSession implements MatrixSession {
     unawaited(_rooms.close());
     unawaited(_profile.close());
     unawaited(_sections.close());
+    unawaited(_notificationSettings.close());
     unawaited(_typing.close());
     unawaited(_verificationStatus.close());
     unawaited(_verificationRequests.close());

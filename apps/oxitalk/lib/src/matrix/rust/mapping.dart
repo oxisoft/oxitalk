@@ -1,4 +1,5 @@
 import '../../rust/api/error.dart';
+import '../../rust/api/notifications.dart' as rust;
 import '../../rust/api/rich_text.dart' as rust;
 import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
@@ -70,8 +71,43 @@ Room roomOf(rust.RoomSummary summary) => Room(
     null => null,
   },
   unreadCount: summary.unreadCount,
+  unreadNotifications: summary.unreadNotifications,
+  unreadMentions: summary.unreadMentions,
+  markedUnread: summary.markedUnread,
+  notificationMode: switch (summary.notificationMode) {
+    final mode? => notificationModeOf(mode),
+    null => null,
+  },
+  defaultNotificationMode: notificationModeOf(summary.defaultNotificationMode),
   isDm: summary.isDm,
   isEncrypted: summary.isEncrypted,
+);
+
+NotificationMode notificationModeOf(rust.RoomNotificationMode mode) =>
+    switch (mode) {
+      rust.RoomNotificationMode.allMessages => NotificationMode.allMessages,
+      rust.RoomNotificationMode.mentionsAndKeywordsOnly =>
+        NotificationMode.mentionsAndKeywords,
+      rust.RoomNotificationMode.mute => NotificationMode.mute,
+    };
+
+rust.RoomNotificationMode rustNotificationMode(NotificationMode mode) =>
+    switch (mode) {
+      NotificationMode.allMessages => rust.RoomNotificationMode.allMessages,
+      NotificationMode.mentionsAndKeywords =>
+        rust.RoomNotificationMode.mentionsAndKeywordsOnly,
+      NotificationMode.mute => rust.RoomNotificationMode.mute,
+    };
+
+NotificationSettings notificationSettingsOf(
+  rust.NotificationSettingsState state,
+) => NotificationSettings(
+  dmDefault: notificationModeOf(state.dmDefault),
+  groupDefault: notificationModeOf(state.groupDefault),
+  roomMentions: state.roomMentions,
+  invites: state.invites,
+  keywords: state.keywords,
+  inconsistent: state.inconsistent.isNotEmpty,
 );
 
 /// The visible entries of a timeline; events M0 doesn't show are left out.

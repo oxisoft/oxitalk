@@ -15,9 +15,15 @@ FakeSession _session({Sections sections = const Sections()}) => FakeSession(
   userId: _me,
   sections: sections,
   rooms: const [
-    Room(id: '!bob', name: 'Bob', isDm: true, unreadCount: 2),
+    Room(
+      id: '!bob',
+      name: 'Bob',
+      isDm: true,
+      unreadCount: 2,
+      unreadNotifications: 2,
+    ),
     Room(id: '!team', name: 'Team'),
-    Room(id: '!news', name: 'News', unreadCount: 4),
+    Room(id: '!news', name: 'News', unreadCount: 4, unreadNotifications: 4),
   ],
 );
 

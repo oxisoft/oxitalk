@@ -10,9 +10,20 @@ const _globex = '${SectionTags.customPrefix}globex';
 void main() {
   const rooms = [
     Room(id: '!invite', name: 'Invite', membership: Membership.invited),
-    Room(id: '!dm', name: 'Bob', isDm: true, unreadCount: 2),
+    Room(
+      id: '!dm',
+      name: 'Bob',
+      isDm: true,
+      unreadCount: 2,
+      unreadNotifications: 2,
+    ),
     Room(id: '!fav', name: 'Fav'),
-    Room(id: '!acme', name: 'Acme room', unreadCount: 3),
+    Room(
+      id: '!acme',
+      name: 'Acme room',
+      unreadCount: 3,
+      unreadNotifications: 3,
+    ),
     Room(id: '!plain', name: 'Plain'),
     Room(id: '!low', name: 'Low'),
     Room(id: '!gone', name: 'In a deleted section'),
