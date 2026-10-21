@@ -329,7 +329,7 @@ final class FakeSession implements MatrixSession {
         : _settings.copyWith(groupDefault: mode, inconsistent: false);
     roomList = [
       for (final room in roomList)
-        room.isDm == directChats
+        room.isOneToOne == directChats
             ? room.copyWith(defaultNotificationMode: mode)
             : room,
     ];
@@ -399,7 +399,13 @@ final class FakeSession implements MatrixSession {
     }
     final id = '!dm${roomList.length}:example.org';
     roomList = [
-      Room(id: id, name: userId, isDm: true, isEncrypted: true),
+      Room(
+        id: id,
+        name: userId,
+        isDm: true,
+        isOneToOne: true,
+        isEncrypted: true,
+      ),
       ...roomList,
     ];
     return id;

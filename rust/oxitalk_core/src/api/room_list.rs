@@ -33,6 +33,10 @@ use crate::frb_generated::StreamSink;
 const ROOM_LIST_LIMIT: usize = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent facts about a room that the app reads, not a state machine"
+)]
 pub struct RoomSummary {
     pub room_id: String,
     /// The display name, computed by the SDK from the room's name, alias or members.
@@ -58,6 +62,9 @@ pub struct RoomSummary {
     pub notification_mode: Option<RoomNotificationMode>,
     /// The account default the room follows without a mode of its own.
     pub default_notification_mode: RoomNotificationMode,
+    /// Whether that default is the one for direct chats: the room has exactly two members (the
+    /// SDK's and Element X's rule), which a room's `is_dm` flag needn't match.
+    pub is_one_to_one: bool,
     pub is_dm: bool,
     pub is_encrypted: bool,
 }
@@ -192,12 +199,14 @@ async fn mode_changes(
         let modes = room_modes(settings, &room).await;
         if summary.notification_mode != modes.user_defined
             || summary.default_notification_mode != modes.default
+            || summary.is_one_to_one != modes.one_to_one
         {
             changes.push(RoomListDiff::Set {
                 index: dart_int(index),
                 value: RoomSummary {
                     notification_mode: modes.user_defined,
                     default_notification_mode: modes.default,
+                    is_one_to_one: modes.one_to_one,
                     ..summary.clone()
                 },
             });
@@ -384,6 +393,7 @@ async fn summary(settings: &NotificationSettings, room: RoomListItem) -> RoomSum
         marked_unread: room.is_marked_unread(),
         notification_mode: modes.user_defined,
         default_notification_mode: modes.default,
+        is_one_to_one: modes.one_to_one,
         is_dm,
         is_encrypted: room.encryption_state().is_encrypted(),
     }
@@ -411,6 +421,7 @@ mod tests {
             marked_unread: false,
             notification_mode: None,
             default_notification_mode: RoomNotificationMode::AllMessages,
+            is_one_to_one: false,
             is_dm: false,
             is_encrypted: false,
         }

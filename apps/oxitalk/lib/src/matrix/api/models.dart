@@ -32,6 +32,7 @@ final class Room {
     this.markedUnread = false,
     this.notificationMode,
     this.defaultNotificationMode = NotificationMode.allMessages,
+    this.isOneToOne = false,
     this.isDm = false,
     this.isEncrypted = false,
   });
@@ -65,6 +66,10 @@ final class Room {
 
   /// The account's default for this kind of room.
   final NotificationMode defaultNotificationMode;
+
+  /// Whether [defaultNotificationMode] is the default for direct chats: the room has exactly
+  /// two members, the rule of the SDK and Element X, which [isDm] needn't match.
+  final bool isOneToOne;
   final bool isDm;
   final bool isEncrypted;
 
@@ -118,6 +123,7 @@ final class Room {
         : notificationMode as NotificationMode?,
     defaultNotificationMode:
         defaultNotificationMode ?? this.defaultNotificationMode,
+    isOneToOne: isOneToOne,
     isDm: isDm,
     isEncrypted: isEncrypted,
   );

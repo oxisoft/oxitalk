@@ -340,5 +340,36 @@ void main() {
       await tester.pumpAndSettle();
       expect(session.notificationCalls, ['mode !quiet allMessages']);
     });
+
+    testWidgets('its default is named by its member count, not its DM flag', (
+      tester,
+    ) async {
+      // As the SDK and Element X pick the default: exactly two members is a direct chat.
+      final session = FakeSession(
+        userId: _me,
+        rooms: const [
+          Room(id: '!trio', name: 'Trio', isDm: true),
+          Room(id: '!pair', name: 'Pair', isOneToOne: true),
+        ],
+      );
+      await pumpApp(
+        tester,
+        FakeMatrixClientFactory(saved: [session]),
+        size: _wide,
+      );
+      Future<void> openNotifications(String room) async {
+        await tester.tap(find.text(room));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('chat.title')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('info.notifications')));
+        await tester.pumpAndSettle();
+      }
+
+      await openNotifications('Trio');
+      expect(find.textContaining('Default for group chats'), findsOneWidget);
+      await openNotifications('Pair');
+      expect(find.textContaining('Default for direct chats'), findsOneWidget);
+    });
   });
 }

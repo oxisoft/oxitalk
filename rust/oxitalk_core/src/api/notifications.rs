@@ -67,6 +67,8 @@ pub struct NotificationSettingsState {
 pub(crate) struct RoomModes {
     pub(crate) user_defined: Option<RoomNotificationMode>,
     pub(crate) default: RoomNotificationMode,
+    /// Whether the default is the direct chat one: the room has exactly two members.
+    pub(crate) one_to_one: bool,
 }
 
 impl Session {
@@ -319,17 +321,25 @@ pub(crate) async fn room_modes(settings: &NotificationSettings, room: &Room) -> 
         .get_user_defined_room_notification_mode(room.room_id())
         .await
         .map(Into::into);
+    let one_to_one = is_one_to_one(room);
     let default = settings
         .get_default_room_notification_mode(
             IsEncrypted::from(room.encryption_state().is_encrypted()),
-            IsOneToOne::from(room.active_members_count() == 2),
+            IsOneToOne::from(one_to_one),
         )
         .await
         .into();
     RoomModes {
         user_defined,
         default,
+        one_to_one,
     }
+}
+
+/// Whether a room counts as a direct chat for the notification defaults: exactly two members,
+/// the SDK's and Element X's rule (not the `m.direct` flag).
+pub(crate) fn is_one_to_one(room: &Room) -> bool {
+    room.active_members_count() == 2
 }
 
 async fn settings_state(settings: &NotificationSettings) -> NotificationSettingsState {

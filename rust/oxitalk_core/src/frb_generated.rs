@@ -6500,6 +6500,7 @@ impl SseDecode for crate::api::room_list::RoomSummary {
             <Option<crate::api::notifications::RoomNotificationMode>>::sse_decode(deserializer);
         let mut var_defaultNotificationMode =
             <crate::api::notifications::RoomNotificationMode>::sse_decode(deserializer);
+        let mut var_isOneToOne = <bool>::sse_decode(deserializer);
         let mut var_isDm = <bool>::sse_decode(deserializer);
         let mut var_isEncrypted = <bool>::sse_decode(deserializer);
         return crate::api::room_list::RoomSummary {
@@ -6515,6 +6516,7 @@ impl SseDecode for crate::api::room_list::RoomSummary {
             marked_unread: var_markedUnread,
             notification_mode: var_notificationMode,
             default_notification_mode: var_defaultNotificationMode,
+            is_one_to_one: var_isOneToOne,
             is_dm: var_isDm,
             is_encrypted: var_isEncrypted,
         };
@@ -8042,6 +8044,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::room_list::RoomSummary {
             self.marked_unread.into_into_dart().into_dart(),
             self.notification_mode.into_into_dart().into_dart(),
             self.default_notification_mode.into_into_dart().into_dart(),
+            self.is_one_to_one.into_into_dart().into_dart(),
             self.is_dm.into_into_dart().into_dart(),
             self.is_encrypted.into_into_dart().into_dart(),
         ]
@@ -9518,6 +9521,7 @@ impl SseEncode for crate::api::room_list::RoomSummary {
             self.default_notification_mode,
             serializer,
         );
+        <bool>::sse_encode(self.is_one_to_one, serializer);
         <bool>::sse_encode(self.is_dm, serializer);
         <bool>::sse_encode(self.is_encrypted, serializer);
     }

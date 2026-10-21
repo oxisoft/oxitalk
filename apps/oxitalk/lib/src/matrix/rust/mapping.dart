@@ -79,6 +79,7 @@ Room roomOf(rust.RoomSummary summary) => Room(
     null => null,
   },
   defaultNotificationMode: notificationModeOf(summary.defaultNotificationMode),
+  isOneToOne: summary.isOneToOne,
   isDm: summary.isDm,
   isEncrypted: summary.isEncrypted,
 );

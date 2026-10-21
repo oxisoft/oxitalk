@@ -22,7 +22,7 @@ void main() {
       final session = FakeSession(
         userId: _me,
         rooms: const [
-          Room(id: '!bob', name: 'Bob', isDm: true),
+          Room(id: '!bob', name: 'Bob', isDm: true, isOneToOne: true),
           Room(id: '!read', name: 'Read'),
         ],
       )..notificationState.value = settings;

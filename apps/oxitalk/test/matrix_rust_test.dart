@@ -14,7 +14,7 @@ import 'package:oxitalk/src/rust/api/timeline.dart';
 
 // The bridge's plain data classes need no Rust library, so these run without it.
 
-RoomSummary _room(String id) => RoomSummary(
+RoomSummary _room(String id, {bool isOneToOne = false}) => RoomSummary(
   roomId: id,
   name: id,
   membership: Membership.joined,
@@ -23,6 +23,7 @@ RoomSummary _room(String id) => RoomSummary(
   unreadMentions: 0,
   markedUnread: false,
   defaultNotificationMode: RoomNotificationMode.allMessages,
+  isOneToOne: isOneToOne,
   isDm: false,
   isEncrypted: false,
 );
@@ -38,6 +39,11 @@ EventInfo _event({bool isOwn = false}) => EventInfo(
 );
 
 void main() {
+  test('a room says whether its default is the direct chat one', () {
+    expect(roomOf(_room('a', isOneToOne: true)).isOneToOne, isTrue);
+    expect(roomOf(_room('b')).isOneToOne, isFalse);
+  });
+
   test('room list diffs apply in order', () {
     final list = <RoomSummary>[];
     for (final diff in [

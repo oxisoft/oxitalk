@@ -4905,8 +4905,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RoomSummary dco_decode_room_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 14)
-      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
     return RoomSummary(
       roomId: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -4922,8 +4922,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         arr[10],
       ),
       defaultNotificationMode: dco_decode_room_notification_mode(arr[11]),
-      isDm: dco_decode_bool(arr[12]),
-      isEncrypted: dco_decode_bool(arr[13]),
+      isOneToOne: dco_decode_bool(arr[12]),
+      isDm: dco_decode_bool(arr[13]),
+      isEncrypted: dco_decode_bool(arr[14]),
     );
   }
 
@@ -6456,6 +6457,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_defaultNotificationMode = sse_decode_room_notification_mode(
       deserializer,
     );
+    var var_isOneToOne = sse_decode_bool(deserializer);
     var var_isDm = sse_decode_bool(deserializer);
     var var_isEncrypted = sse_decode_bool(deserializer);
     return RoomSummary(
@@ -6471,6 +6473,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       markedUnread: var_markedUnread,
       notificationMode: var_notificationMode,
       defaultNotificationMode: var_defaultNotificationMode,
+      isOneToOne: var_isOneToOne,
       isDm: var_isDm,
       isEncrypted: var_isEncrypted,
     );
@@ -8004,6 +8007,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       serializer,
     );
     sse_encode_room_notification_mode(self.defaultNotificationMode, serializer);
+    sse_encode_bool(self.isOneToOne, serializer);
     sse_encode_bool(self.isDm, serializer);
     sse_encode_bool(self.isEncrypted, serializer);
   }

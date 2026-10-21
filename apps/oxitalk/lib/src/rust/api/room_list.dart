@@ -80,6 +80,10 @@ class RoomSummary {
 
   /// The account default the room follows without a mode of its own.
   final RoomNotificationMode defaultNotificationMode;
+
+  /// Whether that default is the one for direct chats: the room has exactly two members (the
+  /// SDK's and Element X's rule), which a room's `is_dm` flag needn't match.
+  final bool isOneToOne;
   final bool isDm;
   final bool isEncrypted;
 
@@ -96,6 +100,7 @@ class RoomSummary {
     required this.markedUnread,
     this.notificationMode,
     required this.defaultNotificationMode,
+    required this.isOneToOne,
     required this.isDm,
     required this.isEncrypted,
   });
@@ -114,6 +119,7 @@ class RoomSummary {
       markedUnread.hashCode ^
       notificationMode.hashCode ^
       defaultNotificationMode.hashCode ^
+      isOneToOne.hashCode ^
       isDm.hashCode ^
       isEncrypted.hashCode;
 
@@ -134,6 +140,7 @@ class RoomSummary {
           markedUnread == other.markedUnread &&
           notificationMode == other.notificationMode &&
           defaultNotificationMode == other.defaultNotificationMode &&
+          isOneToOne == other.isOneToOne &&
           isDm == other.isDm &&
           isEncrypted == other.isEncrypted;
 }

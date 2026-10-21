@@ -97,7 +97,7 @@ class _RoomNotificationsPaneState extends ConsumerState<RoomNotificationsPane> {
           key: const Key('roomNotifications.matchDefault'),
           title: const Text('Match default setting'),
           subtitle: Text(
-            'Default for ${room.isDm ? 'direct chats' : 'group chats'}: '
+            'Default for ${room.isOneToOne ? 'direct chats' : 'group chats'}: '
             '${notificationModeLabel(room.defaultNotificationMode)}. '
             'Change it in Settings.',
           ),

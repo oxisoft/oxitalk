@@ -1648,6 +1648,11 @@ async fn muted_and_mentions_only_rooms_count_as_element_counts() -> TestResult {
         .wait_until(|rooms| room(rooms).is_some())
         .await
         .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    // Two members: the default is the one for direct chats, and the summary says so.
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.is_one_to_one))
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
     let summary = room(&bob_rooms.items).ok_or("no room")?;
     assert_eq!(summary.notification_mode, None);
     assert_eq!(
