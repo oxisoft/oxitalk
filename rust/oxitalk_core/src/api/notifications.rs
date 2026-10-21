@@ -13,6 +13,7 @@ use matrix_sdk::{
     },
     ruma::{
         OwnedRoomId,
+        api::{client::push::delete_pushrule, error::ErrorKind},
         push::{PredefinedOverrideRuleId, RuleKind},
     },
 };
@@ -120,13 +121,24 @@ impl Session {
     ) -> Result<(), CoreError> {
         let room_id: OwnedRoomId = parse_id(&room_id)?;
         let settings = &self.notification_settings;
-        match mode {
-            Some(mode) => {
-                settings
-                    .set_room_notification_mode(&room_id, mode.into())
-                    .await?;
+        if let Some(mode) = mode {
+            settings
+                .set_room_notification_mode(&room_id, mode.into())
+                .await?;
+            return Ok(());
+        }
+        let known = settings
+            .get_user_defined_room_notification_mode(&room_id)
+            .await
+            .is_some();
+        settings.delete_user_defined_room_rules(&room_id).await?;
+        if !known {
+            // The SDK's copy of the rules may be a sync behind a mode just set (a sync it has
+            // yet to see replaces the rules it changed itself), and then deletes nothing. The
+            // SDK names a room's rules by the room ID.
+            for kind in [RuleKind::Override, RuleKind::Room] {
+                self.delete_push_rule(kind, room_id.as_str()).await?;
             }
-            None => settings.delete_user_defined_room_rules(&room_id).await?,
         }
         Ok(())
     }
@@ -242,7 +254,25 @@ impl Session {
     ///
     /// As the server answers.
     pub async fn remove_notification_keyword(&self, keyword: String) -> Result<(), CoreError> {
-        Ok(self.notification_settings.remove_keyword(&keyword).await?)
+        let settings = &self.notification_settings;
+        let known = settings.enabled_keywords().await.contains(&keyword);
+        settings.remove_keyword(&keyword).await?;
+        if !known {
+            // As for a room's mode: a keyword just added may not be in the SDK's copy yet.
+            // The SDK names a keyword's rule by the keyword.
+            self.delete_push_rule(RuleKind::Content, &keyword).await?;
+        }
+        Ok(())
+    }
+
+    /// Deletes one of the user's push rules; one that isn't there is fine.
+    async fn delete_push_rule(&self, kind: RuleKind, rule_id: &str) -> Result<(), CoreError> {
+        let request = delete_pushrule::v3::Request::new(kind, rule_id.to_owned());
+        match self.client.send(request).await {
+            Ok(_) => Ok(()),
+            Err(error) if error.client_api_error_kind() == Some(&ErrorKind::NotFound) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// Marks a room unread (or not) for the user's devices, as Element's "Mark as unread".

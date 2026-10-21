@@ -1520,18 +1520,25 @@ async fn wait_for_flow(
 /// Waits until the notification settings satisfy `done`, and returns them.
 async fn wait_for_settings(
     updates: &mut (impl Stream<Item = NotificationSettingsState> + Unpin),
+    what: &str,
     done: impl Fn(&NotificationSettingsState) -> bool,
 ) -> Result<NotificationSettingsState, Box<dyn Error>> {
-    tokio::time::timeout(TIMEOUT, async {
+    let mut last = None;
+    let found = tokio::time::timeout(TIMEOUT, async {
         while let Some(state) = updates.next().await {
             if done(&state) {
-                return Ok(state);
+                return Some(state);
             }
+            last = Some(state);
         }
-        Err("the settings stream ended".into())
+        None
     })
-    .await
-    .map_err(|_| "timed out waiting for the notification settings")?
+    .await;
+    match found {
+        Ok(Some(state)) => Ok(state),
+        Ok(None) => Err("the settings stream ended".into()),
+        Err(_) => Err(format!("timed out waiting until {what}; last: {last:?}").into()),
+    }
 }
 
 /// Every account setting goes to the server as push rules and comes back, as Element X reads
@@ -1545,7 +1552,7 @@ async fn notification_settings_round_trip() -> TestResult {
     session.start_sync().await;
     let mut updates = session.notification_settings_updates();
 
-    let first = wait_for_settings(&mut updates, |_| true).await?;
+    let first = wait_for_settings(&mut updates, "the first settings arrive", |_| true).await?;
     assert_eq!(first.dm_default, RoomNotificationMode::AllMessages);
     assert_eq!(first.group_default, RoomNotificationMode::AllMessages);
     assert!(first.inconsistent.is_empty(), "{first:?}");
@@ -1556,7 +1563,7 @@ async fn notification_settings_round_trip() -> TestResult {
     session
         .set_default_notification_mode(true, RoomNotificationMode::MentionsAndKeywordsOnly)
         .await?;
-    wait_for_settings(&mut updates, |s| {
+    wait_for_settings(&mut updates, "both defaults are mentions only", |s| {
         s.group_default == RoomNotificationMode::MentionsAndKeywordsOnly
             && s.dm_default == RoomNotificationMode::MentionsAndKeywordsOnly
             && s.inconsistent.is_empty()
@@ -1574,16 +1581,20 @@ async fn notification_settings_round_trip() -> TestResult {
     session
         .add_notification_keyword(" pineapple ".to_owned())
         .await?;
-    wait_for_settings(&mut updates, |s| {
+    wait_for_settings(&mut updates, "@room, invites and a keyword are set", |s| {
         s.room_mentions == Some(false) && s.invites == Some(false) && s.keywords == ["pineapple"]
     })
     .await?;
+    // Removing a keyword that isn't there is fine.
+    session
+        .remove_notification_keyword("never-added".to_owned())
+        .await?;
     session.set_room_mentions_enabled(true).await?;
     session.set_invites_enabled(true).await?;
     session
         .remove_notification_keyword("pineapple".to_owned())
         .await?;
-    wait_for_settings(&mut updates, |s| {
+    wait_for_settings(&mut updates, "they are back", |s| {
         s.room_mentions == Some(true) && s.invites == Some(true) && s.keywords.is_empty()
     })
     .await?;
@@ -1599,7 +1610,10 @@ async fn notification_settings_round_trip() -> TestResult {
             matrix_sdk::notification_settings::RoomNotificationMode::AllMessages,
         )
         .await?;
-    let state = wait_for_settings(&mut updates, |s| !s.inconsistent.is_empty()).await?;
+    let state = wait_for_settings(&mut updates, "another client made them inconsistent", |s| {
+        !s.inconsistent.is_empty()
+    })
+    .await?;
     assert_eq!(
         state.inconsistent,
         [InconsistentDefault {
@@ -1609,7 +1623,10 @@ async fn notification_settings_round_trip() -> TestResult {
     );
     assert_eq!(state.group_default, RoomNotificationMode::AllMessages);
     session.fix_inconsistent_notification_defaults().await?;
-    let state = wait_for_settings(&mut updates, |s| s.inconsistent.is_empty()).await?;
+    let state = wait_for_settings(&mut updates, "they are fixed", |s| {
+        s.inconsistent.is_empty()
+    })
+    .await?;
     assert_eq!(state.group_default, RoomNotificationMode::AllMessages);
     assert_eq!(
         state.dm_default,
@@ -1735,6 +1752,9 @@ async fn chats_are_marked_unread_and_read() -> TestResult {
     let (alice, bob, room_id, _stores) = joined_dm().await?;
     let mut bob_rooms = watch_rooms(&bob).await?;
     let room = |rooms: &[RoomSummary]| rooms.iter().find(|r| r.room_id == room_id).cloned();
+    // Back to the default when it is the default already: nothing to delete, no error.
+    bob.set_room_notification_mode(room_id.clone(), None)
+        .await?;
     bob.set_marked_unread(room_id.clone(), true).await?;
     bob_rooms
         .wait_until(|rooms| room(rooms).is_some_and(|r| r.marked_unread))
