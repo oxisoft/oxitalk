@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -45,7 +44,6 @@ class ChatPane extends ConsumerWidget {
     required this.account,
     required this.roomId,
     required this.showBack,
-    this.windowButtons = true,
     super.key,
   });
 
@@ -53,9 +51,6 @@ class ChatPane extends ConsumerWidget {
   final String account;
   final String roomId;
   final bool showBack;
-
-  /// The window's buttons in the header; off while a pane beside the chat has them.
-  final bool windowButtons;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,8 +71,6 @@ class ChatPane extends ConsumerWidget {
             ? BackButton(onPressed: () => context.go(Routes.chats))
             : null,
         titleSpacing: showBack ? 0 : null,
-        // The rest of the header is the window's title bar.
-        flexibleSpace: const WindowDragArea(),
         actions: [
           IconButton(
             key: const Key('chat.threads'),
@@ -85,7 +78,6 @@ class ChatPane extends ConsumerWidget {
             icon: const Icon(Icons.forum_outlined),
             onPressed: () => context.go(Routes.threads(roomId)),
           ),
-          if (windowButtons) const WindowButtons.right(),
         ],
         // The picture and name, and only they, open the chat's info.
         title: Align(

@@ -6,6 +6,7 @@ import '../features/verify/incoming_verifications.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme.dart';
+import 'title_bar.dart';
 
 class OxiTalkApp extends ConsumerWidget {
   const OxiTalkApp({super.key});
@@ -18,7 +19,8 @@ class OxiTalkApp extends ConsumerWidget {
     darkTheme: oxiTheme(Brightness.dark),
     themeMode: ref.watch(appThemeProvider),
     routerConfig: ref.watch(routerProvider),
-    builder: (_, child) =>
-        IncomingVerifications(child: AccountHotkeys(child: child!)),
+    builder: (_, child) => WithTitleBar(
+      child: IncomingVerifications(child: AccountHotkeys(child: child!)),
+    ),
   );
 }

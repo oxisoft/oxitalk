@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -123,7 +122,6 @@ extension on ChatsScreen {
       account: account,
       roomId: roomId,
       showBack: false,
-      windowButtons: side == null,
     );
     if (side == null) return chat;
     return Row(
@@ -180,13 +178,6 @@ class _WelcomePaneState extends ConsumerState<WelcomePane> {
       backgroundColor: context.isDark
           ? OxiColors.wallpaperDark
           : OxiColors.wallpaperLight,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        flexibleSpace: const WindowDragArea(),
-        actions: const [WindowButtons.right()],
-      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -265,7 +256,7 @@ class ChatListPane extends ConsumerWidget {
   final String account;
   final String? selectedRoomId;
 
-  /// The whole window: no rail, no narrowing, and the window buttons in this header.
+  /// The whole window: no rail, no narrowing.
   final bool phone;
 
   @override
@@ -295,7 +286,6 @@ class ChatListPane extends ConsumerWidget {
       appBar: AppBar(
         // On a wide window the open chat is a route above the list; no back arrow there.
         automaticallyImplyLeading: false,
-        flexibleSpace: const WindowDragArea(),
         titleSpacing: narrow ? 0 : 8,
         centerTitle: narrow,
         title: narrow
@@ -312,7 +302,6 @@ class ChatListPane extends ConsumerWidget {
               )
             : Row(
                 children: [
-                  if (!phone) const WindowButtons.left(),
                   if (railHidden && !phone) showRail,
                   Flexible(
                     child: AccountDropdown(
@@ -322,10 +311,7 @@ class ChatListPane extends ConsumerWidget {
                   ),
                 ],
               ),
-        actions: [
-          if (!phone && !narrow) narrowButton,
-          if (phone) const WindowButtons.right(),
-        ],
+        actions: [if (!phone && !narrow) narrowButton],
       ),
       body: switch (rooms) {
         null => const Center(child: CircularProgressIndicator()),

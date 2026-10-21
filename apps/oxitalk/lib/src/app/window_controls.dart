@@ -164,9 +164,9 @@ TitleBarDoubleClick parseDoubleClick(String? action) => switch (action) {
   _ => TitleBarDoubleClick.toggleMaximize,
 };
 
-/// The empty part of a header that is also the window's title bar: drag to move,
-/// double-click as the desktop says, right-click for the window menu. Put it behind the
-/// header's content (an app bar's `flexibleSpace`), so the content keeps its clicks.
+/// The empty part of the app's title bar: drag to move, double-click as the desktop says,
+/// right-click for the window menu. Put it behind the bar's content, so the content keeps
+/// its clicks.
 class WindowDragArea extends ConsumerWidget {
   const WindowDragArea({super.key});
 
@@ -185,20 +185,9 @@ class WindowDragArea extends ConsumerWidget {
   }
 }
 
-/// For a screen without a header of its own: an empty one that is the window's title bar,
-/// where the app draws it.
-PreferredSizeWidget? windowOnlyAppBar(WidgetRef ref) =>
-    ref.watch(windowControlsProvider).drawsTitleBar
-    ? AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        flexibleSpace: const WindowDragArea(),
-        actions: const [WindowButtons.right()],
-      )
-    : null;
-
-/// The window buttons for one end of the title bar, drawn as GNOME draws them: small round
-/// buttons. Nothing when the desktop wants none there, or draws its own title bar.
+/// The window buttons for one end of the app's title bar, drawn as GNOME draws them: small
+/// round buttons, Close turning red under the pointer. Nothing when the desktop wants none
+/// there, or draws its own title bar.
 class WindowButtons extends ConsumerWidget {
   const WindowButtons.left({super.key}) : _right = false;
 
@@ -223,8 +212,9 @@ class WindowButtons extends ConsumerWidget {
               tooltip: switch (button) {
                 WindowButton.minimize => 'Minimize',
                 WindowButton.maximize => 'Maximize',
-                WindowButton.close => 'Close',
+                WindowButton.close => 'Close OxiTalk',
               },
+              danger: button == WindowButton.close,
               icon: switch (button) {
                 WindowButton.minimize => Icons.minimize_rounded,
                 WindowButton.maximize => Icons.crop_square_rounded,
@@ -243,12 +233,16 @@ class _RoundButton extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onPressed,
+    this.danger = false,
     super.key,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback onPressed;
+
+  /// Red under the pointer, as a button that ends something.
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +256,9 @@ class _RoundButton extends StatelessWidget {
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
-            hoverColor: scheme.onSurface.withValues(alpha: 0.12),
+            hoverColor: danger
+                ? const Color(0xFFE5484D)
+                : scheme.onSurface.withValues(alpha: 0.12),
             onTap: onPressed,
             child: SizedBox.square(
               dimension: 24,

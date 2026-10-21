@@ -9,7 +9,6 @@ import '../../app/media_prefs.dart';
 import '../../app/pick_image.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
-import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -37,8 +36,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         title: const Text('Settings'),
-        flexibleSpace: const WindowDragArea(),
-        actions: const [WindowButtons.right()],
       ),
       body: Center(
         child: ConstrainedBox(

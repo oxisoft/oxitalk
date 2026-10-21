@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -137,8 +136,6 @@ class _ThreadPaneState extends ConsumerState<ThreadPane>
           key: const Key('thread.close'),
         ),
         titleSpacing: 0,
-        flexibleSpace: const WindowDragArea(),
-        actions: const [WindowButtons.right()],
         title: _Title(title: 'Thread', subtitle: room?.name),
       ),
       body: ColoredBox(
@@ -230,8 +227,6 @@ class _ThreadListPaneState extends ConsumerState<ThreadListPane>
           key: const Key('threads.close'),
         ),
         titleSpacing: 0,
-        flexibleSpace: const WindowDragArea(),
-        actions: const [WindowButtons.right()],
         title: _Title(title: 'Threads', subtitle: room?.name),
       ),
       body: switch (threads) {

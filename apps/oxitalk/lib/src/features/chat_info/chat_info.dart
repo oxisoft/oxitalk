@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
-import '../../app/window_controls.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
@@ -84,8 +83,6 @@ class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
           automaticallyImplyLeading: false,
           leading: BackButton(key: const Key('info.back'), onPressed: _back),
           title: const Text('Chat info'),
-          flexibleSpace: const WindowDragArea(),
-          actions: const [WindowButtons.right()],
         ),
         body: NestedScrollView(
           headerSliverBuilder: (context, _) => [

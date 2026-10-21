@@ -93,13 +93,17 @@ void main() {
     ) async {
       final window = _FakeWindow();
       await _open(tester, window: window);
-      expect(find.byKey(const Key('window.close')), findsOneWidget);
+      final close = find.descendant(
+        of: find.byKey(const Key('titleBar')),
+        matching: find.byKey(const Key('window.close')),
+      );
+      expect(close, findsOneWidget);
       expect(find.byKey(const Key('window.minimize')), findsNothing);
-      await tester.tap(find.byKey(const Key('window.close')));
+      await tester.tap(close);
       expect(window.calls, ['close']);
     });
 
-    testWidgets('buttons on the left go to the left of the list header', (
+    testWidgets('buttons on the left go to the left of the app name', (
       tester,
     ) async {
       final window = _FakeWindow(
@@ -108,22 +112,72 @@ void main() {
       );
       await _open(tester, window: window);
       final close = tester.getCenter(find.byKey(const Key('window.close')));
-      final dropdown = tester.getCenter(
-        find.byKey(const Key('account.dropdown')),
-      );
-      expect(close.dx, lessThan(dropdown.dx));
+      final app = tester.getCenter(find.byKey(const Key('titleBar.app')));
+      expect(close.dx, lessThan(app.dx));
       expect(find.byKey(const Key('window.maximize')), findsNothing);
     });
 
-    testWidgets('the empty header drags, double-clicks and right-clicks as '
+    testWidgets('a bar of its own above every pane, with the app name and '
+        'the open chat', (tester) async {
+      await _open(tester, window: _FakeWindow());
+      expect(find.byKey(const Key('titleBar.app')), findsOneWidget);
+      expect(find.byKey(const Key('titleBar.room')), findsNothing);
+
+      await tester.tap(find.text('Team'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('titleBar.room'))).data,
+        'Team',
+      );
+      final bar = tester.getRect(find.byKey(const Key('titleBar')));
+      expect(bar.width, _wide.width);
+      expect(
+        tester.getTopLeft(find.byKey(const Key('chat.title'))).dy,
+        greaterThanOrEqualTo(bar.bottom),
+      );
+
+      // A thread beside the chat leaves the window buttons where they are.
+      await tester.tap(find.byKey(const Key('chat.threads')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('window.close')), findsOneWidget);
+      expect(
+        tester.getCenter(find.byKey(const Key('window.close'))).dy,
+        lessThan(bar.bottom),
+      );
+
+      await tester.tap(find.text('News'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('titleBar.room'))).data,
+        'News',
+      );
+    });
+
+    testWidgets('the name, the chat and the buttons sit in the middle of '
+        'the bar', (tester) async {
+      await _open(tester, window: _FakeWindow());
+      await tester.tap(find.text('Team'));
+      await tester.pumpAndSettle();
+      final middle = tester.getCenter(find.byKey(const Key('titleBar'))).dy;
+      for (final key in ['titleBar.app', 'titleBar.room', 'window.close']) {
+        expect(
+          tester.getCenter(find.byKey(Key(key))).dy,
+          moreOrLessEquals(middle, epsilon: 1),
+          reason: key,
+        );
+      }
+    });
+
+    testWidgets('the title bar drags, double-clicks and right-clicks as '
         'the desktop does; the chat title stays a button', (tester) async {
       final window = _FakeWindow();
       await _open(tester, window: window);
       await tester.tap(find.text('Team'));
       await tester.pumpAndSettle();
 
-      final title = find.byKey(const Key('chat.title'));
-      final empty = tester.getTopRight(title) + const Offset(80, 16);
+      final empty =
+          tester.getTopLeft(find.byKey(const Key('titleBar'))) +
+          const Offset(200, 19);
       await tester.dragFrom(empty, const Offset(60, 10));
       await tester.pumpAndSettle();
       await tester.tapAt(empty);
@@ -134,15 +188,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(window.calls, ['drag', 'doubleClick', 'menu']);
 
-      await tester.tap(title);
+      await tester.tap(find.byKey(const Key('chat.title')));
       await tester.pumpAndSettle();
       expect(find.byType(ChatInfoPane), findsOneWidget);
     });
 
-    testWidgets('without its own title bar the app draws no window buttons', (
-      tester,
-    ) async {
+    testWidgets('without its own title bar the app draws none', (tester) async {
       await _open(tester);
+      expect(find.byKey(const Key('titleBar')), findsNothing);
       expect(find.byKey(const Key('window.close')), findsNothing);
     });
 

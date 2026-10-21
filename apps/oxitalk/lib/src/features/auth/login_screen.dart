@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
-import '../../app/window_controls.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
@@ -70,10 +69,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
-            flexibleSpace: const WindowDragArea(),
-            actions: const [WindowButtons.right()],
           )
-        : windowOnlyAppBar(ref),
+        : null,
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
