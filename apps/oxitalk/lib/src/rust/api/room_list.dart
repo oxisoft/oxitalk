@@ -4,12 +4,14 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'notifications.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'room_list.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `room_list_diff`, `summaries`, `summary`, `thread_free_preview`
+// These functions are ignored because they are not marked as `pub`: `apply_diff`, `count`, `mode_changes`, `room_list_diff`, `summaries`, `summary`, `thread_free_preview`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ListInput`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `room_list_updates`
 
@@ -59,7 +61,25 @@ class RoomSummary {
 
   /// When the latest event happened, in milliseconds since the Unix epoch.
   final PlatformInt64? lastActivityMs;
+
+  /// Unread messages, notifying or not; Element shows them as a dot only.
   final int unreadCount;
+
+  /// Unread messages that notify by the push rules: all of them, only mentions and keywords,
+  /// or none in a muted room.
+  final int unreadNotifications;
+
+  /// Unread messages that mention the user (or @room) or contain a keyword.
+  final int unreadMentions;
+
+  /// Marked unread by the user, here or in another client.
+  final bool markedUnread;
+
+  /// The room's own notification mode; `None` while it follows the account default.
+  final RoomNotificationMode? notificationMode;
+
+  /// The account default the room follows without a mode of its own.
+  final RoomNotificationMode defaultNotificationMode;
   final bool isDm;
   final bool isEncrypted;
 
@@ -71,6 +91,11 @@ class RoomSummary {
     this.lastMessage,
     this.lastActivityMs,
     required this.unreadCount,
+    required this.unreadNotifications,
+    required this.unreadMentions,
+    required this.markedUnread,
+    this.notificationMode,
+    required this.defaultNotificationMode,
     required this.isDm,
     required this.isEncrypted,
   });
@@ -84,6 +109,11 @@ class RoomSummary {
       lastMessage.hashCode ^
       lastActivityMs.hashCode ^
       unreadCount.hashCode ^
+      unreadNotifications.hashCode ^
+      unreadMentions.hashCode ^
+      markedUnread.hashCode ^
+      notificationMode.hashCode ^
+      defaultNotificationMode.hashCode ^
       isDm.hashCode ^
       isEncrypted.hashCode;
 
@@ -99,6 +129,11 @@ class RoomSummary {
           lastMessage == other.lastMessage &&
           lastActivityMs == other.lastActivityMs &&
           unreadCount == other.unreadCount &&
+          unreadNotifications == other.unreadNotifications &&
+          unreadMentions == other.unreadMentions &&
+          markedUnread == other.markedUnread &&
+          notificationMode == other.notificationMode &&
+          defaultNotificationMode == other.defaultNotificationMode &&
           isDm == other.isDm &&
           isEncrypted == other.isEncrypted;
 }

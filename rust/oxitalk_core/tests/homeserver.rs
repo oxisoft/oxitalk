@@ -18,6 +18,7 @@ use futures_util::{Stream, StreamExt};
 use matrix_sdk::{
     Client,
     attachment::{AttachmentConfig, AttachmentInfo, BaseFileInfo},
+    notification_settings::{IsEncrypted, IsOneToOne},
     ruma::{
         OwnedDeviceId, OwnedRoomId, OwnedUserId,
         api::client::{
@@ -28,12 +29,14 @@ use matrix_sdk::{
             },
             uiaa,
         },
+        events::{Mentions, room::message::RoomMessageEventContent},
         serde::Raw,
     },
 };
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
+    notifications::{InconsistentDefault, NotificationSettingsState, RoomNotificationMode},
     rich_text::BlockKind,
     room_info::{MemberRole, RoomMember},
     room_list::{Membership, RoomSummary},
@@ -1512,4 +1515,247 @@ async fn wait_for_flow(
     .await
     .map_err(|_| "timed out waiting for the verification")?
     .map_err(Into::into)
+}
+
+/// Waits until the notification settings satisfy `done`, and returns them.
+async fn wait_for_settings(
+    updates: &mut (impl Stream<Item = NotificationSettingsState> + Unpin),
+    done: impl Fn(&NotificationSettingsState) -> bool,
+) -> Result<NotificationSettingsState, Box<dyn Error>> {
+    tokio::time::timeout(TIMEOUT, async {
+        while let Some(state) = updates.next().await {
+            if done(&state) {
+                return Ok(state);
+            }
+        }
+        Err("the settings stream ended".into())
+    })
+    .await
+    .map_err(|_| "timed out waiting for the notification settings")?
+}
+
+/// Every account setting goes to the server as push rules and comes back, as Element X reads
+/// them; defaults another client left inconsistent are found and fixed as Element X fixes them.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn notification_settings_round_trip() -> TestResult {
+    let user = TestUser::register().await?;
+    let store = tempfile::tempdir()?;
+    let session = user.login(&store.path().to_string_lossy()).await?;
+    session.start_sync().await;
+    let mut updates = session.notification_settings_updates();
+
+    let first = wait_for_settings(&mut updates, |_| true).await?;
+    assert_eq!(first.dm_default, RoomNotificationMode::AllMessages);
+    assert_eq!(first.group_default, RoomNotificationMode::AllMessages);
+    assert!(first.inconsistent.is_empty(), "{first:?}");
+
+    session
+        .set_default_notification_mode(false, RoomNotificationMode::MentionsAndKeywordsOnly)
+        .await?;
+    session
+        .set_default_notification_mode(true, RoomNotificationMode::MentionsAndKeywordsOnly)
+        .await?;
+    wait_for_settings(&mut updates, |s| {
+        s.group_default == RoomNotificationMode::MentionsAndKeywordsOnly
+            && s.dm_default == RoomNotificationMode::MentionsAndKeywordsOnly
+            && s.inconsistent.is_empty()
+    })
+    .await?;
+    assert!(
+        session
+            .set_default_notification_mode(true, RoomNotificationMode::Mute)
+            .await
+            .is_err()
+    );
+
+    session.set_room_mentions_enabled(false).await?;
+    session.set_invites_enabled(false).await?;
+    session
+        .add_notification_keyword(" pineapple ".to_owned())
+        .await?;
+    wait_for_settings(&mut updates, |s| {
+        s.room_mentions == Some(false) && s.invites == Some(false) && s.keywords == ["pineapple"]
+    })
+    .await?;
+    session.set_room_mentions_enabled(true).await?;
+    session.set_invites_enabled(true).await?;
+    session
+        .remove_notification_keyword("pineapple".to_owned())
+        .await?;
+    wait_for_settings(&mut updates, |s| {
+        s.room_mentions == Some(true) && s.invites == Some(true) && s.keywords.is_empty()
+    })
+    .await?;
+
+    // An older client sets only the unencrypted group rule back to "All messages".
+    session
+        .sdk()
+        .notification_settings()
+        .await
+        .set_default_room_notification_mode(
+            IsEncrypted::No,
+            IsOneToOne::No,
+            matrix_sdk::notification_settings::RoomNotificationMode::AllMessages,
+        )
+        .await?;
+    let state = wait_for_settings(&mut updates, |s| !s.inconsistent.is_empty()).await?;
+    assert_eq!(
+        state.inconsistent,
+        [InconsistentDefault {
+            one_to_one: false,
+            encrypted: true
+        }]
+    );
+    assert_eq!(state.group_default, RoomNotificationMode::AllMessages);
+    session.fix_inconsistent_notification_defaults().await?;
+    let state = wait_for_settings(&mut updates, |s| s.inconsistent.is_empty()).await?;
+    assert_eq!(state.group_default, RoomNotificationMode::AllMessages);
+    assert_eq!(
+        state.dm_default,
+        RoomNotificationMode::MentionsAndKeywordsOnly
+    );
+    Ok(())
+}
+
+/// The room's mode in the list follows every change, though the SDK's list doesn't send the
+/// room again for it; a muted room counts no notifications while its unread count grows, and
+/// one for mentions and keywords counts only those.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn muted_and_mentions_only_rooms_count_as_element_counts() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    let room = |rooms: &[RoomSummary]| rooms.iter().find(|r| r.room_id == room_id).cloned();
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some())
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    let summary = room(&bob_rooms.items).ok_or("no room")?;
+    assert_eq!(summary.notification_mode, None);
+    assert_eq!(
+        summary.default_notification_mode,
+        RoomNotificationMode::AllMessages
+    );
+
+    bob.set_room_notification_mode(room_id.clone(), Some(RoomNotificationMode::Mute))
+        .await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            room(rooms).is_some_and(|r| r.notification_mode == Some(RoomNotificationMode::Mute))
+        })
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    alice_timeline.send_text("one".to_owned(), false).await?;
+    alice_timeline.send_text("two".to_owned(), false).await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.unread_count == 2))
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    let summary = room(&bob_rooms.items).ok_or("no room")?;
+    assert_eq!(
+        (summary.unread_notifications, summary.unread_mentions),
+        (0, 0)
+    );
+
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_items
+        .wait_until(|items| messages(items).contains(&("two", false)))
+        .await?;
+    bob_timeline.mark_as_read().await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.unread_count == 0))
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+
+    // Mentions and keywords only: chatter doesn't notify; a keyword does, a mention
+    // highlights.
+    bob.add_notification_keyword("pineapple".to_owned()).await?;
+    bob.set_room_notification_mode(
+        room_id.clone(),
+        Some(RoomNotificationMode::MentionsAndKeywordsOnly),
+    )
+    .await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            room(rooms).is_some_and(|r| {
+                r.notification_mode == Some(RoomNotificationMode::MentionsAndKeywordsOnly)
+            })
+        })
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    alice_timeline
+        .send_text("chatter".to_owned(), false)
+        .await?;
+    alice_timeline
+        .send_text("I like pineapple".to_owned(), false)
+        .await?;
+    let bob_id: OwnedUserId = bob.user_id().try_into()?;
+    let alice_room = alice
+        .sdk()
+        .get_room(&OwnedRoomId::try_from(room_id.clone())?)
+        .ok_or("no room")?;
+    // Through the send queue the timeline uses too, so it goes after the two above.
+    alice_room
+        .send_queue()
+        .send(
+            RoomMessageEventContent::text_plain("Bob, look")
+                .add_mentions(Mentions::with_user_ids([bob_id]))
+                .into(),
+        )
+        .await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.unread_count == 3))
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    bob_rooms
+        .wait_until(|rooms| {
+            room(rooms).is_some_and(|r| r.unread_notifications == 2 && r.unread_mentions == 1)
+        })
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+
+    // Back to the default.
+    bob.set_room_notification_mode(room_id.clone(), None)
+        .await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.notification_mode.is_none()))
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    Ok(())
+}
+
+/// Marking a chat unread shows on the list (and in Element); marking it read clears both the
+/// mark and the count.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn chats_are_marked_unread_and_read() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    let room = |rooms: &[RoomSummary]| rooms.iter().find(|r| r.room_id == room_id).cloned();
+    bob.set_marked_unread(room_id.clone(), true).await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.marked_unread))
+        .await
+        .map_err(|error| format!("{error}: {:?}", room(&bob_rooms.items)))?;
+    alice
+        .timeline(room_id.clone())
+        .await?
+        .send_text("hello".to_owned(), false)
+        .await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| r.unread_count == 1))
+        .await?;
+    bob.mark_room_read(room_id.clone()).await?;
+    bob_rooms
+        .wait_until(|rooms| room(rooms).is_some_and(|r| !r.marked_unread && r.unread_count == 0))
+        .await?;
+    assert!(matches!(
+        bob.set_marked_unread("!nope:localhost".to_owned(), true)
+            .await,
+        Err(CoreError::RoomNotFound { .. })
+    ));
+    Ok(())
 }

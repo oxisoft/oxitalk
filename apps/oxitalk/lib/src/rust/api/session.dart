@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'directory.dart';
 import 'error.dart';
+import 'notifications.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -66,6 +67,13 @@ Future<Session> restore({
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Session>>
 abstract class Session implements RustOpaqueInterface {
+  /// Makes messages containing `keyword` notify (in rooms that aren't muted).
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for an empty keyword, otherwise as the server answers.
+  Future<void> addNotificationKeyword({required String keyword});
+
   /// Counts a use of `emoji` among the recent ones.
   ///
   /// # Errors
@@ -112,6 +120,14 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`].
   String? dmWith({required String userId});
 
+  /// Makes inconsistent defaults consistent again as Element X does: the rule that isn't
+  /// "All messages" becomes it.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> fixInconsistentNotificationDefaults();
+
   /// Invites `user_id` to the room.
   ///
   /// # Errors
@@ -151,6 +167,15 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> logout();
 
+  /// Marks a room read up to its latest message and takes away its unread mark, as Element's
+  /// "Mark as read" in the room list.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`], otherwise as the server
+  /// answers.
+  Future<void> markRoomRead({required String roomId});
+
   /// The size of the media cache on disk, in bytes, if it can be told.
   ///
   /// # Errors
@@ -184,6 +209,9 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<Timeline> mediaTimeline({required String roomId});
+
+  /// The account's notification settings as they are now.
+  Future<NotificationSettingsState> notificationSettings();
 
   /// The user's profile as the server has it, or as last seen when the server can't be
   /// reached.
@@ -235,6 +263,11 @@ abstract class Session implements RustOpaqueInterface {
     required String userId,
     String? reason,
   });
+
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> removeNotificationKeyword({required String keyword});
 
   /// Asks the user's other devices to verify this one.
   ///
@@ -301,6 +334,33 @@ abstract class Session implements RustOpaqueInterface {
   /// (it may refuse a file that is too large).
   Future<void> setAvatar({required List<int> data, required String mimeType});
 
+  /// Sets the default for direct chats (`one_to_one`) or group chats, for encrypted and
+  /// unencrypted rooms alike, as Element X does. A default can't be `Mute`.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] for [`RoomNotificationMode::Mute`], otherwise as the server
+  /// answers.
+  Future<void> setDefaultNotificationMode({
+    required bool oneToOne,
+    required RoomNotificationMode mode,
+  });
+
+  /// Whether an invitation to a room notifies.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> setInvitesEnabled({required bool enabled});
+
+  /// Marks a room unread (or not) for the user's devices, as Element's "Mark as unread".
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`], otherwise as the server
+  /// answers.
+  Future<void> setMarkedUnread({required String roomId, required bool unread});
+
   /// Keeps cached media until it hasn't been used for `days`, or forever with `None`; no
   /// limit on size.
   ///
@@ -323,6 +383,24 @@ abstract class Session implements RustOpaqueInterface {
     required PlatformInt64 level,
   });
 
+  /// Whether @room notifies. Sets the legacy rule too where the server has it, as Element
+  /// Web keeps both.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> setRoomMentionsEnabled({required bool enabled});
+
+  /// Gives a room its own mode, or with `None` lets it follow the account's default again.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed room ID, otherwise as the server answers.
+  Future<void> setRoomNotificationMode({
+    required String roomId,
+    RoomNotificationMode? mode,
+  });
+
   /// Puts a room in the section with `tag` (`m.favourite`, `m.lowpriority` or a section the
   /// user made), or with `None` in its default section (People or Rooms). A room is in one
   /// section at a time; the one it was in is left.
@@ -338,6 +416,10 @@ abstract class Session implements RustOpaqueInterface {
 
   /// Stops syncing, e.g. when the app goes to the background.
   Future<void> stopSync();
+
+  /// Sends the account's notification settings, then the settings after every change, made
+  /// here or on another device.
+  Stream<NotificationSettingsState> subscribeNotificationSettings();
 
   /// Sends the room list as batches of diffs. The first batch is a `Reset` with the whole
   /// list.

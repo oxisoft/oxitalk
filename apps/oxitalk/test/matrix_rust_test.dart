@@ -7,6 +7,7 @@ import 'package:oxitalk/src/matrix/rust/diffs.dart';
 import 'package:oxitalk/src/matrix/rust/mapping.dart';
 import 'package:oxitalk/src/matrix/rust/sync_supervisor.dart';
 import 'package:oxitalk/src/rust/api/error.dart';
+import 'package:oxitalk/src/rust/api/notifications.dart';
 import 'package:oxitalk/src/rust/api/room_list.dart';
 import 'package:oxitalk/src/rust/api/sync.dart';
 import 'package:oxitalk/src/rust/api/timeline.dart';
@@ -18,6 +19,10 @@ RoomSummary _room(String id) => RoomSummary(
   name: id,
   membership: Membership.joined,
   unreadCount: 0,
+  unreadNotifications: 0,
+  unreadMentions: 0,
+  markedUnread: false,
+  defaultNotificationMode: RoomNotificationMode.allMessages,
   isDm: false,
   isEncrypted: false,
 );

@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/directory.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
+import 'api/notifications.dart';
 import 'api/profile.dart';
 import 'api/rich_text.dart';
 import 'api/room_info.dart';
@@ -140,6 +141,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_list_timeline_diff_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<NotificationSettingsState>
+  dco_decode_StreamSink_notification_settings_state_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<RoomTyping> dco_decode_StreamSink_room_typing_Sse(dynamic raw);
 
   @protected
@@ -201,6 +206,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomAvatar dco_decode_box_autoadd_room_avatar(dynamic raw);
 
   @protected
+  RoomNotificationMode dco_decode_box_autoadd_room_notification_mode(
+    dynamic raw,
+  );
+
+  @protected
   RoomSummary dco_decode_box_autoadd_room_summary(dynamic raw);
 
   @protected
@@ -237,10 +247,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  InconsistentDefault dco_decode_inconsistent_default(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
   List<CustomSection> dco_decode_list_custom_section(dynamic raw);
+
+  @protected
+  List<InconsistentDefault> dco_decode_list_inconsistent_default(dynamic raw);
 
   @protected
   List<Person> dco_decode_list_person(dynamic raw);
@@ -309,6 +325,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NewRoom dco_decode_new_room(dynamic raw);
 
   @protected
+  NotificationSettingsState dco_decode_notification_settings_state(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -322,6 +341,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomAvatar? dco_decode_opt_box_autoadd_room_avatar(dynamic raw);
+
+  @protected
+  RoomNotificationMode? dco_decode_opt_box_autoadd_room_notification_mode(
+    dynamic raw,
+  );
 
   @protected
   ThreadEvent? dco_decode_opt_box_autoadd_thread_event(dynamic raw);
@@ -370,6 +394,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomMember dco_decode_room_member(dynamic raw);
+
+  @protected
+  RoomNotificationMode dco_decode_room_notification_mode(dynamic raw);
 
   @protected
   RoomSummary dco_decode_room_summary(dynamic raw);
@@ -531,6 +558,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_StreamSink_list_timeline_diff_Sse(SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<NotificationSettingsState>
+  sse_decode_StreamSink_notification_settings_state_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<RoomTyping> sse_decode_StreamSink_room_typing_Sse(
     SseDeserializer deserializer,
   );
@@ -602,6 +635,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomAvatar sse_decode_box_autoadd_room_avatar(SseDeserializer deserializer);
 
   @protected
+  RoomNotificationMode sse_decode_box_autoadd_room_notification_mode(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RoomSummary sse_decode_box_autoadd_room_summary(SseDeserializer deserializer);
 
   @protected
@@ -642,10 +680,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  InconsistentDefault sse_decode_inconsistent_default(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
   List<CustomSection> sse_decode_list_custom_section(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<InconsistentDefault> sse_decode_list_inconsistent_default(
     SseDeserializer deserializer,
   );
 
@@ -726,6 +774,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NewRoom sse_decode_new_room(SseDeserializer deserializer);
 
   @protected
+  NotificationSettingsState sse_decode_notification_settings_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -741,6 +794,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomAvatar? sse_decode_opt_box_autoadd_room_avatar(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RoomNotificationMode? sse_decode_opt_box_autoadd_room_notification_mode(
     SseDeserializer deserializer,
   );
 
@@ -797,6 +855,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomMember sse_decode_room_member(SseDeserializer deserializer);
+
+  @protected
+  RoomNotificationMode sse_decode_room_notification_mode(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RoomSummary sse_decode_room_summary(SseDeserializer deserializer);
@@ -987,6 +1050,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_notification_settings_state_Sse(
+    RustStreamSink<NotificationSettingsState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_room_typing_Sse(
     RustStreamSink<RoomTyping> self,
     SseSerializer serializer,
@@ -1080,6 +1149,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_room_notification_mode(
+    RoomNotificationMode self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_room_summary(
     RoomSummary self,
     SseSerializer serializer,
@@ -1134,11 +1209,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_inconsistent_default(
+    InconsistentDefault self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_custom_section(
     List<CustomSection> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_inconsistent_default(
+    List<InconsistentDefault> self,
     SseSerializer serializer,
   );
 
@@ -1242,6 +1329,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_new_room(NewRoom self, SseSerializer serializer);
 
   @protected
+  void sse_encode_notification_settings_state(
+    NotificationSettingsState self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1262,6 +1355,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_room_avatar(
     RoomAvatar? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_room_notification_mode(
+    RoomNotificationMode? self,
     SseSerializer serializer,
   );
 
@@ -1324,6 +1423,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_member(RoomMember self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_notification_mode(
+    RoomNotificationMode self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_room_summary(RoomSummary self, SseSerializer serializer);

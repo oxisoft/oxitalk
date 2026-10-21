@@ -3,7 +3,10 @@
 
 use std::fmt;
 
-use matrix_sdk::{ClientBuildError, HttpError, IdParseError, reqwest, ruma::api::error::ErrorKind};
+use matrix_sdk::{
+    ClientBuildError, HttpError, IdParseError, NotificationSettingsError, reqwest,
+    ruma::api::error::ErrorKind,
+};
 use matrix_sdk_sqlite::OpenStoreError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +120,12 @@ where
     T: TryFrom<String, Error = IdParseError>,
 {
     T::try_from(id.to_owned()).map_err(|_| CoreError::InvalidId { id: id.to_owned() })
+}
+
+impl From<NotificationSettingsError> for CoreError {
+    fn from(error: NotificationSettingsError) -> Self {
+        Self::internal(&error)
+    }
 }
 
 impl From<matrix_sdk_ui::timeline::Error> for CoreError {

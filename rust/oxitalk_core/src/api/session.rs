@@ -12,6 +12,7 @@ use matrix_sdk::{
     Client, ClientBuilder, SessionMeta, SessionTokens,
     authentication::matrix::MatrixSession,
     encryption::{BackupDownloadStrategy, EncryptionSettings},
+    notification_settings::NotificationSettings,
     ruma::OwnedUserId,
     store::RoomLoadSettings,
 };
@@ -51,6 +52,9 @@ pub enum SessionChange {
 pub struct Session {
     pub(crate) client: Client,
     pub(crate) sync: SyncService,
+    /// The one copy of the push rules the session keeps: the SDK makes a new one, with its own
+    /// event handler, on every `Client::notification_settings` call.
+    pub(crate) notification_settings: NotificationSettings,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -136,9 +140,11 @@ async fn build_client(
 impl Session {
     async fn new(client: Client) -> Result<Self, CoreError> {
         let sync = new_sync_service(client.clone()).await?;
+        let notification_settings = client.notification_settings().await;
         Ok(Self {
             client,
             sync,
+            notification_settings,
             tasks: Mutex::default(),
             runtime: Handle::current(),
         })
