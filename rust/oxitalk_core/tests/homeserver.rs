@@ -24,7 +24,7 @@ use matrix_sdk::{
     attachment::{AttachmentConfig, AttachmentInfo, BaseFileInfo},
     notification_settings::{IsEncrypted, IsOneToOne},
     ruma::{
-        OwnedDeviceId, OwnedRoomId, OwnedUserId,
+        OwnedDeviceId, OwnedEventId, OwnedRoomId, OwnedUserId,
         api::client::{
             account::register::v3::Request as RegistrationRequest,
             room::{
@@ -52,6 +52,7 @@ use oxitalk_core::api::{
     threads::ThreadSummary,
     timeline::{EventInfo, MediaKind, MediaMessage, SendState, TimelineItem, TimelineItemContent},
     verification::{Verification, VerificationFlowState, VerificationStatus},
+    voice::{encode_voice, playable_wav},
 };
 use serde_json::json;
 use support::{TIMEOUT, TestResult, messages, poll_until, watch_rooms, watch_timeline};
@@ -864,6 +865,156 @@ async fn photos_go_compressed_with_a_caption_and_forward() -> TestResult {
         Some("🎉")
     );
     Ok(())
+}
+
+/// Voice messages go as Element sends them (Ogg Opus, marked as voice, with a length and a
+/// waveform), also as a reply and into a thread.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn voice_messages_and_videos_arrive_as_such() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let mut alice_items = watch_timeline(&alice_timeline).await;
+    alice_timeline
+        .send_text("how was it?".to_owned(), false)
+        .await?;
+    alice_items
+        .wait_until(|items| event_of(items, "how was it?").is_some_and(|e| e.event_id.is_some()))
+        .await?;
+    let question = event_of(&alice_items.items, "how was it?")
+        .and_then(|e| e.event_id.clone())
+        .ok_or("no event ID")?;
+
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_items
+        .wait_until(|items| event_of(items, "how was it?").is_some())
+        .await?;
+    // Two seconds of a tone at 44.1 kHz, as a recorder might give them.
+    let clip = encode_voice(tone(44_100, 2.0), 44_100, 1)?;
+    assert_eq!(clip.duration_ms, 2000);
+    bob_timeline
+        .send_voice(
+            clip.data.clone(),
+            clip.duration_ms,
+            clip.waveform.clone(),
+            Some(question.clone()),
+        )
+        .await?;
+
+    let voice_of = |items: &[TimelineItem]| {
+        items.iter().find_map(|item| match &item.content {
+            TimelineItemContent::Media { event, media } if media.is_voice => {
+                Some((event.clone(), media.clone()))
+            }
+            _ => None,
+        })
+    };
+    alice_items
+        .wait_until(|items| voice_of(items).is_some_and(|(event, _)| event.event_id.is_some()))
+        .await?;
+    let (event, voice) = voice_of(&alice_items.items).ok_or("no voice message")?;
+    assert_eq!(voice.kind, MediaKind::Audio);
+    assert_eq!(voice.mime_type.as_deref(), Some("audio/ogg"));
+    assert_eq!(voice.duration_ms, Some(2000));
+    assert_eq!(voice.size, i64::try_from(clip.data.len()).ok());
+    let waveform = voice.waveform.clone().ok_or("no waveform")?;
+    assert_eq!(waveform.len(), 100);
+    assert!(waveform.iter().any(|point| *point > 1000));
+    assert_eq!(
+        event.in_reply_to.map(|reply| reply.event_id),
+        Some(question.clone())
+    );
+    // The event as Element reads it.
+    let room = alice
+        .sdk()
+        .get_room(&room_id.parse::<OwnedRoomId>()?)
+        .ok_or("no room")?;
+    let voice_id = event.event_id.ok_or("no event ID")?;
+    let raw = room
+        .event(&voice_id.parse::<OwnedEventId>()?, None)
+        .await?
+        .raw()
+        .json()
+        .get()
+        .to_owned();
+    assert!(raw.contains("org.matrix.msc3245.voice"), "{raw}");
+    assert!(raw.contains("org.matrix.msc1767.audio"), "{raw}");
+    // It plays: the file decodes to as much sound as was sent.
+    let wav = playable_wav(alice.media_content(voice.source).await?).ok_or("not Ogg Opus")?;
+    assert!((wav.len() - 44) / 2 >= 95_000, "{} bytes", wav.len());
+
+    // Into a thread, as anything sent there.
+    let thread = bob
+        .thread_timeline(room_id.clone(), question.clone())
+        .await?;
+    thread
+        .send_voice(clip.data, clip.duration_ms, clip.waveform, None)
+        .await?;
+    alice_items
+        .wait_until(|items| {
+            event_of(items, "how was it?")
+                .is_some_and(|e| e.thread.as_ref().is_some_and(|t| t.reply_count == 1))
+        })
+        .await?;
+
+    Ok(())
+}
+
+/// A recorded video goes with its length and shape, and a thumbnail made of the photo taken as
+/// it started, cut to its shape.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn recorded_videos_go_with_a_thumbnail() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    let video = b"\0\0\0\x18ftypmp42 not really a video".to_vec();
+    alice_timeline
+        .send_video(
+            video.clone(),
+            "video.mp4".to_owned(),
+            "video/mp4".to_owned(),
+            Some(noise_png(1600, 1200)?),
+            Some(1280),
+            Some(720),
+            3_500,
+            None,
+        )
+        .await?;
+    bob_items
+        .wait_until(|items| media_of(items, MediaKind::Video).is_some())
+        .await?;
+    let sent = media_of(&bob_items.items, MediaKind::Video).ok_or("no video")?;
+    assert_eq!(sent.mime_type.as_deref(), Some("video/mp4"));
+    assert_eq!(sent.duration_ms, Some(3_500));
+    assert_eq!((sent.width, sent.height), (Some(1280), Some(720)));
+    assert_eq!(sent.size, i64::try_from(video.len()).ok());
+    assert!(!sent.is_voice);
+    let thumbnail = bob
+        .media_thumbnail(sent.source.clone(), sent.thumbnail.clone(), 320)
+        .await?;
+    assert!(sent.thumbnail.is_some() && thumbnail.starts_with(b"\xff\xd8"));
+    assert_eq!(bob.media_content(sent.source).await?, video);
+    Ok(())
+}
+
+/// `seconds` of mono sound at `rate`: a tone that swells and fades.
+fn tone(rate: u32, seconds: f64) -> Vec<i16> {
+    let count = (f64::from(rate) * seconds).round();
+    let mut pcm = Vec::new();
+    let mut index = 0.0;
+    while index < count {
+        let t = index / f64::from(rate);
+        let level = (t / seconds * std::f64::consts::PI).sin() * 12_000.0;
+        let sample = (std::f64::consts::TAU * 330.0 * t).sin() * level;
+        // Within ±12 000.
+        #[allow(clippy::cast_possible_truncation)]
+        pcm.push(sample.round() as i16);
+        index += 1.0;
+    }
+    pcm
 }
 
 /// A PNG of noise, which compresses badly, like a photo.

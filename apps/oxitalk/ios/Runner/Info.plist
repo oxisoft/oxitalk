@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>OxiTalk records video messages with the camera when you choose to. They are sent only to the chat you record them in.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OxiTalk records voice and video messages with the microphone when you choose to. They are sent only to the chat you record them in.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

@@ -328,6 +328,23 @@ abstract interface class RoomTimeline {
     bool markdown = false,
   });
 
+  /// Sends a recorded voice message; with [inReplyTo] (an event ID) as a reply to it. In a
+  /// thread's timeline it goes into the thread.
+  Future<void> sendVoice(VoiceClip clip, {String? inReplyTo});
+
+  /// Sends a recorded video with its length and shape, and a thumbnail made of [photo], a
+  /// picture the camera took as it started; with [inReplyTo] as a reply.
+  Future<void> sendVideo(
+    Uint8List data, {
+    required String filename,
+    required String mimeType,
+    required Duration duration,
+    Uint8List? photo,
+    int? width,
+    int? height,
+    String? inReplyTo,
+  });
+
   /// Sends the message [eventId] again in the account's room [roomId].
   Future<void> forward(String eventId, String roomId);
 
@@ -339,6 +356,20 @@ abstract interface class RoomTimeline {
   Future<void> markAsRead();
 
   void close();
+}
+
+/// Voice messages in and out: recorded sound to a [VoiceClip], and an audio message to a WAV
+/// file every platform plays.
+abstract interface class AudioCodec {
+  /// Encodes interleaved 16-bit samples of [channels] channels at [sampleRate].
+  Future<VoiceClip> encodeVoice(
+    Int16List pcm, {
+    required int sampleRate,
+    required int channels,
+  });
+
+  /// A voice message (Ogg Opus) decoded to WAV, a WAV file as it is; `null` for other files.
+  Future<Uint8List?> playableWav(Uint8List data);
 }
 
 /// One verification with another device of the user, by comparing emoji.

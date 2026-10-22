@@ -90,6 +90,62 @@ fn decode_upright(data: &[u8]) -> Option<DynamicImage> {
     Some(image)
 }
 
+/// The longest side of a video's thumbnail.
+const THUMBNAIL_SIDE: u32 = 800;
+
+#[derive(Debug)]
+pub(crate) struct PreparedThumbnail {
+    pub(crate) data: Vec<u8>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+}
+
+/// A video's thumbnail from a photo the camera took as it started: turned upright, cut to
+/// the video's shape `width` × `height` around its middle (when known), at most
+/// [`THUMBNAIL_SIDE`] wide or high, as JPEG. `None` if the photo can't be read.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
+pub(crate) fn prepare_thumbnail(
+    photo: &[u8],
+    width: Option<u32>,
+    height: Option<u32>,
+) -> Option<PreparedThumbnail> {
+    let mut image = decode_upright(photo)?;
+    if let (Some(width), Some(height)) = (width, height)
+        && width > 0
+        && height > 0
+    {
+        let (photo_width, photo_height) = (image.width(), image.height());
+        let wanted = f64::from(width) / f64::from(height);
+        let (crop_width, crop_height) = if f64::from(photo_width) / f64::from(photo_height) > wanted
+        {
+            // Within the photo's size, so the casts can't overflow.
+            ((f64::from(photo_height) * wanted) as u32, photo_height)
+        } else {
+            (photo_width, (f64::from(photo_width) / wanted) as u32)
+        };
+        image = image.crop_imm(
+            (photo_width - crop_width) / 2,
+            (photo_height - crop_height) / 2,
+            crop_width.max(1),
+            crop_height.max(1),
+        );
+    }
+    let image = image.resize(THUMBNAIL_SIDE, THUMBNAIL_SIDE, FilterType::Triangle);
+    let mut data = Vec::new();
+    JpegEncoder::new_with_quality(&mut data, JPEG_QUALITY)
+        .encode_image(&DynamicImage::ImageRgb8(image.to_rgb8()))
+        .ok()?;
+    Some(PreparedThumbnail {
+        data,
+        width: image.width(),
+        height: image.height(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use image::{ImageFormat, RgbImage};
@@ -137,6 +193,21 @@ mod tests {
         let prepared = prepare_image(junk.clone(), "x.png".into(), "image/png".into(), true);
         assert_eq!(prepared.data, junk);
         assert_eq!(prepared.width, None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_video_thumbnail_takes_the_video_shape_and_a_small_size()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let photo = png(4000, 3000)?;
+        let thumbnail = prepare_thumbnail(&photo, Some(1280), Some(720)).ok_or("no thumbnail")?;
+        assert_eq!((thumbnail.width, thumbnail.height), (800, 450));
+        assert!(thumbnail.data.starts_with(b"\xff\xd8"));
+        let portrait = prepare_thumbnail(&photo, Some(720), Some(1280));
+        assert_eq!(portrait.map(|t| (t.width, t.height)), Some((450, 800)));
+        let as_is = prepare_thumbnail(&photo, None, None);
+        assert_eq!(as_is.map(|t| (t.width, t.height)), Some((800, 600)));
+        assert!(prepare_thumbnail(b"junk", None, None).is_none());
         Ok(())
     }
 }

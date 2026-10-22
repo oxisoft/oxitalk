@@ -23,6 +23,7 @@ import 'api/threads.dart';
 import 'api/timeline.dart';
 import 'api/typing.dart';
 import 'api/verification.dart';
+import 'api/voice.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -276,6 +277,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventInfo dco_decode_event_info(dynamic raw);
 
   @protected
+  int dco_decode_i_16(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -295,6 +299,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<Person> dco_decode_list_person(dynamic raw);
+
+  @protected
+  List<int> dco_decode_list_prim_i_16_loose(dynamic raw);
+
+  @protected
+  Int16List dco_decode_list_prim_i_16_strict(dynamic raw);
+
+  @protected
+  List<int> dco_decode_list_prim_u_16_loose(dynamic raw);
 
   @protected
   Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
@@ -399,6 +412,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  Uint16List? dco_decode_opt_list_prim_u_16_strict(dynamic raw);
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   List<RichBlock>? dco_decode_opt_list_rich_block(dynamic raw);
@@ -522,6 +541,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   VerificationStatus dco_decode_verification_status(dynamic raw);
+
+  @protected
+  VoiceClip dco_decode_voice_clip(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -758,6 +780,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventInfo sse_decode_event_info(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_i_16(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -783,6 +808,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<Person> sse_decode_list_person(SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_i_16_loose(SseDeserializer deserializer);
+
+  @protected
+  Int16List sse_decode_list_prim_i_16_strict(SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_u_16_loose(SseDeserializer deserializer);
 
   @protected
   Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
@@ -909,6 +943,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  Uint16List? sse_decode_opt_list_prim_u_16_strict(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   List<RichBlock>? sse_decode_opt_list_rich_block(SseDeserializer deserializer);
@@ -1044,6 +1086,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   VerificationStatus sse_decode_verification_status(
     SseDeserializer deserializer,
   );
+
+  @protected
+  VoiceClip sse_decode_voice_clip(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -1346,6 +1391,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_event_info(EventInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_i_16(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1374,6 +1422,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_person(List<Person> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_prim_i_16_loose(
+    List<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_16_strict(
+    Int16List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_16_loose(
+    List<int> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_16_strict(
@@ -1541,6 +1607,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_list_prim_u_16_strict(
+    Uint16List? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_list_rich_block(
     List<RichBlock>? self,
     SseSerializer serializer,
@@ -1692,6 +1770,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     VerificationStatus self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_voice_clip(VoiceClip self, SseSerializer serializer);
 }
 
 // Section: wire_class

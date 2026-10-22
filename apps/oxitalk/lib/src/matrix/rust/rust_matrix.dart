@@ -12,6 +12,7 @@ import '../../rust/api/session.dart' as rust;
 import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
 import '../../rust/api/verification.dart' as rust;
+import '../../rust/api/voice.dart' as voice;
 import '../../util/latest.dart';
 import '../../util/log.dart';
 import '../api/matrix.dart';
@@ -871,6 +872,39 @@ final class RustRoomTimeline implements RoomTimeline {
   );
 
   @override
+  Future<void> sendVoice(VoiceClip clip, {String? inReplyTo}) => guarded(
+    () => _timeline.sendVoice(
+      data: clip.data,
+      durationMs: clip.duration.inMilliseconds,
+      waveform: clip.waveform,
+      inReplyTo: inReplyTo,
+    ),
+  );
+
+  @override
+  Future<void> sendVideo(
+    Uint8List data, {
+    required String filename,
+    required String mimeType,
+    required Duration duration,
+    Uint8List? photo,
+    int? width,
+    int? height,
+    String? inReplyTo,
+  }) => guarded(
+    () => _timeline.sendVideo(
+      data: data,
+      filename: filename,
+      mimeType: mimeType,
+      photo: photo,
+      width: width,
+      height: height,
+      durationMs: duration.inMilliseconds,
+      inReplyTo: inReplyTo,
+    ),
+  );
+
+  @override
   Future<void> forward(String eventId, String roomId) =>
       guarded(() => _timeline.forward(item: eventId, toRoom: roomId));
 
@@ -937,4 +971,33 @@ final class RustDeviceVerification implements DeviceVerification {
     unawaited(_steps.close());
     _verification.dispose();
   }
+}
+
+/// Voice messages through the core: Opus in pure Rust, the same on every platform.
+final class RustAudioCodec implements AudioCodec {
+  const RustAudioCodec();
+
+  @override
+  Future<VoiceClip> encodeVoice(
+    Int16List pcm, {
+    required int sampleRate,
+    required int channels,
+  }) async {
+    final clip = await guarded(
+      () => voice.encodeVoice(
+        pcm: pcm,
+        sampleRate: sampleRate,
+        channels: channels,
+      ),
+    );
+    return VoiceClip(
+      data: clip.data,
+      duration: Duration(milliseconds: clip.durationMs),
+      waveform: clip.waveform,
+    );
+  }
+
+  @override
+  Future<Uint8List?> playableWav(Uint8List data) =>
+      voice.playableWav(data: data);
 }

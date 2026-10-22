@@ -26,6 +26,9 @@ import 'media_views.dart';
 import 'message_actions.dart';
 import 'pins.dart';
 import 'send_files.dart';
+import 'video/video_message.dart';
+import 'voice/audio_io.dart';
+import 'voice/voice_composer.dart';
 
 /// A chat of the active account as a page of its own (narrow windows).
 class ChatScreen extends ConsumerWidget {
@@ -1339,7 +1342,9 @@ class _SendStateIcon extends StatelessWidget {
 }
 
 /// The message box: text with emojis, files by 📎, paste or drop; a reply or an edit when the
-/// message menu started one (Esc cancels). With [thread], it writes into that thread.
+/// message menu started one (Esc cancels). With [thread], it writes into that thread. While
+/// it is empty, the microphone records a voice message, and the camera a video where the
+/// platform can.
 class Composer extends ConsumerStatefulWidget {
   const Composer({
     required this.account,
@@ -1372,6 +1377,15 @@ class _ComposerState extends ConsumerState<Composer> {
   /// Where the last notice went; `ref` can't be used once the composer is gone.
   RoomTimeline? _typingIn;
 
+  late final _voice = VoiceDraft(
+    recorder: ref.read(voiceRecorderFactoryProvider),
+    codec: ref.read(audioCodecProvider),
+    playback: ref.read(voicePlaybackProvider),
+    send: _sendVoice,
+    onError: _showError,
+    playKey: 'draft:${widget.roomId}:${widget.thread}',
+  );
+
   ComposerKey get _chat => (widget.account, widget.roomId, widget.thread);
 
   RoomTimeline? get _timeline => ref
@@ -1398,6 +1412,7 @@ class _ComposerState extends ConsumerState<Composer> {
     }
     _text.dispose();
     _focus.dispose();
+    _voice.dispose();
     super.dispose();
   }
 
@@ -1470,6 +1485,53 @@ class _ComposerState extends ConsumerState<Composer> {
           SnackBar(content: Text('Not sent: ${failure.kind.name}')),
         );
       }
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  /// The event a voice message or video answers, when the composer is replying.
+  String? _replyTo() {
+    final mode = ref.read(composerModeProvider(_chat));
+    return mode is Replying ? eventFields(mode.entry)?.meta.eventId : null;
+  }
+
+  Future<void> _sendVoice(VoiceClip clip) async {
+    final timeline = _timeline;
+    if (timeline == null) return;
+    final replyTo = _replyTo();
+    _setMode(null);
+    try {
+      await timeline.sendVoice(clip, inReplyTo: replyTo);
+    } on MatrixFailure catch (failure) {
+      _showError('Not sent: ${failure.kind.name}');
+    }
+  }
+
+  Future<void> _recordVideo() async {
+    final video = await recordVideoMessage(context);
+    final timeline = _timeline;
+    if (video == null || timeline == null) return;
+    final replyTo = _replyTo();
+    _setMode(null);
+    try {
+      await timeline.sendVideo(
+        video.data,
+        filename: video.filename,
+        mimeType: video.mimeType,
+        duration: video.duration,
+        photo: video.photo,
+        width: video.width,
+        height: video.height,
+        inReplyTo: replyTo,
+      );
+    } on MatrixFailure catch (failure) {
+      _showError('Not sent: ${failure.kind.name}');
     }
   }
 
@@ -1575,73 +1637,100 @@ class _ComposerState extends ConsumerState<Composer> {
               _ModeBar(mode: mode, onCancel: () => _setMode(null)),
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  IconButton(
-                    key: const Key('composer.attach'),
-                    tooltip: 'Attach files',
-                    icon: const Icon(Icons.attach_file_rounded),
-                    onPressed: () => unawaited(_attach()),
-                  ),
-                  Expanded(
-                    child: CallbackShortcuts(
-                      // Enter sends; Shift+Enter makes a new line; Esc drops a reply or
-                      // an edit.
-                      bindings: {
-                        const SingleActivator(LogicalKeyboardKey.enter): () =>
-                            unawaited(_send()),
-                        const SingleActivator(
-                          LogicalKeyboardKey.keyV,
-                          control: true,
-                        ): () =>
-                            unawaited(_paste()),
-                        const SingleActivator(
-                          LogicalKeyboardKey.keyV,
-                          meta: true,
-                        ): () =>
-                            unawaited(_paste()),
-                        if (mode != null)
-                          const SingleActivator(
-                            LogicalKeyboardKey.escape,
-                          ): () =>
-                              _setMode(null),
-                      },
-                      child: TextField(
-                        key: const Key('composer.text'),
-                        controller: _text,
-                        focusNode: _focus,
-                        minLines: 1,
-                        maxLines: 6,
-                        textCapitalization: TextCapitalization.sentences,
-                        inputFormatters: [_emoticons],
-                        decoration: InputDecoration(
-                          hintText: widget.thread == null
-                              ? 'Message'
-                              : 'Reply in thread',
-                          border: InputBorder.none,
+              child: ListenableBuilder(
+                listenable: Listenable.merge([_voice, _text]),
+                builder: (context, _) => Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (_voice.isActive)
+                      Expanded(child: VoiceDraftBar(draft: _voice))
+                    else ...[
+                      IconButton(
+                        key: const Key('composer.attach'),
+                        tooltip: 'Attach files',
+                        icon: const Icon(Icons.attach_file_rounded),
+                        onPressed: () => unawaited(_attach()),
+                      ),
+                      Expanded(
+                        child: CallbackShortcuts(
+                          // Enter sends; Shift+Enter makes a new line; Esc drops a reply or
+                          // an edit.
+                          bindings: {
+                            const SingleActivator(
+                              LogicalKeyboardKey.enter,
+                            ): () =>
+                                unawaited(_send()),
+                            const SingleActivator(
+                              LogicalKeyboardKey.keyV,
+                              control: true,
+                            ): () =>
+                                unawaited(_paste()),
+                            const SingleActivator(
+                              LogicalKeyboardKey.keyV,
+                              meta: true,
+                            ): () =>
+                                unawaited(_paste()),
+                            if (mode != null)
+                              const SingleActivator(
+                                LogicalKeyboardKey.escape,
+                              ): () =>
+                                  _setMode(null),
+                          },
+                          child: TextField(
+                            key: const Key('composer.text'),
+                            controller: _text,
+                            focusNode: _focus,
+                            minLines: 1,
+                            maxLines: 6,
+                            textCapitalization: TextCapitalization.sentences,
+                            inputFormatters: [_emoticons],
+                            decoration: InputDecoration(
+                              hintText: widget.thread == null
+                                  ? 'Message'
+                                  : 'Reply in thread',
+                              border: InputBorder.none,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  IconButton(
-                    key: const Key('composer.emoji'),
-                    tooltip: 'Emoji',
-                    icon: const Icon(Icons.emoji_emotions_outlined),
-                    onPressed: () => unawaited(_pickEmoji()),
-                  ),
-                  IconButton(
-                    key: const Key('composer.send'),
-                    tooltip: mode is Editing ? 'Save' : 'Send',
-                    color: OxiColors.accent,
-                    icon: Icon(
-                      mode is Editing
-                          ? Icons.check_rounded
-                          : Icons.send_rounded,
-                    ),
-                    onPressed: () => unawaited(_send()),
-                  ),
-                ],
+                      IconButton(
+                        key: const Key('composer.emoji'),
+                        tooltip: 'Emoji',
+                        icon: const Icon(Icons.emoji_emotions_outlined),
+                        onPressed: () => unawaited(_pickEmoji()),
+                      ),
+                    ],
+                    if (_voice.state
+                        case VoiceRecording(locked: true) || VoicePreview())
+                      VoiceDraftActions(draft: _voice)
+                    else if (_voice.isActive ||
+                        (_text.text.trim().isEmpty && mode is! Editing)) ...[
+                      if (!_voice.isActive &&
+                          ref.watch(videoMessagesSupportedProvider))
+                        IconButton(
+                          key: const Key('composer.video'),
+                          tooltip: 'Record a video message',
+                          icon: const Icon(Icons.videocam_outlined),
+                          onPressed: () => unawaited(_recordVideo()),
+                        ),
+                      MicButton(
+                        key: const ValueKey('composer.micButton'),
+                        draft: _voice,
+                      ),
+                    ] else
+                      IconButton(
+                        key: const Key('composer.send'),
+                        tooltip: mode is Editing ? 'Save' : 'Send',
+                        color: OxiColors.accent,
+                        icon: Icon(
+                          mode is Editing
+                              ? Icons.check_rounded
+                              : Icons.send_rounded,
+                        ),
+                        onPressed: () => unawaited(_send()),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],

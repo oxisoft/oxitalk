@@ -13,7 +13,11 @@ import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
 import 'package:oxitalk/src/app/window_controls.dart';
 import 'package:oxitalk/src/app/providers.dart';
+import 'package:oxitalk/src/features/chat/video/video_message.dart';
+import 'package:oxitalk/src/features/chat/voice/audio_io.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
+
+import 'voice_fakes.dart';
 
 /// Phone-sized by default; pass a wider [size] for the desktop layout.
 Future<void> pumpApp(
@@ -29,6 +33,10 @@ Future<void> pumpApp(
   FakeFileActions? files,
   MemoryUiPrefs? ui,
   FakeNotificationPresenter? notifications,
+  VoiceRecorder Function()? recorder,
+  FakeAudioOutput? audio,
+  VideoRecorder Function()? camera,
+  bool video = false,
 }) async {
   tester.view
     ..physicalSize = size
@@ -55,6 +63,15 @@ Future<void> pumpApp(
         ),
         collapsedSectionsStoreProvider.overrideWithValue(
           collapsed ?? MemoryCollapsedSections(),
+        ),
+        audioCodecProvider.overrideWithValue(const FakeAudioCodec()),
+        voiceRecorderFactoryProvider.overrideWithValue(
+          recorder ?? FakeVoiceRecorder.new,
+        ),
+        audioOutputProvider.overrideWithValue(audio ?? FakeAudioOutput()),
+        videoMessagesSupportedProvider.overrideWithValue(video),
+        videoRecorderFactoryProvider.overrideWithValue(
+          camera ?? FakeVideoRecorder.new,
         ),
       ],
       child: const OxiTalkApp(),

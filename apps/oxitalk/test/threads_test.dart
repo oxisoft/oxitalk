@@ -115,6 +115,8 @@ void main() {
     expect(composers, findsNWidgets(2));
     await tester.enterText(composers.last, 'see you at 1');
     await tester.testTextInput.receiveAction(TextInputAction.done);
+    // The microphone gives way to Send once there is text.
+    await tester.pump();
     await tester.tap(find.byKey(const Key('composer.send')).last);
     await tester.pumpAndSettle();
     final thread = session.threadTimelines[_root]!;

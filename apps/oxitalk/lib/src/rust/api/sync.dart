@@ -12,7 +12,7 @@ part 'sync.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new_sync_service`, `sync_error`, `sync_state`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `sync_states`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `expire_sync_sessions`, `sync_states`
 
 @freezed
 sealed class SyncState with _$SyncState {

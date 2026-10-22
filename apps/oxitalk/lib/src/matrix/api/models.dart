@@ -1,6 +1,8 @@
 /// What the app shows, independent of the bridge: features and fakes use only these.
 library;
 
+import 'dart:typed_data';
+
 enum Membership { joined, invited, knocked, left, banned }
 
 /// What a room notifies for, as Element names the choices. The account's defaults are never
@@ -466,6 +468,8 @@ final class MediaInfo {
     this.width,
     this.height,
     this.duration,
+    this.isVoice = false,
+    this.waveform,
   });
 
   final MediaKind kind;
@@ -489,6 +493,30 @@ final class MediaInfo {
   final int? width;
   final int? height;
   final Duration? duration;
+
+  /// A voice message recorded in a chat app, rather than a sound file.
+  final bool isVoice;
+
+  /// An audio message's loudness over time, each point from 0 to [VoiceClip.waveformMax].
+  final List<int>? waveform;
+}
+
+/// A recorded voice message, ready to send: an Ogg Opus file, its length and its waveform.
+final class VoiceClip {
+  const VoiceClip({
+    required this.data,
+    required this.duration,
+    required this.waveform,
+  });
+
+  /// The loudest point of a [waveform].
+  static const waveformMax = 1024;
+
+  final Uint8List data;
+  final Duration duration;
+
+  /// From 0 to [waveformMax], the loudest at the top.
+  final List<int> waveform;
 }
 
 /// A message with an image, video, audio or other file.

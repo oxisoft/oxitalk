@@ -210,6 +210,8 @@ void main() {
           find.byKey(const Key('composer.text')),
           '  How are you?  ',
         );
+        // The microphone gives way to Send once there is text.
+        await tester.pump();
         await tester.tap(find.byKey(const Key('composer.send')));
         await tester.pumpAndSettle();
 

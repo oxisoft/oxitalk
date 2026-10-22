@@ -149,6 +149,8 @@ void main() {
     final ui = MemoryUiPrefs();
     final (timeline, _) = await _open(tester, ui: ui);
     await tester.enterText(find.byKey(const Key('composer.text')), '**hi**');
+    // The microphone gives way to Send once there is text.
+    await tester.pump();
     await tester.tap(find.byKey(const Key('composer.send')));
     await tester.pumpAndSettle();
     expect(timeline.lastSentAsMarkdown, isTrue);
@@ -162,6 +164,8 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('composer.text')), '**hi**');
+    // The microphone gives way to Send once there is text.
+    await tester.pump();
     await tester.tap(find.byKey(const Key('composer.send')));
     await tester.pumpAndSettle();
     expect(timeline.lastSentAsMarkdown, isFalse);
