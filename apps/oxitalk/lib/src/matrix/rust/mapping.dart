@@ -167,6 +167,8 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
         final ms? => Duration(milliseconds: ms),
         null => null,
       },
+      isVoice: media.isVoice,
+      waveform: media.waveform,
     ),
   ),
   rust.TimelineItemContent_UnableToDecrypt(:final event) => UndecryptableEntry(

@@ -761,12 +761,66 @@ final class FakeTimeline implements RoomTimeline {
     bool markdown = false,
   }) async => files[filename] = (caption, compress);
 
+  /// Voice messages sent, with the event each answers.
+  final voices = <(VoiceClip, String?)>[];
+
+  @override
+  Future<void> sendVoice(VoiceClip clip, {String? inReplyTo}) async =>
+      voices.add((clip, inReplyTo));
+
+  /// Videos sent: name → (duration, photo, reply).
+  final videos = <String, (Duration, Uint8List?, String?)>{};
+
+  @override
+  Future<void> sendVideo(
+    Uint8List data, {
+    required String filename,
+    required String mimeType,
+    required Duration duration,
+    Uint8List? photo,
+    int? width,
+    int? height,
+    String? inReplyTo,
+  }) async => videos[filename] = (duration, photo, inReplyTo);
+
   @override
   Future<void> forward(String eventId, String roomId) async =>
       calls.add('forward $eventId $roomId');
 
   @override
   void close() => closed = true;
+}
+
+/// Encodes nothing: a clip is the samples' bytes, as long as they play at their rate, with a
+/// waveform of their loudness. Everything plays but an mp3 (`ID3…`), as on Linux.
+final class FakeAudioCodec implements AudioCodec {
+  const FakeAudioCodec();
+
+  @override
+  Future<VoiceClip> encodeVoice(
+    Int16List pcm, {
+    required int sampleRate,
+    required int channels,
+  }) async => VoiceClip(
+    data: pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes),
+    duration: Duration(
+      microseconds: pcm.length * 1000000 ~/ (sampleRate * channels),
+    ),
+    waveform: [
+      for (var i = 0; i < 100; i++)
+        pcm.isEmpty
+            ? 0
+            : (pcm[i * pcm.length ~/ 100].abs() *
+                  VoiceClip.waveformMax ~/
+                  32768),
+    ],
+  );
+
+  @override
+  Future<Uint8List?> playableWav(Uint8List data) async =>
+      data.length >= 3 && String.fromCharCodes(data.sublist(0, 3)) == 'ID3'
+      ? null
+      : data;
 }
 
 /// A verification the test drives: it moves the [step] as the other device would.

@@ -199,6 +199,8 @@ void main() {
       expect(find.text('Replying to Bob'), findsOneWidget);
 
       await tester.enterText(find.byKey(const Key('composer.text')), 'Hi Bob');
+      // The microphone gives way to Send once there is text.
+      await tester.pump();
       await tester.tap(find.byKey(const Key('composer.send')));
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'reply $hello Hi Bob']);
@@ -213,6 +215,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('composer.mode')), findsNothing);
       await tester.enterText(find.byKey(const Key('composer.text')), 'New');
+      // The microphone gives way to Send once there is text.
+      await tester.pump();
       await tester.tap(find.byKey(const Key('composer.send')));
       await tester.pumpAndSettle();
       expect(timeline.calls, isEmpty);

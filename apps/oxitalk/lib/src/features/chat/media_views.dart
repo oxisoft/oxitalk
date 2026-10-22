@@ -8,6 +8,7 @@ import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
+import 'voice/audio_player_view.dart';
 
 /// Opens a message's file in the system's app for it, downloading it into the cache first.
 Future<void> openMedia(
@@ -102,7 +103,7 @@ class MediaMessageView extends ConsumerWidget {
             maxSize: 320,
             onTap: () => showMedia(context, ref, account, media),
           ),
-          MediaKind.audio ||
+          MediaKind.audio => AudioMessageView(account: account, media: media),
           MediaKind.file => FileRow(account: account, media: media),
         },
         if (caption != null && caption.isNotEmpty)
