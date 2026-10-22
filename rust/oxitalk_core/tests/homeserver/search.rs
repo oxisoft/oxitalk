@@ -1,12 +1,14 @@
 //! Searching a chat on the device, on the test homeserver.
 
+use std::time::Duration;
+
 use oxitalk_core::api::{
     search::SearchResults,
-    timeline::{MediaKind, TimelineItemContent},
+    timeline::{MediaKind, TimelineItem, TimelineItemContent},
 };
 
 use super::{
-    TestResult, event_of, joined_dm,
+    TIMEOUT, TestResult, event_of, joined_dm,
     pins::{id_of, public_room_with, wait_sent},
     poll_until, watch_timeline,
 };
@@ -48,28 +50,38 @@ async fn search_finds_decrypted_edited_messages_and_files() -> TestResult {
     let bob_timeline = bob.timeline(room_id.clone()).await?;
     let mut bob_items = watch_timeline(&bob_timeline).await;
     // A sync that brings several events at once keeps only the latest in the live timeline,
-    // as with any chat opened after the fact: once something arrived, page back as the app
-    // does when it opens a chat.
-    bob_items
-        .wait_until(|items| {
-            items
+    // as with any chat opened after the fact, and on a slow server the rest can come later
+    // still: page back as the app does when it opens a chat, again while something is missing.
+    let all_there = |items: &[TimelineItem]| {
+        event_of(items, "a red and blue fox").is_some()
+            && items.iter().any(|item| {
+                matches!(&item.content, TimelineItemContent::Media { media, .. }
+                    if media.filename == "Holiday-Plan.pdf")
+            })
+            && items
                 .iter()
-                .any(|item| !matches!(item.content, TimelineItemContent::DateDivider { .. }))
-        })
-        .await?;
-    bob_timeline.paginate_back(50).await?;
-    bob_items
-        .wait_until(|items| {
-            event_of(items, "a red and blue fox").is_some()
-                && items.iter().any(|item| {
-                    matches!(&item.content, TimelineItemContent::Media { media, .. }
-                        if media.filename == "Holiday-Plan.pdf")
+                .any(|item| matches!(item.content, TimelineItemContent::Redacted { .. }))
+    };
+    let deadline = tokio::time::Instant::now() + 2 * TIMEOUT;
+    while !bob_items
+        .holds_within(Duration::from_secs(5), all_there)
+        .await?
+    {
+        if tokio::time::Instant::now() > deadline {
+            let kinds: Vec<_> = bob_items
+                .items
+                .iter()
+                .map(|item| {
+                    format!("{:?}", item.content)
+                        .chars()
+                        .take(60)
+                        .collect::<String>()
                 })
-                && items
-                    .iter()
-                    .any(|item| matches!(item.content, TimelineItemContent::Redacted { .. }))
-        })
-        .await?;
+                .collect();
+            return Err(format!("Bob's chat never got all of it: {kinds:#?}").into());
+        }
+        bob_timeline.paginate_back(50).await?;
+    }
 
     // The store is written as the events arrive; ask until it has caught up.
     let blue = poll_until(

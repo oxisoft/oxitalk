@@ -51,6 +51,28 @@ pub(crate) struct Watched<T, D> {
 }
 
 impl<T, D> Watched<T, D> {
+    /// Applies batches until `done` holds for the list or `within` passed: `false` then.
+    pub(crate) async fn holds_within(
+        &mut self,
+        within: Duration,
+        done: impl Fn(&[T]) -> bool,
+    ) -> Result<bool, Box<dyn Error>> {
+        let waited = tokio::time::timeout(within, async {
+            while !done(&self.items) {
+                let batch = self.batches.recv().await.ok_or("the stream ended")?;
+                for diff in batch {
+                    (self.apply)(&mut self.items, diff);
+                }
+            }
+            Ok::<_, Box<dyn Error>>(())
+        })
+        .await;
+        match waited {
+            Ok(result) => result.map(|()| true),
+            Err(_) => Ok(false),
+        }
+    }
+
     /// Applies batches until `done` holds for the list.
     pub(crate) async fn wait_until(&mut self, done: impl Fn(&[T]) -> bool) -> TestResult {
         tokio::time::timeout(TIMEOUT, async {
