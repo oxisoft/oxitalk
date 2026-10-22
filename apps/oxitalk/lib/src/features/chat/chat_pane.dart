@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -547,6 +549,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
             ),
       hoverActions: canAct && entry is! UndecryptableEntry
           ? _HoverActions(
+              tooltipsLeft: fields.isOwn,
               onReact: () => unawaited(_actions.react(entry)),
               onReply: () => _actions.reply(entry),
               onThread: widget.thread == null
@@ -653,74 +656,104 @@ class _FailedActions extends StatelessWidget {
 }
 
 /// The small toolbar beside a message under the mouse: react, reply, reply in a thread (in
-/// the chat), and the rest.
+/// the chat), and the rest. One narrow column of buttons, so the message keeps its width;
+/// tooltips show beside the buttons, away from the message ([tooltipsLeft] for the user's
+/// own, where the toolbar is on the message's left).
 class _HoverActions extends StatelessWidget {
   const _HoverActions({
     required this.onReact,
     required this.onReply,
     required this.menu,
     this.onThread,
+    this.tooltipsLeft = false,
   });
 
   final VoidCallback onReact;
   final VoidCallback onReply;
   final VoidCallback? onThread;
+  final bool tooltipsLeft;
 
   /// The message menu's items, made when it opens.
   final List<ContextMenuButtonItem> Function() menu;
 
+  /// The toolbar's width, and the room kept for it beside the message.
+  static const width = 40.0;
+
   @override
   Widget build(BuildContext context) => Material(
     color: Theme.of(context).colorScheme.surfaceContainerHigh,
-    elevation: 1,
-    borderRadius: BorderRadius.circular(16),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _toolbarButton(
-          const Key('hover.react'),
-          'React',
-          Icons.add_reaction_outlined,
-          onReact,
-        ),
-        _toolbarButton(
-          const Key('hover.reply'),
-          'Reply',
-          Icons.reply_rounded,
-          onReply,
-        ),
-        if (onThread case final onThread?)
+    elevation: 2,
+    borderRadius: BorderRadius.circular(width / 2),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           _toolbarButton(
-            const Key('hover.thread'),
-            'Reply in thread',
-            Icons.forum_outlined,
-            onThread,
+            const Key('hover.react'),
+            'React',
+            Icons.add_reaction_outlined,
+            onReact,
           ),
-        Builder(
-          builder: (context) => _toolbarButton(
-            const Key('hover.more'),
-            'More',
-            Icons.more_horiz_rounded,
-            () => unawaited(_openMenu(context)),
+          _toolbarButton(
+            const Key('hover.reply'),
+            'Reply',
+            Icons.reply_rounded,
+            onReply,
           ),
-        ),
-      ],
+          if (onThread case final onThread?)
+            _toolbarButton(
+              const Key('hover.thread'),
+              'Reply in thread',
+              Icons.forum_outlined,
+              onThread,
+            ),
+          Builder(
+            builder: (context) => _toolbarButton(
+              const Key('hover.more'),
+              'More',
+              Icons.more_horiz_rounded,
+              () => unawaited(_openMenu(context)),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 
-  static Widget _toolbarButton(
+  Widget _toolbarButton(
     Key key,
     String tooltip,
     IconData icon,
     VoidCallback onPressed,
-  ) => IconButton(
-    key: key,
-    tooltip: tooltip,
-    iconSize: 18,
-    visualDensity: VisualDensity.compact,
-    onPressed: onPressed,
-    icon: Icon(icon),
+  ) => Tooltip(
+    message: tooltip,
+    positionDelegate: _besideButton,
+    child: IconButton(
+      key: key,
+      iconSize: 18,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: width, height: 36),
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      icon: Icon(icon, semanticLabel: tooltip),
+    ),
   );
+
+  /// Beside the button, vertically centred on it, inside the window.
+  Offset _besideButton(TooltipPositionContext context) {
+    const gap = 8.0;
+    final half = context.targetSize.width / 2 + gap;
+    final tooltip = context.tooltipSize;
+    final left = tooltipsLeft
+        ? context.target.dx - half - tooltip.width
+        : context.target.dx + half;
+    final top = context.target.dy - tooltip.height / 2;
+    return Offset(
+      left.clamp(0, math.max(0, context.overlaySize.width - tooltip.width)),
+      top.clamp(0, math.max(0, context.overlaySize.height - tooltip.height)),
+    );
+  }
 
   Future<void> _openMenu(BuildContext context) async {
     final box = context.findRenderObject()! as RenderBox;
@@ -795,6 +828,9 @@ class MessageBubble extends StatefulWidget {
 class _MessageBubbleState extends State<MessageBubble> {
   var _hovered = false;
 
+  /// The mouse is over the toolbar, which floats above the chat, off the message.
+  var _overToolbar = false;
+
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
@@ -855,17 +891,19 @@ class _MessageBubbleState extends State<MessageBubble> {
       children: [bubble, ?reactions],
     );
     final hoverActions = widget.hoverActions;
-    // Room kept for the toolbar, so the message doesn't move when it shows.
+    // A narrow room kept beside the message, so it doesn't move when the toolbar shows.
+    // The toolbar floats above the chat from there, so a short message doesn't grow to
+    // its height.
     final toolbar = hoverActions == null
         ? null
-        : SelectionContainer.disabled(
-            child: Visibility(
-              visible: _hovered,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: hoverActions,
-            ),
+        : _ToolbarSlot(
+            visible: _hovered || _overToolbar,
+            onHover: (over) {
+              if (mounted && over != _overToolbar) {
+                setState(() => _overToolbar = over);
+              }
+            },
+            child: hoverActions,
           );
     final avatar = widget.avatar;
     return MouseRegion(
@@ -946,6 +984,154 @@ class _MessageBubbleState extends State<MessageBubble> {
       ),
     );
   }
+}
+
+/// The room beside a message where its toolbar shows: as wide as the toolbar, no height.
+/// The toolbar floats in the overlay, its bottom at the message's bottom, moved down or up
+/// as needed to stay inside the chat's visible part (never under its header or the
+/// message box).
+class _ToolbarSlot extends StatefulWidget {
+  const _ToolbarSlot({
+    required this.visible,
+    required this.onHover,
+    required this.child,
+  });
+
+  final bool visible;
+  final ValueChanged<bool> onHover;
+  final Widget child;
+
+  @override
+  State<_ToolbarSlot> createState() => _ToolbarSlotState();
+}
+
+class _ToolbarSlotState extends State<_ToolbarSlot> {
+  final _portal = OverlayPortalController();
+  ScrollPosition? _scroll;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.visible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Follows the message while the chat scrolls under the mouse.
+    final scroll = Scrollable.maybeOf(context)?.position;
+    if (scroll != _scroll) {
+      _scroll?.removeListener(_moved);
+      _scroll = scroll?..addListener(_moved);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ToolbarSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Not during the build that changed it: right after.
+    if (widget.visible != oldWidget.visible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
+    }
+  }
+
+  void _sync() {
+    if (!mounted || widget.visible == _portal.isShowing) return;
+    widget.visible ? _portal.show() : _portal.hide();
+  }
+
+  @override
+  void dispose() {
+    _scroll?.removeListener(_moved);
+    super.dispose();
+  }
+
+  void _moved() {
+    if (!_portal.isShowing) return;
+    // A scroll may be corrected during layout, when a rebuild can't be asked for.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  /// The chat's visible part, in this slot's coordinates.
+  Rect? _viewportInSlot() {
+    final slot = context.findRenderObject();
+    final viewport = Scrollable.maybeOf(context)?.context.findRenderObject();
+    if (slot is! RenderBox || viewport is! RenderBox || !viewport.hasSize) {
+      return null;
+    }
+    final toViewport = slot.getTransformTo(viewport);
+    if (toViewport.invert() == 0) return null;
+    return MatrixUtils.transformRect(toViewport, Offset.zero & viewport.size);
+  }
+
+  @override
+  Widget build(BuildContext context) => OverlayPortal.overlayChildLayoutBuilder(
+    controller: _portal,
+    overlayChildBuilder: (context, info) {
+      final slot = MatrixUtils.transformRect(
+        info.childPaintTransform,
+        Offset.zero & info.childSize,
+      );
+      final viewport = switch (_viewportInSlot()) {
+        final rect? => MatrixUtils.transformRect(
+          info.childPaintTransform,
+          rect,
+        ),
+        null => Offset.zero & info.overlaySize,
+      };
+      return Positioned.fill(
+        child: CustomSingleChildLayout(
+          delegate: _ToolbarPosition(slot: slot, bounds: viewport),
+          child: MouseRegion(
+            onEnter: (_) => widget.onHover(true),
+            onExit: (_) => widget.onHover(false),
+            child: widget.child,
+          ),
+        ),
+      );
+    },
+    child: const SizedBox(width: _HoverActions.width),
+  );
+}
+
+class _ToolbarPosition extends SingleChildLayoutDelegate {
+  const _ToolbarPosition({required this.slot, required this.bounds});
+
+  /// Where the slot is: the toolbar's bottom goes to its bottom.
+  final Rect slot;
+
+  /// What the toolbar stays inside.
+  final Rect bounds;
+
+  static const _margin = 4.0;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final lowest = bounds.bottom - _margin - childSize.height;
+    final highest = bounds.top + _margin;
+    final top = math.max(
+      highest,
+      math.min(slot.bottom - childSize.height, lowest),
+    );
+    return Offset(slot.center.dx - childSize.width / 2, top);
+  }
+
+  @override
+  bool shouldRelayout(_ToolbarPosition oldDelegate) =>
+      slot != oldDelegate.slot || bounds != oldDelegate.bounds;
 }
 
 class _SendStateIcon extends StatelessWidget {
