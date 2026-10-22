@@ -98,6 +98,8 @@ flutter:
   # The same text and colour emoji on every platform. Both SIL OFL 1.1, licences beside them.
   assets:
     - assets/branding/oxitalk-icon-96.png
+    # The About screen's big icon.
+    - assets/branding/oxitalk-icon-256.png
     - assets/fonts/OpenSans-LICENSE.txt
     - assets/fonts/NotoColorEmoji-LICENSE.txt
   fonts:

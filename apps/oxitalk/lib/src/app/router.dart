@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../features/about/about_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/chat/chat_pane.dart';
 import '../features/chat/threads.dart';
@@ -30,6 +31,7 @@ abstract final class Routes {
   static const addAccount = '/add-account';
   static const settings = '/settings';
   static const notificationSettings = '/settings/notifications';
+  static const about = '/about';
   static const chats = '/';
 
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
@@ -93,6 +95,7 @@ GoRouter router(Ref ref) {
         return location == Routes.login ? null : Routes.login;
       }
       if (location == Routes.addAccount ||
+          location == Routes.about ||
           location == Routes.settings ||
           location == Routes.notificationSettings) {
         return null;
@@ -126,6 +129,7 @@ GoRouter router(Ref ref) {
           ),
         ],
       ),
+      GoRoute(path: Routes.about, builder: (_, _) => const AboutScreen()),
       GoRoute(
         path: Routes.addAccount,
         builder: (_, _) => const LoginScreen(adding: true),

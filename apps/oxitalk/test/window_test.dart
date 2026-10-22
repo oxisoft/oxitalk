@@ -89,7 +89,7 @@ Future<void> _open(
 );
 
 void main() {
-  // About shows the core's version.
+  // About shows the core's version, which is the app's.
   setUpAll(initRustCore);
 
   group('title bar', () {
@@ -319,9 +319,11 @@ void main() {
       expect(find.byType(AccountRail), findsNothing);
 
       await pickFromAccountMenu(tester, 'accountMenu.about');
-      expect(find.textContaining('Rust core'), findsOneWidget);
-      await tester.tap(find.text('Close'));
+      expect(find.byKey(const Key('about')), findsOneWidget);
+      expect(find.text('Version 0.1.26'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('about.back')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('about')), findsNothing);
 
       await tester.tap(find.byKey(const Key('rail.show')));
       await tester.pumpAndSettle();
@@ -345,9 +347,11 @@ void main() {
       await _open(tester);
       await tester.tap(find.byKey(const Key('rail.about')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Rust core'), findsOneWidget);
-      await tester.tap(find.text('Close'));
+      expect(find.byKey(const Key('about')), findsOneWidget);
+      expect(find.text('Version 0.1.26'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('about.back')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('about')), findsNothing);
 
       await tester.tap(find.byKey(const Key('rail.settings')));
       await tester.pumpAndSettle();

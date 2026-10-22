@@ -11,8 +11,8 @@ import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
-import '../../rust/api.dart';
 import '../../ui/avatar.dart';
+import '../about/about_screen.dart';
 
 /// Ctrl on Linux and Windows, Cmd on Apple platforms.
 bool get _isApple =>
@@ -155,12 +155,6 @@ class _RailAccount extends ConsumerWidget {
     }
   }
 }
-
-void showOxiTalkAbout(BuildContext context) => showAboutDialog(
-  context: context,
-  applicationName: 'OxiTalk',
-  applicationLegalese: 'Rust core ${coreVersion()}',
-);
 
 /// An account's avatar with its unread count, and a warning while it is unverified.
 class AccountAvatar extends ConsumerWidget {
