@@ -22,6 +22,7 @@ pub mod threads;
 pub mod timeline;
 pub mod typing;
 pub mod verification;
+pub mod voice;
 
 /// Sets up the bridge's default logging and panic handling and installs ring as the TLS
 /// provider. Called once by `RustLib.init()`.

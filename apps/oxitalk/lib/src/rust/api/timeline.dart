@@ -12,7 +12,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
+// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `duration`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `send_attachment`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
@@ -121,6 +121,40 @@ abstract class Timeline implements RustOpaqueInterface {
   ///
   /// Only if the message can't be queued; a failed send shows as [`SendState::Failed`].
   Future<void> sendText({required String body, required bool markdown});
+
+  /// Sends a video recorded in the app, with its length and shape and a thumbnail made of
+  /// `photo`, a picture the camera took as it started. With `in_reply_to` (an event ID)
+  /// it answers that message; in a thread's timeline it goes into the thread.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::Internal`] for a malformed `mime_type`, or if
+  /// it can't be queued.
+  Future<void> sendVideo({
+    required List<int> data,
+    required String filename,
+    required String mimeType,
+    Uint8List? photo,
+    int? width,
+    int? height,
+    required PlatformInt64 durationMs,
+    String? inReplyTo,
+  });
+
+  /// Sends a voice message recorded in the app (see [`super::voice::encode_voice`]): an
+  /// Ogg Opus file with its length and waveform, marked as voice as Element sends it.
+  /// With `in_reply_to` (an event ID) it answers that message; in a thread's timeline it
+  /// goes into the thread.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], or if it can't be queued.
+  Future<void> sendVoice({
+    required List<int> data,
+    required PlatformInt64 durationMs,
+    required List<int> waveform,
+    String? inReplyTo,
+  });
 
   /// Tells the room whether the user is typing. Calls come as often as keys are pressed;
   /// the SDK sends a notice only when it changes or the last one is about to run out.
@@ -256,6 +290,12 @@ class MediaMessage {
   final int? height;
   final PlatformInt64? durationMs;
 
+  /// A voice message (MSC3245), recorded in the app rather than a sound file.
+  final bool isVoice;
+
+  /// An audio message's loudness over time, each point from 0 to 1024, if it was sent.
+  final Uint16List? waveform;
+
   const MediaMessage({
     required this.kind,
     required this.source,
@@ -268,6 +308,8 @@ class MediaMessage {
     this.width,
     this.height,
     this.durationMs,
+    required this.isVoice,
+    this.waveform,
   });
 
   @override
@@ -282,7 +324,9 @@ class MediaMessage {
       size.hashCode ^
       width.hashCode ^
       height.hashCode ^
-      durationMs.hashCode;
+      durationMs.hashCode ^
+      isVoice.hashCode ^
+      waveform.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -299,7 +343,9 @@ class MediaMessage {
           size == other.size &&
           width == other.width &&
           height == other.height &&
-          durationMs == other.durationMs;
+          durationMs == other.durationMs &&
+          isVoice == other.isVoice &&
+          waveform == other.waveform;
 }
 
 /// One emoji (or other key) given to a message, by whom.

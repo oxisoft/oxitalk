@@ -19,6 +19,9 @@ matrix-sdk-sqlite = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev
 matrix-sdk-ui = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false }
 image = { version = "0.25.10", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
 mime = "0.3.17"
+# Voice messages as Element sends them, Ogg Opus, in pure Rust: no C toolchain for any target.
+ogg = "0.9.2"
+opus-rs = "0.1.39"
 # Only for its Matrix HTML model (feature html-matrix); the same rev as matrix-rust-sdk's.
 ruma = { git = "https://github.com/ruma/ruma", rev = "caf1ac05a9fd347158b60505ef8546a2ff18ae7c", default-features = false, features = ["html-matrix"] }
 rustls = { version = "0.23.45", default-features = false, features = ["ring"] }

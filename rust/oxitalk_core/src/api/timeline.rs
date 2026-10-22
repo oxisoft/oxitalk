@@ -9,7 +9,7 @@ use std::{
 use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
 use matrix_sdk::{
-    attachment::{AttachmentInfo, BaseImageInfo},
+    attachment::{AttachmentInfo, BaseAudioInfo, BaseImageInfo, BaseVideoInfo, Thumbnail},
     room::edit::EditedContent,
     ruma::{
         OwnedEventId, OwnedRoomId, UInt, UserId,
@@ -35,9 +35,10 @@ use tokio::task::AbortHandle;
 
 use super::{
     error::{CoreError, parse_id},
-    media_prep::prepare_image,
+    media_prep::{prepare_image, prepare_thumbnail},
     rich_text::{RichBlock, plain_line, rich_text},
     session::Session,
+    voice::WAVEFORM_MAX,
 };
 use crate::frb_generated::StreamSink;
 
@@ -180,6 +181,10 @@ pub struct MediaMessage {
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub duration_ms: Option<i64>,
+    /// A voice message (MSC3245), recorded in the app rather than a sound file.
+    pub is_voice: bool,
+    /// An audio message's loudness over time, each point from 0 to 1024, if it was sent.
+    pub waveform: Option<Vec<u16>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -521,6 +526,112 @@ impl Timeline {
         Ok(())
     }
 
+    /// Sends a voice message recorded in the app (see [`super::voice::encode_voice`]): an
+    /// Ogg Opus file with its length and waveform, marked as voice as Element sends it.
+    /// With `in_reply_to` (an event ID) it answers that message; in a thread's timeline it
+    /// goes into the thread.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::InvalidId`], or if it can't be queued.
+    pub async fn send_voice(
+        &self,
+        data: Vec<u8>,
+        duration_ms: i64,
+        waveform: Vec<u16>,
+        in_reply_to: Option<String>,
+    ) -> Result<(), CoreError> {
+        let info = BaseAudioInfo {
+            duration: Some(duration(duration_ms)),
+            size: UInt::new(data.len() as u64),
+            waveform: Some(
+                waveform
+                    .iter()
+                    .map(|point| f32::from(*point) / f32::from(WAVEFORM_MAX))
+                    .collect(),
+            ),
+        };
+        let config = AttachmentConfig {
+            info: Some(AttachmentInfo::Voice(info)),
+            in_reply_to: in_reply_to.as_deref().map(parse_id).transpose()?,
+            ..AttachmentConfig::default()
+        };
+        self.send_attachment(data, "Voice message.ogg".to_owned(), "audio/ogg", config)
+            .await
+    }
+
+    /// Sends a video recorded in the app, with its length and shape and a thumbnail made of
+    /// `photo`, a picture the camera took as it started. With `in_reply_to` (an event ID)
+    /// it answers that message; in a thread's timeline it goes into the thread.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::InvalidId`], [`CoreError::Internal`] for a malformed `mime_type`, or if
+    /// it can't be queued.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_video(
+        &self,
+        data: Vec<u8>,
+        filename: String,
+        mime_type: String,
+        photo: Option<Vec<u8>>,
+        width: Option<u32>,
+        height: Option<u32>,
+        duration_ms: i64,
+        in_reply_to: Option<String>,
+    ) -> Result<(), CoreError> {
+        let thumbnail = photo.and_then(|photo| prepare_thumbnail(&photo, width, height));
+        let (width, height) = match (&thumbnail, width, height) {
+            (_, Some(width), Some(height)) => (Some(width), Some(height)),
+            (Some(thumbnail), _, _) => (Some(thumbnail.width), Some(thumbnail.height)),
+            _ => (None, None),
+        };
+        let config = AttachmentConfig {
+            info: Some(AttachmentInfo::Video(BaseVideoInfo {
+                duration: Some(duration(duration_ms)),
+                width: width.map(UInt::from),
+                height: height.map(UInt::from),
+                size: UInt::new(data.len() as u64),
+                blurhash: None,
+            })),
+            thumbnail: thumbnail.map(|thumbnail| Thumbnail {
+                size: UInt::new(thumbnail.data.len() as u64).unwrap_or_default(),
+                data: thumbnail.data,
+                content_type: mime::IMAGE_JPEG,
+                width: thumbnail.width.into(),
+                height: thumbnail.height.into(),
+            }),
+            in_reply_to: in_reply_to.as_deref().map(parse_id).transpose()?,
+            ..AttachmentConfig::default()
+        };
+        self.send_attachment(data, filename, &mime_type, config)
+            .await
+    }
+
+    async fn send_attachment(
+        &self,
+        data: Vec<u8>,
+        filename: String,
+        mime_type: &str,
+        config: AttachmentConfig,
+    ) -> Result<(), CoreError> {
+        let mime_type: mime::Mime = mime_type
+            .parse()
+            .map_err(|error| CoreError::internal(&error))?;
+        self.inner
+            .send_attachment(
+                AttachmentSource::Data {
+                    bytes: data,
+                    filename,
+                },
+                mime_type,
+                config,
+            )
+            .use_send_queue()
+            .await?;
+        Ok(())
+    }
+
     /// Sends the message `item` (an event ID) again in the user's room `to_room`, as it is
     /// now (after edits), without what it answered; a file is sent again without uploading.
     ///
@@ -740,6 +851,8 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
         width: None,
         height: None,
         duration_ms: None,
+        is_voice: false,
+        waveform: None,
     };
     Some(match msgtype {
         MessageType::Image(image) => {
@@ -789,6 +902,23 @@ pub(crate) fn media_message(msgtype: &MessageType) -> Option<MediaMessage> {
                 m.mime_type.clone_from(&info.mimetype);
                 m.size = info.size.map(int);
                 m.duration_ms = info.duration.map(millis);
+            }
+            m.is_voice = audio.voice.is_some();
+            if let Some(details) = &audio.audio {
+                m.duration_ms = m.duration_ms.or(Some(millis(details.duration)));
+                if !details.waveform.is_empty() {
+                    m.waveform = Some(
+                        details
+                            .waveform
+                            .iter()
+                            .map(|amplitude| {
+                                u16::try_from(u64::from(amplitude.get()))
+                                    .unwrap_or(WAVEFORM_MAX)
+                                    .min(WAVEFORM_MAX)
+                            })
+                            .collect(),
+                    );
+                }
             }
             m
         }
@@ -861,6 +991,10 @@ fn small(value: UInt) -> u32 {
 
 fn millis(duration: std::time::Duration) -> i64 {
     i64::try_from(duration.as_millis()).unwrap_or(i64::MAX)
+}
+
+fn duration(millis: i64) -> std::time::Duration {
+    std::time::Duration::from_millis(u64::try_from(millis).unwrap_or_default())
 }
 
 fn reply_quote(reply: &InReplyToDetails) -> ReplyQuote {
