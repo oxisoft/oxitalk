@@ -10,7 +10,7 @@ use std::{
 use flutter_rust_bridge::frb;
 use futures_util::{Stream, StreamExt};
 use matrix_sdk::{
-    Client, ClientBuilder, SessionMeta, SessionTokens,
+    Client, ClientBuilder, SessionMeta, SessionTokens, ThreadingSupport,
     authentication::matrix::MatrixSession,
     encryption::{BackupDownloadStrategy, EncryptionSettings},
     notification_settings::NotificationSettings,
@@ -139,6 +139,13 @@ async fn build_client(
             // Keys go to the server backup; a verified device fetches the ones it lacks.
             auto_enable_backups: true,
             backup_download_strategy: BackupDownloadStrategy::AfterDecryptionFailure,
+        })
+        // Threads as Element X has them. Without it the SDK's caches treat thread replies as
+        // the room's own messages: a reply read in its thread still counted the room unread
+        // (the chat's receipt is on its main timeline), and a thread's cache could go out of
+        // step with the server. Subscriptions (MSC4306) are off: servers don't have them yet.
+        .with_threading_support(ThreadingSupport::Enabled {
+            with_subscriptions: false,
         })
         .sqlite_store(store_dir, Some(store_passphrase))
         .build()
