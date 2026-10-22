@@ -217,7 +217,7 @@ void main() {
     final threadBar = find.byKey(Key('thread.bar.${hiBob.meta.eventId}'));
     await _pumpUntil(
       tester,
-      find.descendant(of: threadBar, matching: find.text('1 reply')),
+      find.descendant(of: threadBar, matching: find.textContaining('1 reply')),
     );
     // Neither in the chat nor as the chat list's last message.
     expect(find.text('Thread from Bob'), findsNothing);

@@ -94,7 +94,7 @@ void main() {
     final bar = find.byKey(const Key('thread.bar.$_root'));
     expect(bar, findsOneWidget);
     expect(
-      find.descendant(of: bar, matching: find.text('2 replies')),
+      find.descendant(of: bar, matching: find.textContaining('2 replies')),
       findsOneWidget,
     );
     // The replies stay out of the chat.

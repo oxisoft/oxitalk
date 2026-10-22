@@ -11,6 +11,7 @@ import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
+import '../../ui/bubble_footer.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../app/file_actions.dart';
@@ -541,6 +542,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
               key: Key('thread.bar.${meta.eventId}'),
               account: widget.account,
               thread: thread,
+              compact: entry is MessageEntry && isEmojiOnly(entry.body),
               onTap: () => _actions.openThread(entry),
             ),
       hoverActions: canAct && entry is! UndecryptableEntry
@@ -780,7 +782,7 @@ class MessageBubble extends StatefulWidget {
   /// Under the bubble.
   final Widget? reactions;
 
-  /// Under the reactions: the thread that starts at this message.
+  /// The thread that starts at this message: the bubble's last row, or under big emojis.
   final Widget? thread;
 
   /// Shown beside the bubble while the mouse is over the message.
@@ -804,64 +806,44 @@ class _MessageBubbleState extends State<MessageBubble> {
         : (dark ? OxiColors.bubbleDark : OxiColors.bubbleLight);
     final meta = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
     final sender = widget.sender;
+    final thread = widget.thread;
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(14),
+      topRight: const Radius.circular(14),
+      bottomLeft: Radius.circular(isOwn ? 14 : 4),
+      bottomRight: Radius.circular(isOwn ? 4 : 14),
+    );
     final bubble = ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.sizeOf(context).width * 0.75,
       ),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 2),
-        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(isOwn ? 14 : 4),
-            bottomRight: Radius.circular(isOwn ? 4 : 14),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (sender != null)
-              SelectionContainer.disabled(
-                child: Text(
-                  sender,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color:
-                        OxiColors.avatars[sender.hashCode.abs() %
-                            OxiColors.avatars.length],
-                  ),
-                ),
+        decoration: BoxDecoration(color: color, borderRadius: radius),
+        // The thread's row is the bubble's last, across its full width; under big emojis
+        // it is a small chip of its own.
+        child: switch (thread) {
+          final thread? when !widget.plain => BubbleWithFooter(
+            content: _content(sender, meta),
+            footer: Material(
+              type: MaterialType.transparency,
+              borderRadius: BorderRadius.only(
+                bottomLeft: radius.bottomLeft,
+                bottomRight: radius.bottomRight,
               ),
-            ?widget.quote,
-            Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              spacing: 8,
-              children: [
-                widget.child,
-                SelectionContainer.disabled(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.edited) Text('edited', style: meta),
-                      if (widget.edited) const SizedBox(width: 4),
-                      Text(clockTime(widget.time), style: meta),
-                      if (isOwn && widget.sendState != null) ...[
-                        const SizedBox(width: 3),
-                        _SendStateIcon(state: widget.sendState!),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
+              clipBehavior: Clip.antiAlias,
+              child: thread,
             ),
-            ...widget.footer,
-          ],
-        ),
+          ),
+          final thread? => Column(
+            crossAxisAlignment: isOwn
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [_content(sender, meta), thread],
+          ),
+          null => _content(sender, meta),
+        },
       ),
     );
     final reactions = widget.reactions;
@@ -870,7 +852,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [bubble, ?reactions, ?widget.thread],
+      children: [bubble, ?reactions],
     );
     final hoverActions = widget.hoverActions;
     // Room kept for the toolbar, so the message doesn't move when it shows.
@@ -911,6 +893,56 @@ class _MessageBubbleState extends State<MessageBubble> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// The sender's name, the quote, the message with its time, and the footer.
+  Widget _content(String? sender, TextStyle? meta) {
+    final isOwn = widget.isOwn;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (sender != null)
+            SelectionContainer.disabled(
+              child: Text(
+                sender,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color:
+                      OxiColors.avatars[sender.hashCode.abs() %
+                          OxiColors.avatars.length],
+                ),
+              ),
+            ),
+          ?widget.quote,
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 8,
+            children: [
+              widget.child,
+              SelectionContainer.disabled(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.edited) Text('edited', style: meta),
+                    if (widget.edited) const SizedBox(width: 4),
+                    Text(clockTime(widget.time), style: meta),
+                    if (isOwn && widget.sendState != null) ...[
+                      const SizedBox(width: 3),
+                      _SendStateIcon(state: widget.sendState!),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          ...widget.footer,
+        ],
       ),
     );
   }
@@ -1303,83 +1335,113 @@ class _ModeBar extends StatelessWidget {
   }
 }
 
-/// Under a thread's first message: how many replies, who wrote the latest and when; opens
-/// the thread.
+/// A thread at its first message: how many replies, who wrote the latest and when; opens
+/// the thread. Inside the bubble it is the bubble's last row, under a thin line; [compact],
+/// it is a small chip under big emojis, which have no bubble.
 class ThreadBar extends StatelessWidget {
   const ThreadBar({
     required this.account,
     required this.thread,
     required this.onTap,
+    this.compact = false,
     super.key,
   });
 
   final String account;
   final ThreadSummary thread;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final latest = thread.latest;
-    final small = Theme.of(context).textTheme.bodySmall;
-    return SelectionContainer.disabled(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 2, bottom: 4),
-        child: Material(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 12, 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (latest != null) ...[
-                    MatrixAvatar(
-                      account: account,
-                      url: latest.senderAvatarUrl,
-                      name: latest.senderName ?? latest.sender,
-                      seed: latest.sender,
-                      radius: 10,
-                    ),
-                    const SizedBox(width: 6),
-                  ] else ...[
-                    const Icon(
-                      Icons.forum_outlined,
-                      size: 16,
-                      color: OxiColors.accent,
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  // Narrow bubbles shorten the texts rather than overflow.
-                  Flexible(
-                    child: Text(
-                      replyCountLabel(thread.replyCount),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: OxiColors.accent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+    final muted = theme.textTheme.bodySmall?.copyWith(fontSize: 11);
+    final row = Row(
+      children: [
+        const Icon(Icons.forum_outlined, size: 16, color: OxiColors.accent),
+        const SizedBox(width: 6),
+        if (latest != null) ...[
+          SizedBox.square(
+            dimension: 18,
+            child: MatrixAvatar(
+              account: account,
+              url: latest.senderAvatarUrl,
+              name: latest.senderName ?? latest.sender,
+              seed: latest.sender,
+              radius: 9,
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
+        // The one flexible part: narrow bubbles shorten it rather than overflow.
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: replyCountLabel(thread.replyCount),
+                  style: const TextStyle(
+                    color: OxiColors.accent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
-                  if (latest != null) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        listTime(latest.time),
-                        maxLines: 1,
-                        overflow: TextOverflow.clip,
-                        style: small,
-                      ),
-                    ),
-                  ],
-                ],
+                ),
+                if (latest != null)
+                  TextSpan(text: '  ${listTime(latest.time)}', style: muted),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(
+          Icons.chevron_right_rounded,
+          size: 18,
+          color: OxiColors.accent,
+        ),
+      ],
+    );
+    if (compact) {
+      return SelectionContainer.disabled(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Material(
+            color: theme.colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+                // As wide as it needs, up to the room there is.
+                child: IntrinsicWidth(child: row),
               ),
             ),
           ),
         ),
+      );
+    }
+    return SelectionContainer.disabled(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.10),
+          ),
+          InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+              child: row,
+            ),
+          ),
+        ],
       ),
     );
   }
