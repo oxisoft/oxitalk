@@ -134,6 +134,18 @@ void main() {
         tester.widget<Text>(find.byKey(const Key('titleBar.room'))).data,
         'Team',
       );
+      // The account in front sits between the app's name and the chat's.
+      final account = find.byKey(const Key('titleBar.account'));
+      expect(account, findsOneWidget);
+      final x = tester.getCenter(account).dx;
+      expect(
+        x,
+        greaterThan(tester.getCenter(find.byKey(const Key('titleBar.app'))).dx),
+      );
+      expect(
+        x,
+        lessThan(tester.getCenter(find.byKey(const Key('titleBar.room'))).dx),
+      );
       final bar = tester.getRect(find.byKey(const Key('titleBar')));
       expect(bar.width, _wide.width);
       expect(

@@ -76,7 +76,7 @@ class AppTitleBar extends ConsumerWidget {
   }
 }
 
-/// The app's picture and name, then the open chat's name.
+/// The app's picture and name, the account in front, then the open chat's name.
 class _Title extends ConsumerWidget {
   const _Title({required this.roomId});
 
@@ -96,6 +96,13 @@ class _Title extends ConsumerWidget {
       _ => null,
     };
     final muted = theme.colorScheme.onSurfaceVariant;
+    final accountName = account == null
+        ? null
+        : ref.watch(profileProvider(account)).value?.displayName ?? account;
+    Widget chevron() => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -117,11 +124,22 @@ class _Title extends ConsumerWidget {
             letterSpacing: 0.3,
           ),
         ),
-        if (room != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+        if (accountName != null) ...[
+          chevron(),
+          Flexible(
+            child: Text(
+              accountName,
+              key: const Key('titleBar.account'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+        ],
+        if (room != null) ...[
+          chevron(),
           if (room.isEncrypted) ...[
             Icon(Icons.lock_rounded, size: 13, color: OxiColors.accent),
             const SizedBox(width: 4),
