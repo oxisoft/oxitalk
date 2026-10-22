@@ -15,6 +15,7 @@ import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../app/file_actions.dart';
 import '../chats/badges.dart';
+import 'chat_search.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
 import 'jump.dart';
@@ -67,6 +68,14 @@ class ChatPane extends ConsumerWidget {
       ref.watch(typingProvider(account)).value?[roomId],
       direct: room?.isDm ?? false,
     );
+    final searching = ref.watch(
+      chatSearchProvider((account, roomId)).select((search) => search.open),
+    );
+    void toggleSearch() {
+      final search = ref.read(chatSearchProvider((account, roomId)).notifier);
+      searching ? search.close() : search.open();
+    }
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -75,6 +84,13 @@ class ChatPane extends ConsumerWidget {
             : null,
         titleSpacing: showBack ? 0 : null,
         actions: [
+          IconButton(
+            key: const Key('chat.search'),
+            tooltip: 'Search this chat (Ctrl+F)',
+            isSelected: searching,
+            icon: const Icon(Icons.search_rounded),
+            onPressed: toggleSearch,
+          ),
           IconButton(
             key: const Key('chat.threads'),
             tooltip: 'Threads',
@@ -161,6 +177,10 @@ class ChatPane extends ConsumerWidget {
               : OxiColors.wallpaperLight,
           child: Column(
             children: [
+              if (searching)
+                ChatSearchBar(account: account, roomId: roomId)
+              else
+                SearchShortcut(account: account, roomId: roomId),
               PinnedBanner(account: account, roomId: roomId),
               Expanded(
                 child: TimelineView(

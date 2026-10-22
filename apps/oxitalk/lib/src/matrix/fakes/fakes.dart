@@ -612,6 +612,50 @@ final class FakeSession implements MatrixSession {
         () => FakeTimeline(ownUserId: userId),
       );
 
+  /// The messages of each room this device has, which [searchRoom] searches.
+  final searchable = <String, List<SearchHit>>{};
+
+  /// What [searchLoadOlder] adds to [searchable], by room ID; then the start is reached.
+  final olderHistory = <String, List<SearchHit>>{};
+
+  /// The queries [searchRoom] was asked, in order.
+  final searches = <String>[];
+  var historyLoads = 0;
+
+  @override
+  Future<SearchResults> searchRoom(
+    String roomId,
+    String query, {
+    int limit = 500,
+  }) async {
+    searches.add(query);
+    final needle = query.trim().toLowerCase();
+    final messages = searchable[roomId] ?? const <SearchHit>[];
+    final hits = [
+      for (final hit in messages)
+        if (needle.isNotEmpty &&
+            (hit.text.toLowerCase().contains(needle) ||
+                (hit.filename?.toLowerCase().contains(needle) ?? false)))
+          hit,
+    ]..sort((a, b) => b.time.compareTo(a.time));
+    return SearchResults(
+      hits: hits.take(limit).toList(),
+      total: hits.length,
+      searched: messages.length,
+      oldest: messages.isEmpty
+          ? null
+          : messages.map((m) => m.time).reduce((a, b) => a.isBefore(b) ? a : b),
+    );
+  }
+
+  @override
+  Future<bool> searchLoadOlder(String roomId, {int events = 500}) async {
+    historyLoads++;
+    final older = olderHistory.remove(roomId) ?? const <SearchHit>[];
+    searchable[roomId] = [...older, ...?searchable[roomId]];
+    return true;
+  }
+
   @override
   Future<void> logout() async => loggedOut = true;
 

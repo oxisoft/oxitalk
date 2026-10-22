@@ -161,6 +161,29 @@ IconData? _mediaIcon(TimelineEntry? entry) => switch (entry) {
   _ => null,
 };
 
+/// Shows the message [eventId] in the chat: a reply in a thread opens the thread, anything
+/// else scrolls the chat to it. With [openChat], the chat is opened first (from its info);
+/// with [keepHighlight] the message stays highlighted until the next jump.
+void showInChat(
+  BuildContext context,
+  WidgetRef ref, {
+  required String account,
+  required String roomId,
+  required String eventId,
+  String? threadRoot,
+  bool openChat = false,
+  bool keepHighlight = false,
+}) {
+  if (threadRoot != null && threadRoot != eventId) {
+    context.go(Routes.thread(roomId, threadRoot));
+    return;
+  }
+  if (openChat) context.go(Routes.room(roomId));
+  ref
+      .read(chatJumpProvider((account, roomId)).notifier)
+      .show(eventId, keepHighlight: keepHighlight);
+}
+
 /// Above the chat while it has pins, as in Element X: the pin the banner is at; a tap
 /// shows that message and moves the banner to the pin before it. The list button opens all.
 class PinnedBanner extends ConsumerStatefulWidget {

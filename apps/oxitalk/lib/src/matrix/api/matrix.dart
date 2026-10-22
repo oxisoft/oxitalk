@@ -2,9 +2,11 @@ import 'dart:typed_data';
 
 import 'models.dart';
 import 'pins.dart';
+import 'search.dart';
 
 export 'models.dart';
 export 'pins.dart';
+export 'search.dart';
 
 enum FailureKind {
   invalidServer,
@@ -246,6 +248,18 @@ abstract interface class MatrixSession {
 
   /// A timeline of only the room's pinned messages, oldest first, decrypted.
   Future<RoomTimeline> openPinnedTimeline(String roomId);
+
+  /// Searches the room's messages on this device for [query] (case-insensitive, in texts,
+  /// captions and file names); nothing goes to the server, so it works in encrypted rooms.
+  Future<SearchResults> searchRoom(
+    String roomId,
+    String query, {
+    int limit = 500,
+  });
+
+  /// Loads about [events] more of the room's history from the server, for [searchRoom] to
+  /// reach further back. Returns `true` once the room's first message is there.
+  Future<bool> searchLoadOlder(String roomId, {int events = 500});
 
   /// Logs out on the server and deletes everything stored for this account; the other
   /// accounts stay.

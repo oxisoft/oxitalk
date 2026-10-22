@@ -662,6 +662,21 @@ final class RustMatrixSession implements MatrixSession {
       );
 
   @override
+  Future<SearchResults> searchRoom(
+    String roomId,
+    String query, {
+    int limit = 500,
+  }) async => searchResultsOf(
+    await guarded(
+      () => _session.searchRoom(roomId: roomId, query: query, limit: limit),
+    ),
+  );
+
+  @override
+  Future<bool> searchLoadOlder(String roomId, {int events = 500}) =>
+      guarded(() => _session.searchLoadOlder(roomId: roomId, events: events));
+
+  @override
   Future<void> logout() async {
     try {
       await guarded(_session.logout);
