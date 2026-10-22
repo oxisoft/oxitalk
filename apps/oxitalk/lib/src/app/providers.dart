@@ -258,9 +258,11 @@ class Accounts extends _$Accounts {
     final session = _current.byId(userId);
     if (session == null) return;
     appLog(LogLevel.info, 'accounts', 'logging out $userId');
+    // Read before the await: the provider can be rebuilt or disposed while logging out.
+    final pictures = ref.read(accountPicturesProvider);
     _remove(session);
     await session.logout();
-    await ref.read(accountPicturesProvider).clearLocal(userId);
+    await pictures.clearLocal(userId);
   }
 
   void _remove(MatrixSession session) {
