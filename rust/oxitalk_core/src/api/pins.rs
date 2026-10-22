@@ -12,7 +12,10 @@ use matrix_sdk::{
     Room,
     ruma::{OwnedEventId, OwnedRoomId, events::StateEventType},
 };
-use matrix_sdk_ui::{room_list_service::RoomListService, timeline::TimelineFocus};
+use matrix_sdk_ui::{
+    room_list_service::{RoomListService, State},
+    timeline::TimelineFocus,
+};
 use tokio::task::AbortHandle;
 
 use super::{
@@ -173,6 +176,49 @@ impl Drop for Pins {
                 subscriptions.remove(room_id);
                 self.room_list.remove_room_subscriptions(&[room_id]);
             }
+        }
+    }
+}
+
+/// Puts the room subscriptions back after the sliding sync session expired, until the room
+/// list service is gone.
+///
+/// When the server answers `M_UNKNOWN_POS`, the SDK resets the session and drops every room
+/// subscription (`SlidingSync::expire_session`), and the sync recovers without them: the
+/// subscribed rooms then no longer bring their `m.room.pinned_events`, which only a room
+/// subscription asks for. Synapse answers so whenever a long poll cancelled to add a
+/// subscription still finishes on the server after the request that replaced it: its
+/// position wipes out the new one. So every time the room list (re)starts or recovers, the
+/// rooms the app still wants are subscribed again; a subscription that is already there is
+/// left as it is.
+pub(crate) async fn keep_room_subscriptions(
+    room_list: Arc<RoomListService>,
+    subscriptions: Arc<Mutex<HashMap<OwnedRoomId, usize>>>,
+) {
+    let mut states = room_list.state();
+    let mut after_error = false;
+    while let Some(state) = states.next().await {
+        let resubscribe = match state {
+            State::Error { .. } | State::Terminated { .. } => {
+                after_error = true;
+                false
+            }
+            State::Init | State::SettingUp | State::Recovering => true,
+            State::Running => after_error,
+        };
+        if !resubscribe {
+            continue;
+        }
+        after_error = false;
+        let subscribed: Vec<OwnedRoomId> = subscriptions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .keys()
+            .cloned()
+            .collect();
+        if !subscribed.is_empty() {
+            let ids: Vec<_> = subscribed.iter().map(AsRef::as_ref).collect();
+            room_list.set_room_subscriptions(&ids).await;
         }
     }
 }

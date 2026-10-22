@@ -23,6 +23,7 @@ use tokio::{runtime::Handle, sync::broadcast, task::AbortHandle};
 use super::{
     error::{CoreError, parse_id},
     notify::{self, Candidate},
+    pins,
     sync::new_sync_service,
 };
 use crate::frb_generated::StreamSink;
@@ -149,7 +150,7 @@ impl Session {
         let sync = new_sync_service(client.clone()).await?;
         let notification_settings = client.notification_settings().await;
         let notification_candidates = notify::register(&client).await;
-        Ok(Self {
+        let session = Self {
             client,
             sync,
             notification_settings,
@@ -157,7 +158,12 @@ impl Session {
             room_subscriptions: Arc::default(),
             tasks: Mutex::default(),
             runtime: Handle::current(),
-        })
+        };
+        session.spawn(pins::keep_room_subscriptions(
+            session.sync.room_list_service(),
+            session.room_subscriptions.clone(),
+        ));
+        Ok(session)
     }
 
     /// What the app stores to [`restore`] this session later.

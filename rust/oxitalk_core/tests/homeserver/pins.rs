@@ -178,6 +178,34 @@ pub(super) async fn public_room_with(bodies: &[String]) -> Result<PublicRoom, Bo
     Ok((alice, bob, room_id, ids, stores))
 }
 
+/// When the sync starts over because the server forgot its position, as Synapse does after a
+/// request cancelled to subscribe to a room, the pins still follow the room.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn pins_follow_the_room_after_the_sync_session_expired() -> TestResult {
+    let (alice, bob, room_id, ids, _stores) = public_room_with(&["pin me".to_owned()]).await?;
+    let pinned = ids[0].clone();
+
+    let bob_pins = bob.pins(room_id.clone()).await?;
+    let mut states = watch_pins(&bob_pins).await;
+    wait_for_pins(&mut states, "Bob sees no pins", |p| {
+        !p.can_pin && p.event_ids.is_empty()
+    })
+    .await?;
+
+    bob.expire_sync_sessions().await;
+    bob.start_sync().await;
+    let alice_pins = alice.pins(room_id).await?;
+    assert!(alice_pins.pin(pinned.clone()).await?);
+    wait_for_pins(
+        &mut states,
+        "Bob sees the pin after his sync restarted",
+        |p| p.event_ids == [pinned.clone()],
+    )
+    .await?;
+    Ok(())
+}
+
 /// Only members with the power level for pins may pin; the event timeline jumps to an old
 /// message and pages forward to the newest.
 #[tokio::test(flavor = "multi_thread")]

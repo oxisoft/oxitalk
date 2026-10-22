@@ -42,6 +42,14 @@ impl Session {
         self.sync.stop().await;
     }
 
+    /// Stops syncing and drops the sync sessions, as the SDK does when the server no longer
+    /// knows their position (`M_UNKNOWN_POS`); [`Self::start_sync`] starts them over. For Rust
+    /// callers (the tests).
+    #[frb(ignore)]
+    pub async fn expire_sync_sessions(&self) {
+        self.sync.expire_sessions().await;
+    }
+
     /// Sends the current [`SyncState`], then every change.
     #[allow(
         clippy::unused_async,
