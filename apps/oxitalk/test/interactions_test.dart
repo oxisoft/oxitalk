@@ -186,6 +186,78 @@ void main() {
     });
   });
 
+  group('composer emoji picker', () {
+    testWidgets('a line of the recent emojis sits under the picker, as many '
+        'as fit; a tap inserts one and counts it', (tester) async {
+      final (session, _, _) = await _open(tester);
+      // More than one line holds, the last used first.
+      session.recent.addAll([
+        '🚀', '😂', '👍', '🎉', '❤️', '🙏', '😮', '😢', '🔥', '✅', '👀', //
+        '🤔', '💯', '🙌', '😎', '🥳',
+      ]);
+      await tester.tap(find.byKey(const Key('composer.emoji')));
+      await tester.pumpAndSettle();
+      final row = find.byKey(const Key('emoji.recent'));
+      expect(row, findsOneWidget);
+      // The line is the picker's last, at the dialog's bottom.
+      final dialog = tester.getRect(
+        find.byKey(const Key('composer.emojiPicker')),
+      );
+      final line = tester.getRect(row);
+      expect(line.bottom, lessThanOrEqualTo(dialog.bottom));
+      expect(line.height, lessThan(50));
+      // 380 wide: the icon, then 8 of 40 each; the rest wait for a wider window.
+      final shown = [
+        for (final emoji in session.recent)
+          if (find.byKey(Key('emoji.recent.$emoji')).evaluate().isNotEmpty)
+            emoji,
+      ];
+      expect(shown, session.recent.take(8).toList());
+      for (final emoji in shown) {
+        final cell = tester.getRect(find.byKey(Key('emoji.recent.$emoji')));
+        expect(cell.top, greaterThanOrEqualTo(line.top), reason: 'one line');
+        expect(cell.bottom, lessThanOrEqualTo(line.bottom), reason: 'one line');
+      }
+
+      await tester.tap(find.byKey(const Key('emoji.recent.🎉')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('composer.emojiPicker')), findsNothing);
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('composer.text')),
+      );
+      expect(field.controller!.text, '🎉');
+      // Counted: it moves to the front of the account's list.
+      expect(session.recent.first, '🎉');
+    });
+
+    testWidgets('without recent emojis there is no such line; a pick from the '
+        'picker starts the list', (tester) async {
+      final (session, _, _) = await _open(tester);
+      await tester.tap(find.byKey(const Key('composer.emoji')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('composer.emojiPicker')), findsOneWidget);
+      expect(find.byKey(const Key('emoji.recent')), findsNothing);
+      await tester.tap(find.text('😀').first);
+      await tester.pumpAndSettle();
+      expect(session.recent, ['😀']);
+    });
+
+    testWidgets('the reaction dialog’s full picker has no recent line of its '
+        'own', (tester) async {
+      final (session, _, _) = await _open(tester);
+      session.recent.addAll(['🚀', '🔥']);
+      await _hover(tester, 'Hello there');
+      await tester.tap(
+        find.byKey(const Key('hover.react')).hitTestable().first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reaction.🚀')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('reaction.more')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('emoji.recent')), findsNothing);
+    });
+  });
+
   group('reply', () {
     testWidgets('the toolbar’s Reply shows what is answered; sending replies', (
       tester,

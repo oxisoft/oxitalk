@@ -29,22 +29,94 @@ bool isEmojiOnly(String text) {
 }
 
 /// The picker as both places use it: categories, search and skin tones; recent ones are the
-/// account's, shown separately.
-Widget emojiPicker({required void Function(String emoji) onSelected}) =>
-    EmojiPicker(
-      onEmojiSelected: (_, emoji) => onSelected(emoji.emoji),
-      config: const Config(
-        height: 300,
-        // Desktop fonts have them all; asking the platform needs a plugin call.
-        checkPlatformCompatibility: false,
-        categoryViewConfig: CategoryViewConfig(
-          recentTabBehavior: RecentTabBehavior.NONE,
-        ),
-        bottomActionBarConfig: BottomActionBarConfig(
-          showBackspaceButton: false,
-        ),
+/// account's, shown separately. With [recent], one line of them sits under the picker, as
+/// many as fit.
+Widget emojiPicker({
+  required void Function(String emoji) onSelected,
+  List<String> recent = const [],
+}) {
+  final picker = EmojiPicker(
+    onEmojiSelected: (_, emoji) => onSelected(emoji.emoji),
+    config: const Config(
+      height: 300,
+      // Desktop fonts have them all; asking the platform needs a plugin call.
+      checkPlatformCompatibility: false,
+      categoryViewConfig: CategoryViewConfig(
+        recentTabBehavior: RecentTabBehavior.NONE,
+      ),
+      bottomActionBarConfig: BottomActionBarConfig(showBackspaceButton: false),
+    ),
+  );
+  if (recent.isEmpty) return picker;
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      picker,
+      RecentEmojiRow(emojis: recent, onSelected: onSelected),
+    ],
+  );
+}
+
+/// One line of the user's recent emojis, the last used first; as many as fit.
+class RecentEmojiRow extends StatelessWidget {
+  const RecentEmojiRow({
+    required this.emojis,
+    required this.onSelected,
+    super.key,
+  });
+
+  final List<String> emojis;
+  final void Function(String emoji) onSelected;
+
+  static const _cell = 40.0;
+  static const _label = 32.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const Key('emoji.recent'),
+      height: 44,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fit = ((constraints.maxWidth - _label) / _cell).floor();
+          return Row(
+            children: [
+              SizedBox(
+                width: _label,
+                child: Tooltip(
+                  message: 'Recently used',
+                  child: Icon(
+                    Icons.history_rounded,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              for (final emoji in emojis.take(fit < 0 ? 0 : fit))
+                SizedBox(
+                  width: _cell,
+                  height: _cell,
+                  child: InkWell(
+                    key: Key('emoji.recent.$emoji'),
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => onSelected(emoji),
+                    child: Center(
+                      child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
+  }
+}
 
 /// Asks for a reaction: the quick ones and the user's recent ones in a row, and the full
 /// picker under ＋. Returns the emoji, or `null` if the user closes it.

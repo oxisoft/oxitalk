@@ -1168,8 +1168,14 @@ class _ComposerState extends ConsumerState<Composer> {
         key: const Key('composer.emojiPicker'),
         child: SizedBox(
           width: 380,
-          child: emojiPicker(
-            onSelected: (emoji) => Navigator.of(context).pop(emoji),
+          // The user's recent ones in a line under the picker.
+          child: Consumer(
+            builder: (context, ref, _) => emojiPicker(
+              recent:
+                  ref.watch(recentEmojisProvider(widget.account)).value ??
+                  const [],
+              onSelected: (emoji) => Navigator.of(context).pop(emoji),
+            ),
           ),
         ),
       ),
