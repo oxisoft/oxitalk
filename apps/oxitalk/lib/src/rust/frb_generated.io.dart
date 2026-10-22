@@ -15,6 +15,7 @@ import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
 import 'api/rooms.dart';
+import 'api/search.dart';
 import 'api/sections.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
@@ -225,6 +226,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  MediaKind dco_decode_box_autoadd_media_kind(dynamic raw);
+
+  @protected
   MediaMessage dco_decode_box_autoadd_media_message(dynamic raw);
 
   @protected
@@ -326,6 +330,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomTags> dco_decode_list_room_tags(dynamic raw);
 
   @protected
+  List<SearchHit> dco_decode_list_search_hit(dynamic raw);
+
+  @protected
   List<ThreadSummary> dco_decode_list_thread_summary(dynamic raw);
 
   @protected
@@ -369,6 +376,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  MediaKind? dco_decode_opt_box_autoadd_media_kind(dynamic raw);
 
   @protected
   ReplyQuote? dco_decode_opt_box_autoadd_reply_quote(dynamic raw);
@@ -443,6 +453,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomTyping dco_decode_room_typing(dynamic raw);
+
+  @protected
+  SearchHit dco_decode_search_hit(dynamic raw);
+
+  @protected
+  SearchResults dco_decode_search_results(dynamic raw);
 
   @protected
   SectionSettings dco_decode_section_settings(dynamic raw);
@@ -686,6 +702,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  MediaKind sse_decode_box_autoadd_media_kind(SseDeserializer deserializer);
+
+  @protected
   MediaMessage sse_decode_box_autoadd_media_message(
     SseDeserializer deserializer,
   );
@@ -801,6 +820,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomTags> sse_decode_list_room_tags(SseDeserializer deserializer);
 
   @protected
+  List<SearchHit> sse_decode_list_search_hit(SseDeserializer deserializer);
+
+  @protected
   List<ThreadSummary> sse_decode_list_thread_summary(
     SseDeserializer deserializer,
   );
@@ -854,6 +876,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MediaKind? sse_decode_opt_box_autoadd_media_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ReplyQuote? sse_decode_opt_box_autoadd_reply_quote(
@@ -940,6 +967,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomTyping sse_decode_room_typing(SseDeserializer deserializer);
+
+  @protected
+  SearchHit sse_decode_search_hit(SseDeserializer deserializer);
+
+  @protected
+  SearchResults sse_decode_search_results(SseDeserializer deserializer);
 
   @protected
   SectionSettings sse_decode_section_settings(SseDeserializer deserializer);
@@ -1232,6 +1265,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_media_kind(
+    MediaKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_media_message(
     MediaMessage self,
     SseSerializer serializer,
@@ -1391,6 +1430,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_room_tags(List<RoomTags> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_search_hit(
+    List<SearchHit> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_thread_summary(
     List<ThreadSummary> self,
     SseSerializer serializer,
@@ -1453,6 +1498,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_media_kind(
+    MediaKind? self,
     SseSerializer serializer,
   );
 
@@ -1551,6 +1602,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_typing(RoomTyping self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_hit(SearchHit self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_results(SearchResults self, SseSerializer serializer);
 
   @protected
   void sse_encode_section_settings(

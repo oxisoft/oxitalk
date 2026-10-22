@@ -7,6 +7,8 @@
 
 #[path = "homeserver/pins.rs"]
 mod pins;
+#[path = "homeserver/search.rs"]
+mod search;
 mod support;
 
 use std::{

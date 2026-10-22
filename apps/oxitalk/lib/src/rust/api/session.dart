@@ -17,6 +17,7 @@ import 'profile.dart';
 import 'room_info.dart';
 import 'room_list.dart';
 import 'rooms.dart';
+import 'search.dart';
 import 'sections.dart';
 import 'sync.dart';
 import 'threads.dart';
@@ -340,6 +341,15 @@ abstract class Session implements RustOpaqueInterface {
   /// otherwise as the server answers.
   Future<void> saveSectionSettings({required SectionSettings settings});
 
+  /// Pages the room's history back from where the device has it, by about `events` events,
+  /// so that a search reaches further back. Encrypted events are decrypted as they come,
+  /// when the device has their keys. Returns `true` once the room's first event is reached.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or as the server answers.
+  Future<bool> searchLoadOlder({required String roomId, required int events});
+
   /// People in the server's user directory whose name or ID matches `term`. Which users
   /// a server lists is up to it (often those sharing a room with the user, or in public
   /// rooms).
@@ -348,6 +358,20 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers.
   Future<List<Person>> searchPeople({required String term, required int limit});
+
+  /// Searches the room's messages this device has for `query`: case-insensitive, in the
+  /// text, a file's caption and its name. Nothing goes to the server. Deleted messages are
+  /// left out, edited ones are searched as they are now.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or
+  /// [`CoreError::Internal`] if the store can't be read.
+  Future<SearchResults> searchRoom({
+    required String roomId,
+    required String query,
+    required int limit,
+  });
 
   /// What the app stores to [`restore`] this session later.
   ///

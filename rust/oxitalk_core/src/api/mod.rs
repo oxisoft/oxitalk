@@ -17,6 +17,7 @@ pub mod rich_text;
 pub mod room_info;
 pub mod room_list;
 pub mod rooms;
+pub mod search;
 pub mod sections;
 pub mod session;
 pub mod sync;
