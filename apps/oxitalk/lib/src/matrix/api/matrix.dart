@@ -1,8 +1,12 @@
 import 'dart:typed_data';
 
 import 'models.dart';
+import 'pins.dart';
+import 'search.dart';
 
 export 'models.dart';
+export 'pins.dart';
+export 'search.dart';
 
 enum FailureKind {
   invalidServer,
@@ -234,6 +238,29 @@ abstract interface class MatrixSession {
 
   Future<RoomTimeline> openTimeline(String roomId);
 
+  /// The room's timeline around the message [eventId], loaded from the server: to show an
+  /// old message without loading everything after it. [RoomTimeline.loadNewer] pages it
+  /// forward to the newest message.
+  Future<RoomTimeline> openTimelineAt(String roomId, String eventId);
+
+  /// The room's pins, and pinning.
+  Future<PinnedEvents> openPins(String roomId);
+
+  /// A timeline of only the room's pinned messages, oldest first, decrypted.
+  Future<RoomTimeline> openPinnedTimeline(String roomId);
+
+  /// Searches the room's messages on this device for [query] (case-insensitive, in texts,
+  /// captions and file names); nothing goes to the server, so it works in encrypted rooms.
+  Future<SearchResults> searchRoom(
+    String roomId,
+    String query, {
+    int limit = 500,
+  });
+
+  /// Loads about [events] more of the room's history from the server, for [searchRoom] to
+  /// reach further back. Returns `true` once the room's first message is there.
+  Future<bool> searchLoadOlder(String roomId, {int events = 500});
+
   /// Logs out on the server and deletes everything stored for this account; the other
   /// accounts stay.
   Future<void> logout();
@@ -259,6 +286,10 @@ abstract interface class RoomTimeline {
 
   /// Loads older messages. Returns `true` once the start of the room is reached.
   Future<bool> loadOlder();
+
+  /// Loads newer messages into a timeline opened at an event. Returns `true` once the
+  /// newest is there; always `true` for a live timeline.
+  Future<bool> loadNewer();
 
   /// Sends [text]; with [markdown], formatted from its markdown as Element sends it.
   Future<void> send(String text, {bool markdown = false});

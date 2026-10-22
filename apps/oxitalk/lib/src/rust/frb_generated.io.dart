@@ -9,11 +9,13 @@ import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/notifications.dart';
 import 'api/notify.dart';
+import 'api/pins.dart';
 import 'api/profile.dart';
 import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
 import 'api/rooms.dart';
+import 'api/search.dart';
 import 'api/sections.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
@@ -38,6 +40,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_PinsPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPinsPtr;
+
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_SessionPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSessionPtr;
@@ -56,6 +61,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  Pins
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    dynamic raw,
+  );
 
   @protected
   Session
@@ -82,6 +93,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Pins
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    dynamic raw,
+  );
+
+  @protected
   Session
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     dynamic raw,
@@ -102,6 +119,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Verification
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  );
+
+  @protected
+  Pins
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     dynamic raw,
   );
 
@@ -151,6 +174,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_notification_settings_state_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<RoomPins> dco_decode_StreamSink_room_pins_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<RoomTyping> dco_decode_StreamSink_room_typing_Sse(dynamic raw);
 
   @protected
@@ -198,6 +224,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  MediaKind dco_decode_box_autoadd_media_kind(dynamic raw);
 
   @protected
   MediaMessage dco_decode_box_autoadd_media_message(dynamic raw);
@@ -301,6 +330,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomTags> dco_decode_list_room_tags(dynamic raw);
 
   @protected
+  List<SearchHit> dco_decode_list_search_hit(dynamic raw);
+
+  @protected
   List<ThreadSummary> dco_decode_list_thread_summary(dynamic raw);
 
   @protected
@@ -344,6 +376,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  MediaKind? dco_decode_opt_box_autoadd_media_kind(dynamic raw);
 
   @protected
   ReplyQuote? dco_decode_opt_box_autoadd_reply_quote(dynamic raw);
@@ -408,6 +443,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomNotificationMode dco_decode_room_notification_mode(dynamic raw);
 
   @protected
+  RoomPins dco_decode_room_pins(dynamic raw);
+
+  @protected
   RoomSummary dco_decode_room_summary(dynamic raw);
 
   @protected
@@ -415,6 +453,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomTyping dco_decode_room_typing(dynamic raw);
+
+  @protected
+  SearchHit dco_decode_search_hit(dynamic raw);
+
+  @protected
+  SearchResults dco_decode_search_results(dynamic raw);
 
   @protected
   SectionSettings dco_decode_section_settings(dynamic raw);
@@ -483,6 +527,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  Pins
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Session
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     SseDeserializer deserializer,
@@ -507,6 +557,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Pins
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Session
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     SseDeserializer deserializer,
@@ -527,6 +583,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Verification
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Pins
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     SseDeserializer deserializer,
   );
 
@@ -574,6 +636,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<NotificationSettingsState>
   sse_decode_StreamSink_notification_settings_state_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<RoomPins> sse_decode_StreamSink_room_pins_Sse(
     SseDeserializer deserializer,
   );
 
@@ -633,6 +700,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MediaKind sse_decode_box_autoadd_media_kind(SseDeserializer deserializer);
 
   @protected
   MediaMessage sse_decode_box_autoadd_media_message(
@@ -750,6 +820,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomTags> sse_decode_list_room_tags(SseDeserializer deserializer);
 
   @protected
+  List<SearchHit> sse_decode_list_search_hit(SseDeserializer deserializer);
+
+  @protected
   List<ThreadSummary> sse_decode_list_thread_summary(
     SseDeserializer deserializer,
   );
@@ -803,6 +876,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MediaKind? sse_decode_opt_box_autoadd_media_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ReplyQuote? sse_decode_opt_box_autoadd_reply_quote(
@@ -879,6 +957,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RoomPins sse_decode_room_pins(SseDeserializer deserializer);
+
+  @protected
   RoomSummary sse_decode_room_summary(SseDeserializer deserializer);
 
   @protected
@@ -886,6 +967,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomTyping sse_decode_room_typing(SseDeserializer deserializer);
+
+  @protected
+  SearchHit sse_decode_search_hit(SseDeserializer deserializer);
+
+  @protected
+  SearchResults sse_decode_search_results(SseDeserializer deserializer);
 
   @protected
   SectionSettings sse_decode_section_settings(SseDeserializer deserializer);
@@ -966,6 +1053,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    Pins self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     Session self,
     SseSerializer serializer,
@@ -994,6 +1088,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    Pins self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(
     Session self,
     SseSerializer serializer,
@@ -1017,6 +1118,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
     Verification self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    Pins self,
     SseSerializer serializer,
   );
 
@@ -1075,6 +1183,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_notification_settings_state_Sse(
     RustStreamSink<NotificationSettingsState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_room_pins_Sse(
+    RustStreamSink<RoomPins> self,
     SseSerializer serializer,
   );
 
@@ -1147,6 +1261,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_media_kind(
+    MediaKind self,
     SseSerializer serializer,
   );
 
@@ -1310,6 +1430,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_room_tags(List<RoomTags> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_search_hit(
+    List<SearchHit> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_thread_summary(
     List<ThreadSummary> self,
     SseSerializer serializer,
@@ -1372,6 +1498,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_media_kind(
+    MediaKind? self,
     SseSerializer serializer,
   );
 
@@ -1460,6 +1592,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_room_pins(RoomPins self, SseSerializer serializer);
+
+  @protected
   void sse_encode_room_summary(RoomSummary self, SseSerializer serializer);
 
   @protected
@@ -1467,6 +1602,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_typing(RoomTyping self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_hit(SearchHit self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_results(SearchResults self, SseSerializer serializer);
 
   @protected
   void sse_encode_section_settings(
@@ -1566,6 +1707,40 @@ class RustLibWire implements BaseWire {
   /// The symbols are looked up in [dynamicLibrary].
   RustLibWire(ffi.DynamicLibrary dynamicLibrary)
     : _lookup = dynamicLibrary.lookup;
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPinsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_oxitalk_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPinsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPinsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_oxitalk_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPinsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSession(

@@ -588,6 +588,74 @@ final class FakeSession implements MatrixSession {
   Future<ThreadList> openThreadList(String roomId) async =>
       threadLists.putIfAbsent(roomId, FakeThreadList.new);
 
+  /// The timelines [openTimelineAt] returns, by event ID.
+  final timelinesAt = <String, FakeTimeline>{};
+
+  @override
+  Future<RoomTimeline> openTimelineAt(String roomId, String eventId) async =>
+      timelinesAt.putIfAbsent(eventId, () => FakeTimeline(ownUserId: userId));
+
+  /// The pins [openPins] returns, by room ID.
+  final pins = <String, FakePinnedEvents>{};
+
+  @override
+  Future<PinnedEvents> openPins(String roomId) async =>
+      pins.putIfAbsent(roomId, FakePinnedEvents.new);
+
+  /// The timelines [openPinnedTimeline] returns, by room ID.
+  final pinnedTimelines = <String, FakeTimeline>{};
+
+  @override
+  Future<RoomTimeline> openPinnedTimeline(String roomId) async =>
+      pinnedTimelines.putIfAbsent(
+        roomId,
+        () => FakeTimeline(ownUserId: userId),
+      );
+
+  /// The messages of each room this device has, which [searchRoom] searches.
+  final searchable = <String, List<SearchHit>>{};
+
+  /// What [searchLoadOlder] adds to [searchable], by room ID; then the start is reached.
+  final olderHistory = <String, List<SearchHit>>{};
+
+  /// The queries [searchRoom] was asked, in order.
+  final searches = <String>[];
+  var historyLoads = 0;
+
+  @override
+  Future<SearchResults> searchRoom(
+    String roomId,
+    String query, {
+    int limit = 500,
+  }) async {
+    searches.add(query);
+    final needle = query.trim().toLowerCase();
+    final messages = searchable[roomId] ?? const <SearchHit>[];
+    final hits = [
+      for (final hit in messages)
+        if (needle.isNotEmpty &&
+            (hit.text.toLowerCase().contains(needle) ||
+                (hit.filename?.toLowerCase().contains(needle) ?? false)))
+          hit,
+    ]..sort((a, b) => b.time.compareTo(a.time));
+    return SearchResults(
+      hits: hits.take(limit).toList(),
+      total: hits.length,
+      searched: messages.length,
+      oldest: messages.isEmpty
+          ? null
+          : messages.map((m) => m.time).reduce((a, b) => a.isBefore(b) ? a : b),
+    );
+  }
+
+  @override
+  Future<bool> searchLoadOlder(String roomId, {int events = 500}) async {
+    historyLoads++;
+    final older = olderHistory.remove(roomId) ?? const <SearchHit>[];
+    searchable[roomId] = [...older, ...?searchable[roomId]];
+    return true;
+  }
+
   @override
   Future<void> logout() async => loggedOut = true;
 
@@ -611,6 +679,42 @@ final class FakeThreadList implements ThreadList {
   @override
   Future<bool> loadMore() async {
     loads++;
+    return true;
+  }
+
+  @override
+  void close() => closed = true;
+}
+
+final class FakePinnedEvents implements PinnedEvents {
+  FakePinnedEvents([RoomPins pins = const RoomPins()]) : _pins = Latest(pins);
+
+  final Latest<RoomPins> _pins;
+  var closed = false;
+
+  RoomPins get state => _pins.value;
+
+  set state(RoomPins pins) => _pins.value = pins;
+
+  @override
+  Stream<RoomPins> get pins => _pins.stream;
+
+  @override
+  Future<bool> pin(String eventId) async {
+    if (!state.canPin) throw const MatrixFailure(FailureKind.forbidden);
+    if (state.eventIds.contains(eventId)) return false;
+    state = RoomPins(eventIds: [...state.eventIds, eventId], canPin: true);
+    return true;
+  }
+
+  @override
+  Future<bool> unpin(String eventId) async {
+    if (!state.canPin) throw const MatrixFailure(FailureKind.forbidden);
+    if (!state.eventIds.contains(eventId)) return false;
+    state = RoomPins(
+      eventIds: [...state.eventIds]..remove(eventId),
+      canPin: true,
+    );
     return true;
   }
 
@@ -651,6 +755,14 @@ final class FakeTimeline implements RoomTimeline {
   @override
   Future<bool> loadOlder() async {
     olderLoads++;
+    return true;
+  }
+
+  var newerLoads = 0;
+
+  @override
+  Future<bool> loadNewer() async {
+    newerLoads++;
     return true;
   }
 

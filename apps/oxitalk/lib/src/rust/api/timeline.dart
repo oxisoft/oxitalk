@@ -12,7 +12,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
+// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `inner`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
@@ -58,6 +58,14 @@ abstract class Timeline implements RustOpaqueInterface {
   ///
   /// As the server answers.
   Future<bool> paginateBack({required int count});
+
+  /// Loads up to `count` newer events into a timeline around an event. Returns `true` once
+  /// the newest event is reached; always `true` for a live timeline.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<bool> paginateForward({required int count});
 
   /// Deletes the item for everyone; a local echo is just not sent.
   ///

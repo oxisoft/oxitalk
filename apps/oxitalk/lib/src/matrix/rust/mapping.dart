@@ -4,6 +4,7 @@ import '../../rust/api/notify.dart' as rust;
 import '../../rust/api/rich_text.dart' as rust;
 import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
+import '../../rust/api/search.dart' as search_api;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
@@ -374,4 +375,35 @@ MessageNotification messageNotificationOf(rust.NotificationItem item) =>
       sound: item.sound,
       isInvite: item.isInvite,
       time: DateTime.fromMillisecondsSinceEpoch(item.timestampMs),
+    );
+
+/// [results] from the core as the app's.
+SearchResults searchResultsOf(search_api.SearchResults results) =>
+    SearchResults(
+      hits: [
+        for (final hit in results.hits)
+          SearchHit(
+            eventId: hit.eventId,
+            threadRoot: hit.threadRoot,
+            sender: hit.sender,
+            senderName: hit.senderName,
+            senderAvatarUrl: hit.senderAvatarUrl,
+            time: DateTime.fromMillisecondsSinceEpoch(hit.timestampMs),
+            text: hit.text,
+            filename: hit.filename,
+            mediaKind: switch (hit.mediaKind) {
+              null => null,
+              rust.MediaKind.image => MediaKind.image,
+              rust.MediaKind.video => MediaKind.video,
+              rust.MediaKind.audio => MediaKind.audio,
+              rust.MediaKind.file => MediaKind.file,
+            },
+          ),
+      ],
+      total: results.total,
+      searched: results.searched,
+      oldest: switch (results.oldestMs) {
+        final ms? => DateTime.fromMillisecondsSinceEpoch(ms),
+        null => null,
+      },
     );

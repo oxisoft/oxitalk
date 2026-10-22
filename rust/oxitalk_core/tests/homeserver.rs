@@ -5,6 +5,10 @@
 // The futures of matrix-sdk-ui (the timeline in particular) are deeply nested.
 #![recursion_limit = "256"]
 
+#[path = "homeserver/pins.rs"]
+mod pins;
+#[path = "homeserver/search.rs"]
+mod search;
 mod support;
 
 use std::{

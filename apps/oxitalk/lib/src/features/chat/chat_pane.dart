@@ -18,10 +18,13 @@ import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../app/file_actions.dart';
 import '../chats/badges.dart';
+import 'chat_search.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
+import 'jump.dart';
 import 'media_views.dart';
 import 'message_actions.dart';
+import 'pins.dart';
 import 'send_files.dart';
 
 /// A chat of the active account as a page of its own (narrow windows).
@@ -68,6 +71,14 @@ class ChatPane extends ConsumerWidget {
       ref.watch(typingProvider(account)).value?[roomId],
       direct: room?.isDm ?? false,
     );
+    final searching = ref.watch(
+      chatSearchProvider((account, roomId)).select((search) => search.open),
+    );
+    void toggleSearch() {
+      final search = ref.read(chatSearchProvider((account, roomId)).notifier);
+      searching ? search.close() : search.open();
+    }
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -76,6 +87,13 @@ class ChatPane extends ConsumerWidget {
             : null,
         titleSpacing: showBack ? 0 : null,
         actions: [
+          IconButton(
+            key: const Key('chat.search'),
+            tooltip: 'Search this chat (Ctrl+F)',
+            isSelected: searching,
+            icon: const Icon(Icons.search_rounded),
+            onPressed: toggleSearch,
+          ),
           IconButton(
             key: const Key('chat.threads'),
             tooltip: 'Threads',
@@ -162,6 +180,11 @@ class ChatPane extends ConsumerWidget {
               : OxiColors.wallpaperLight,
           child: Column(
             children: [
+              if (searching)
+                ChatSearchBar(account: account, roomId: roomId)
+              else
+                SearchShortcut(account: account, roomId: roomId),
+              PinnedBanner(account: account, roomId: roomId),
               Expanded(
                 child: TimelineView(
                   account: account,
@@ -226,6 +249,23 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   /// The message bubbles, to find the one a context menu was opened on, or a quote's original.
   final _bubbleKeys = <String, GlobalKey>{};
 
+  final _scroll = ScrollController();
+
+  /// Where a jump (to a pin or a search hit) wants the chat; none in a thread.
+  ChatJump _jump = const ChatJump();
+
+  /// The jump being brought into view, by its serial.
+  int? _jumping;
+
+  /// Whether a timeline opened around an older message has all the newer ones.
+  var _reachedEnd = false;
+  var _loadingNewer = false;
+
+  /// Takes a pin's highlight away after a moment.
+  Timer? _highlightTimer;
+
+  ChatKey get _chat => (widget.account, widget.roomId);
+
   /// The newest entry when the room was last marked read.
   String? _readUpTo;
   late final AppLifecycleListener _lifecycle;
@@ -252,6 +292,13 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         (_, rooms) => _clearUnreadMark(rooms.value),
         fireImmediately: true,
       );
+      // A chat opens at its newest messages, unless it opens to show one.
+      final jump = ref.read(chatJumpProvider(_chat));
+      if (jump.target == null && (jump.around ?? jump.highlight) != null) {
+        Future.microtask(
+          () => ref.read(chatJumpProvider(_chat).notifier).toLatest(),
+        );
+      }
     }
   }
 
@@ -272,14 +319,32 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _scroll.dispose();
+    _highlightTimer?.cancel();
     super.dispose();
   }
+
+  /// The timeline shown: the live one, or the one around an older message.
+  RoomTimeline? get _shownTimeline => switch (_jump.around) {
+    final around? =>
+      ref.read(timelineAtProvider(widget.account, widget.roomId, around)).value,
+    null =>
+      ref
+          .read(
+            roomTimelineProvider(
+              widget.account,
+              widget.roomId,
+              thread: widget.thread,
+            ),
+          )
+          .value,
+  };
 
   /// Marks the room read while the user can see its newest message: the chat is open, the
   /// window in front and the timeline at the bottom.
   Future<void> _markRead() async {
     final state = WidgetsBinding.instance.lifecycleState;
-    if (!mounted || !_atBottom) return;
+    if (!mounted || !_atBottom || _jump.around != null) return;
     if (state != null && state != AppLifecycleState.resumed) return;
     final newest = ref
         .read(
@@ -314,15 +379,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   /// Loads older messages when the list is short or scrolled near its top.
   Future<void> _loadOlder() async {
     if (_loadingOlder || _reachedStart) return;
-    final timeline = ref
-        .read(
-          roomTimelineProvider(
-            widget.account,
-            widget.roomId,
-            thread: widget.thread,
-          ),
-        )
-        .value;
+    final timeline = _shownTimeline;
     if (timeline == null) return;
     _loadingOlder = true;
     try {
@@ -334,9 +391,32 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     }
   }
 
+  /// Loads newer messages into a timeline around an older message; at the newest, back to
+  /// the live timeline once the user is at the bottom.
+  Future<void> _loadNewer({required bool atBottom}) async {
+    if (_jump.around == null) return;
+    if (_reachedEnd) {
+      if (atBottom) ref.read(chatJumpProvider(_chat).notifier).toLatest();
+      return;
+    }
+    final timeline = _shownTimeline;
+    if (_loadingNewer || timeline == null) return;
+    _loadingNewer = true;
+    try {
+      _reachedEnd = await timeline.loadNewer();
+    } on MatrixFailure {
+      // Tried again on the next scroll.
+    } finally {
+      _loadingNewer = false;
+    }
+  }
+
   bool _onScroll(ScrollNotification notification) {
     // The list is reversed: its end is the oldest message.
     if (notification.metrics.extentAfter < 400) unawaited(_loadOlder());
+    if (notification.metrics.extentBefore < 400) {
+      unawaited(_loadNewer(atBottom: notification.metrics.extentBefore < 48));
+    }
     final atBottom = notification.metrics.extentBefore < 48;
     if (atBottom != _atBottom) {
       _atBottom = atBottom;
@@ -347,15 +427,53 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(
+    final jump = widget.thread == null
+        ? ref.watch(chatJumpProvider(_chat))
+        : const ChatJump();
+    if (jump.around != _jump.around) {
+      _reachedStart = false;
+      _reachedEnd = false;
+      _jumping = null;
+      if (jump.around == null) {
+        // Back at the newest messages, which are at the bottom.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scroll.hasClients) _scroll.jumpTo(0);
+        });
+      }
+    }
+    _jump = jump;
+    // The menus offer Pin and Unpin by them.
+    ref.watch(roomPinsProvider(widget.account, widget.roomId));
+    final live = ref.watch(
       timelineEntriesProvider(
         widget.account,
         widget.roomId,
         thread: widget.thread,
       ),
     );
+    final entries = switch (jump.around) {
+      final around? => ref.watch(
+        timelineAtEntriesProvider(widget.account, widget.roomId, around),
+      ),
+      null => live,
+    };
     return switch (entries) {
-      AsyncData(value: final entries) => _list(entries),
+      AsyncData(value: final entries) when jump.around == null => _list(
+        entries,
+      ),
+      AsyncData(value: final entries) => Stack(
+        children: [
+          _list(entries),
+          PositionedDirectional(
+            end: 16,
+            bottom: 16,
+            child: JumpToLatestButton(
+              onPressed: () =>
+                  ref.read(chatJumpProvider(_chat).notifier).toLatest(),
+            ),
+          ),
+        ],
+      ),
       AsyncError(:final error) => Center(
         child: Text('Can’t open this chat: $error'),
       ),
@@ -375,6 +493,13 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       );
     }
     _bubbleKeys.removeWhere((id, _) => !entries.any((entry) => entry.id == id));
+    if (_jump.target case final target? when _jumping != _jump.serial) {
+      _jumping = _jump.serial;
+      final jump = _jump;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_reveal(target, jump, entries)),
+      );
+    }
     final canRedactOthers =
         ref
             .watch(canRedactOthersProvider(widget.account, widget.roomId))
@@ -418,6 +543,54 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     return null;
   }
 
+  /// Brings the message [target] of [jump] into view: in [entries] if it is there, else in
+  /// a timeline opened around it.
+  Future<void> _reveal(
+    String target,
+    ChatJump jump,
+    List<TimelineEntry> entries,
+  ) async {
+    if (!mounted) return;
+    final notifier = ref.read(chatJumpProvider(_chat).notifier);
+    final index = entries.indexWhere(
+      (entry) => eventFields(entry)?.meta.eventId == target,
+    );
+    if (index < 0) {
+      if (jump.around != target) {
+        _jumping = null;
+        notifier.openAround(target);
+      } else if (entries.isEmpty) {
+        // The timeline around it is still loading.
+        _jumping = null;
+      } else {
+        notifier.shown();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Can’t show that message here')),
+        );
+      }
+      return;
+    }
+    await scrollToItem(
+      controller: _scroll,
+      key: _bubbleKeys.putIfAbsent(entries[index].id, GlobalKey.new),
+      index: index,
+      builtIndexes: () => [
+        for (final (i, entry) in entries.indexed)
+          if (_bubbleKeys[entry.id]?.currentContext != null) i,
+      ],
+      mounted: () => mounted,
+    );
+    if (!mounted) return;
+    notifier.shown();
+    _highlightTimer?.cancel();
+    if (!jump.keepHighlight) {
+      _highlightTimer = Timer(
+        const Duration(seconds: 3),
+        () => notifier.clearHighlight(jump.serial),
+      );
+    }
+  }
+
   /// Scrolls to the message [eventId] if it is loaded and built; else says where it is.
   void _showOriginal(String eventId, List<TimelineEntry> entries) {
     final entry = entries
@@ -448,6 +621,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ListView.builder(
+        controller: _scroll,
         reverse: true,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         itemCount: entries.length,
@@ -505,7 +679,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     final canAct = meta.eventId != null && entry is! RedactedEntry;
     // In the chat, a thread shows under its first message; in the thread, it is all around.
     final thread = widget.thread == null ? meta.thread : null;
-    return MessageBubble(
+    final bubble = MessageBubble(
       key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
       isOwn: fields.isOwn,
       plain: entry is MessageEntry && isEmojiOnly(entry.body),
@@ -564,6 +738,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           : null,
       child: body,
     );
+    return meta.eventId != null && meta.eventId == _jump.highlight
+        ? JumpHighlight(child: bubble)
+        : bubble;
   }
 
   void _openLink(String url) {
