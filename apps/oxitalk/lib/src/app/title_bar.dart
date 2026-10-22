@@ -76,7 +76,7 @@ class AppTitleBar extends ConsumerWidget {
   }
 }
 
-/// The app's picture and name, the account in front, then the open chat's name.
+/// The app's picture and name, the account in front (its user ID), then the open chat's name.
 class _Title extends ConsumerWidget {
   const _Title({required this.roomId});
 
@@ -96,9 +96,8 @@ class _Title extends ConsumerWidget {
       _ => null,
     };
     final muted = theme.colorScheme.onSurfaceVariant;
-    final accountName = account == null
-        ? null
-        : ref.watch(profileProvider(account)).value?.displayName ?? account;
+    // The whole account, user and server (@bkv:chat.oxisoft.net), not just a name.
+    final accountName = account;
     Widget chevron() => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Icon(Icons.chevron_right_rounded, size: 18, color: muted),

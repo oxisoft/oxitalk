@@ -137,6 +137,8 @@ void main() {
       // The account in front sits between the app's name and the chat's.
       final account = find.byKey(const Key('titleBar.account'));
       expect(account, findsOneWidget);
+      // The whole account: user and server.
+      expect(tester.widget<Text>(account).data, _me);
       final x = tester.getCenter(account).dx;
       expect(
         x,
