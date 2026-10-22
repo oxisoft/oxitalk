@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/file_actions.dart';
@@ -94,40 +95,46 @@ class _SendFilesDialogState extends State<_SendFilesDialog> {
             children: [
               for (final file in files) _Preview(file: file),
               const SizedBox(height: 8),
-              TextField(
-                key: const Key('send.caption'),
-                controller: _caption,
-                autofocus: true,
-                minLines: 1,
-                maxLines: 4,
-                decoration: const InputDecoration(labelText: 'Caption'),
-                onSubmitted: (_) => _send(),
-              ),
-              if (images > 0)
-                SwitchListTile(
-                  key: const Key('send.compress'),
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Compress'),
-                  subtitle: const Text(
-                    'Big photos are made smaller (2048 px, JPEG). Off sends the '
-                    'original file.',
-                  ),
-                  value: _compress,
-                  onChanged: (on) => setState(() => _compress = on),
+              // Enter sends, as in the message box; Shift+Enter makes a new line.
+              CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.enter): _send,
+                  const SingleActivator(LogicalKeyboardKey.numpadEnter): _send,
+                },
+                child: TextField(
+                  key: const Key('send.caption'),
+                  controller: _caption,
+                  autofocus: true,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Caption'),
                 ),
+              ),
             ],
           ),
         ),
       ),
+      // One row: Compress at the start, level with Cancel and Send at the end.
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          key: const Key('send.confirm'),
-          onPressed: _send,
-          child: const Text('Send'),
+        Row(
+          children: [
+            if (images > 0)
+              _CompressToggle(
+                value: _compress,
+                onChanged: (on) => setState(() => _compress = on),
+              ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              key: const Key('send.confirm'),
+              onPressed: _send,
+              child: const Text('Send'),
+            ),
+          ],
         ),
       ],
     );
@@ -177,4 +184,42 @@ class _Preview extends StatelessWidget {
       subtitle: Text(fileSize(file.bytes.length)),
     );
   }
+}
+
+/// Compress as a small switch with a short label at the dialog's bottom left; the tooltip
+/// says what it does.
+class _CompressToggle extends StatelessWidget {
+  const _CompressToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message:
+        'Big photos are made smaller (2048 px, JPEG). Off sends the original '
+        'file.',
+    child: InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => onChanged(!value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Transform.scale(
+              scale: 0.7,
+              child: Switch(
+                key: const Key('send.compress'),
+                value: value,
+                onChanged: onChanged,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            Text('Compress', style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    ),
+  );
 }

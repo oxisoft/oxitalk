@@ -459,6 +459,31 @@ void main() {
       expect(timeline.files, {'pasted.png': (null, false)});
     });
 
+    testWidgets('Enter in the caption sends; Shift+Enter makes a new line', (
+      tester,
+    ) async {
+      final (_, timeline, files) = await _open(tester);
+      files.picked = [PendingFile('beach.png', 'image/png', png)];
+      await tester.tap(find.byKey(const Key('composer.attach')));
+      await tester.pumpAndSettle();
+      // Compress sits on the buttons' row, at its start.
+      final compress = tester.getCenter(find.byKey(const Key('send.compress')));
+      final send = tester.getCenter(find.byKey(const Key('send.confirm')));
+      expect((compress.dy - send.dy).abs(), lessThan(8));
+      expect(compress.dx, lessThan(send.dx));
+      await tester.enterText(find.byKey(const Key('send.caption')), 'Sea');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('sendFiles')), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('sendFiles')), findsNothing);
+      expect(timeline.files.keys, ['beach.png']);
+      expect(timeline.files['beach.png']!.$1, startsWith('Sea'));
+    });
+
     testWidgets('an upload shows its progress', (tester) async {
       await _open(
         tester,
