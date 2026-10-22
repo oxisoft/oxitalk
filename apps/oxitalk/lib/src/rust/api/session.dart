@@ -12,6 +12,7 @@ import 'notify.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 
+import 'pins.dart';
 import 'profile.dart';
 import 'room_info.dart';
 import 'room_list.dart';
@@ -121,6 +122,19 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`].
   String? dmWith({required String userId});
 
+  /// Opens the room's timeline around the event `event_id`: the event with some before and
+  /// after it, from the server. It pages back with [`Timeline::paginate_back`] and forward,
+  /// towards the newest message, with [`Timeline::paginate_forward`]. As in the live
+  /// timeline, thread replies stay in their threads.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or if the event can't be loaded.
+  Future<Timeline> eventTimeline({
+    required String roomId,
+    required String eventId,
+  });
+
   /// Makes inconsistent defaults consistent again as Element X does: the rule that isn't
   /// "All messages" becomes it.
   ///
@@ -221,6 +235,22 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// Only if the store can't be read.
   Future<Profile> ownProfile();
+
+  /// A timeline of only the room's pinned messages, oldest first, with their reactions and
+  /// edits. It loads them from the server when they aren't stored yet, decrypts them in an
+  /// encrypted room, and follows pinning and unpinning.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or if it can't be built.
+  Future<Timeline> pinnedTimeline({required String roomId});
+
+  /// The pins of a room the user is in.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<Pins> pins({required String roomId});
 
   /// Rooms in the server's public directory matching `term` (all with `None`): the most
   /// joined first, the ones the user is in at the end.

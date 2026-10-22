@@ -240,7 +240,7 @@ impl Session {
             .await
     }
 
-    async fn focused_timeline(
+    pub(crate) async fn focused_timeline(
         &self,
         room_id: String,
         focus: TimelineFocus,
@@ -259,6 +259,11 @@ impl Timeline {
     /// The room of this timeline.
     pub(crate) fn room(&self) -> &matrix_sdk::Room {
         self.inner.room()
+    }
+
+    /// The SDK's timeline.
+    pub(crate) fn inner(&self) -> &timeline::Timeline {
+        &self.inner
     }
 
     pub(crate) fn new(inner: Arc<timeline::Timeline>, tasks: Mutex<Vec<AbortHandle>>) -> Self {

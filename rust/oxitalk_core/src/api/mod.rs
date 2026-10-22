@@ -4,12 +4,14 @@ use flutter_rust_bridge::frb;
 
 pub mod directory;
 pub mod error;
+pub mod jump;
 pub mod logging;
 pub mod media;
 mod media_prep;
 pub mod moderation;
 pub mod notifications;
 pub mod notify;
+pub mod pins;
 pub mod profile;
 pub mod rich_text;
 pub mod room_info;

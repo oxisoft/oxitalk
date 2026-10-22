@@ -1,8 +1,9 @@
 //! Logging in, restoring a session, and the handle the app holds while it is logged in.
 
 use std::{
+    collections::HashMap,
     fmt,
-    sync::{Mutex, PoisonError},
+    sync::{Arc, Mutex, PoisonError},
     time::Duration,
 };
 
@@ -13,7 +14,7 @@ use matrix_sdk::{
     authentication::matrix::MatrixSession,
     encryption::{BackupDownloadStrategy, EncryptionSettings},
     notification_settings::NotificationSettings,
-    ruma::OwnedUserId,
+    ruma::{OwnedRoomId, OwnedUserId},
     store::RoomLoadSettings,
 };
 use matrix_sdk_ui::sync_service::SyncService;
@@ -58,6 +59,9 @@ pub struct Session {
     pub(crate) notification_settings: NotificationSettings,
     /// What the sync hands over for OS notifications; each subscription listens to it.
     pub(crate) notification_candidates: broadcast::Sender<Candidate>,
+    /// The rooms the sync follows closely (all their state, more of their timeline), as
+    /// Element X does for an open room, with how many open chats want each.
+    pub(crate) room_subscriptions: Arc<Mutex<HashMap<OwnedRoomId, usize>>>,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -150,6 +154,7 @@ impl Session {
             sync,
             notification_settings,
             notification_candidates,
+            room_subscriptions: Arc::default(),
             tasks: Mutex::default(),
             runtime: Handle::current(),
         })
