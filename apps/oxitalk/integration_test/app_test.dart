@@ -330,10 +330,21 @@ void main() {
     await _pumpUntil(tester, find.byKey(const Key('newMenu.join')));
     await _pumpFor(tester, const Duration(milliseconds: 500));
     await tester.tap(find.byKey(const Key('newMenu.join')));
-    await _pumpUntil(
-      tester,
-      find.descendant(of: lobbyTile, matching: find.text('Joined')),
+    await _pumpUntil(tester, find.byKey(const Key('joinRoom.address')));
+    // As above, the directory may answer the first search without the room.
+    final joined = find.descendant(
+      of: lobbyTile,
+      matching: find.text('Joined'),
     );
+    for (var attempt = 0; joined.evaluate().isEmpty; attempt++) {
+      if (attempt == 30) throw TestFailure('$lobby never got listed as joined');
+      await _type(
+        tester,
+        find.byKey(const Key('joinRoom.address')),
+        attempt.isEven ? 'lobby' : 'Lobby',
+      );
+      await _pumpFor(tester, const Duration(seconds: 1));
+    }
     await tester.tap(find.text('Cancel'));
     await _pumpUntil(tester, find.byKey(const Key('joinRoom')), gone: true);
 
