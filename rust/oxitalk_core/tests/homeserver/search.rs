@@ -47,6 +47,17 @@ async fn search_finds_decrypted_edited_messages_and_files() -> TestResult {
 
     let bob_timeline = bob.timeline(room_id.clone()).await?;
     let mut bob_items = watch_timeline(&bob_timeline).await;
+    // A sync that brings several events at once keeps only the latest in the live timeline,
+    // as with any chat opened after the fact: once something arrived, page back as the app
+    // does when it opens a chat.
+    bob_items
+        .wait_until(|items| {
+            items
+                .iter()
+                .any(|item| !matches!(item.content, TimelineItemContent::DateDivider { .. }))
+        })
+        .await?;
+    bob_timeline.paginate_back(50).await?;
     bob_items
         .wait_until(|items| {
             event_of(items, "a red and blue fox").is_some()
