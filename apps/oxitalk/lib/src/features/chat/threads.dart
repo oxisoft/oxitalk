@@ -85,15 +85,23 @@ mixin _EscapeToChat<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 
   void backToChat() => context.go(Routes.room(roomId));
 
-  /// Back on a page of its own, ✕ beside the chat.
-  Widget leading({required bool showBack, required Key key}) => showBack
-      ? BackButton(key: key, onPressed: backToChat)
-      : IconButton(
-          key: key,
-          tooltip: 'Close',
-          icon: const Icon(Icons.close_rounded),
-          onPressed: backToChat,
-        );
+  /// Back at the start on a page of its own; beside the chat, no button there (✕ is at the
+  /// end, see [actions]).
+  Widget? leading({required bool showBack, required Key key}) =>
+      showBack ? BackButton(key: key, onPressed: backToChat) : null;
+
+  /// Beside the chat, ✕ at the pane's end, where a side panel's close is expected.
+  List<Widget>? actions({required bool showBack, required Key key}) => showBack
+      ? null
+      : [
+          IconButton(
+            key: key,
+            tooltip: 'Close',
+            icon: const Icon(Icons.close_rounded),
+            onPressed: backToChat,
+          ),
+          const SizedBox(width: 4),
+        ];
 }
 
 /// A thread: its first message, the replies, and a message box that answers in the thread.
@@ -135,7 +143,11 @@ class _ThreadPaneState extends ConsumerState<ThreadPane>
           showBack: widget.showBack,
           key: const Key('thread.close'),
         ),
-        titleSpacing: 0,
+        actions: actions(
+          showBack: widget.showBack,
+          key: const Key('thread.close'),
+        ),
+        titleSpacing: widget.showBack ? 0 : null,
         title: _Title(title: 'Thread', subtitle: room?.name),
       ),
       body: ColoredBox(
@@ -226,7 +238,11 @@ class _ThreadListPaneState extends ConsumerState<ThreadListPane>
           showBack: widget.showBack,
           key: const Key('threads.close'),
         ),
-        titleSpacing: 0,
+        actions: actions(
+          showBack: widget.showBack,
+          key: const Key('threads.close'),
+        ),
+        titleSpacing: widget.showBack ? 0 : null,
         title: _Title(title: 'Threads', subtitle: room?.name),
       ),
       body: switch (threads) {

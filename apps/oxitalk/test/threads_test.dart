@@ -104,6 +104,11 @@ void main() {
     await tester.pumpAndSettle();
     final pane = find.byKey(const Key('thread.close'));
     expect(pane, findsOneWidget);
+    // ✕ sits at the pane's end, after its title, as a side panel's close does.
+    expect(
+      tester.getCenter(pane).dx,
+      greaterThan(tester.getCenter(find.text('Thread')).dx),
+    );
     // The chat stays beside it.
     expect(find.text('Something else'), findsOneWidget);
     expect(find.text('sushi'), findsOneWidget);
