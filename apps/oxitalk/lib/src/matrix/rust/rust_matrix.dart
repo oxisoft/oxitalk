@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../rust/api/pins.dart' as pins_api;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/rooms.dart' as rust;
 import '../../rust/api/sections.dart' as rust;
@@ -643,6 +644,24 @@ final class RustMatrixSession implements MatrixSession {
   );
 
   @override
+  Future<RoomTimeline> openTimelineAt(String roomId, String eventId) async =>
+      RustRoomTimeline._(
+        await guarded(
+          () => _session.eventTimeline(roomId: roomId, eventId: eventId),
+        ),
+      );
+
+  @override
+  Future<PinnedEvents> openPins(String roomId) async =>
+      RustPinnedEvents._(await guarded(() => _session.pins(roomId: roomId)));
+
+  @override
+  Future<RoomTimeline> openPinnedTimeline(String roomId) async =>
+      RustRoomTimeline._(
+        await guarded(() => _session.pinnedTimeline(roomId: roomId)),
+      );
+
+  @override
   Future<void> logout() async {
     try {
       await guarded(_session.logout);
@@ -711,6 +730,38 @@ final class RustThreadList implements ThreadList {
   }
 }
 
+final class RustPinnedEvents implements PinnedEvents {
+  RustPinnedEvents._(this._pins) {
+    _subscription = _pins.subscribe().listen(
+      (pins) =>
+          _state.value = RoomPins(eventIds: pins.eventIds, canPin: pins.canPin),
+    );
+  }
+
+  final pins_api.Pins _pins;
+  late final StreamSubscription<pins_api.RoomPins> _subscription;
+  final _state = Latest(const RoomPins());
+
+  @override
+  Stream<RoomPins> get pins => _state.stream;
+
+  @override
+  Future<bool> pin(String eventId) =>
+      guarded(() => _pins.pin(eventId: eventId));
+
+  @override
+  Future<bool> unpin(String eventId) =>
+      guarded(() => _pins.unpin(eventId: eventId));
+
+  @override
+  void close() {
+    // Not awaited: see RustMatrixSession.close.
+    unawaited(_subscription.cancel());
+    unawaited(_state.close());
+    _pins.dispose();
+  }
+}
+
 final class RustRoomTimeline implements RoomTimeline {
   RustRoomTimeline._(this._timeline) {
     _subscription = _timeline.subscribeItems().listen((batch) {
@@ -731,6 +782,10 @@ final class RustRoomTimeline implements RoomTimeline {
 
   @override
   Future<bool> loadOlder() => guarded(() => _timeline.paginateBack(count: 20));
+
+  @override
+  Future<bool> loadNewer() =>
+      guarded(() => _timeline.paginateForward(count: 20));
 
   @override
   Future<void> send(String text, {bool markdown = false}) =>

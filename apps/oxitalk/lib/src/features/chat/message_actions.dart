@@ -12,6 +12,7 @@ import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import 'emoji.dart';
 import 'media_views.dart';
+import 'pins.dart';
 
 /// The parts every message has, whatever its content.
 typedef EventFields = ({
@@ -225,6 +226,20 @@ final class MessageActions {
   Future<void> save(MediaEntry entry) =>
       saveMediaAs(_context, _ref, account, entry.media);
 
+  /// Pins [entry] to the top of the chat, or unpins it.
+  Future<void> setPin(TimelineEntry entry, {required bool pinned}) async {
+    final eventId = eventFields(entry)?.meta.eventId;
+    if (eventId == null) return;
+    await setPinned(
+      _context,
+      _ref,
+      account: account,
+      roomId: roomId,
+      eventId: eventId,
+      pinned: pinned,
+    );
+  }
+
   /// The menu items for [entry], in the order the menu shows them.
   List<ContextMenuButtonItem> menuItems(
     TimelineEntry entry, {
@@ -252,6 +267,11 @@ final class MessageActions {
         item('Copy message', () => copy(entry)),
       if (sent && (entry is MessageEntry || entry is MediaEntry))
         item('Forward…', () => unawaited(forward(entry))),
+      if (fields.meta.eventId case final eventId?
+          when entry is! UndecryptableEntry && canPin(_ref, account, roomId))
+        isPinned(_ref, account, roomId, eventId)
+            ? item('Unpin', () => unawaited(setPin(entry, pinned: false)))
+            : item('Pin', () => unawaited(setPin(entry, pinned: true))),
       if (fields.meta.isEditable) item('Edit', () => edit(entry)),
       if (entry is MediaEntry) item('Save as…', () => unawaited(save(entry))),
       if (fields.sendState == SendState.failed)

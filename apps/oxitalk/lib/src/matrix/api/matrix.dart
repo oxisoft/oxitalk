@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
 import 'models.dart';
+import 'pins.dart';
 
 export 'models.dart';
+export 'pins.dart';
 
 enum FailureKind {
   invalidServer,
@@ -234,6 +236,17 @@ abstract interface class MatrixSession {
 
   Future<RoomTimeline> openTimeline(String roomId);
 
+  /// The room's timeline around the message [eventId], loaded from the server: to show an
+  /// old message without loading everything after it. [RoomTimeline.loadNewer] pages it
+  /// forward to the newest message.
+  Future<RoomTimeline> openTimelineAt(String roomId, String eventId);
+
+  /// The room's pins, and pinning.
+  Future<PinnedEvents> openPins(String roomId);
+
+  /// A timeline of only the room's pinned messages, oldest first, decrypted.
+  Future<RoomTimeline> openPinnedTimeline(String roomId);
+
   /// Logs out on the server and deletes everything stored for this account; the other
   /// accounts stay.
   Future<void> logout();
@@ -259,6 +272,10 @@ abstract interface class RoomTimeline {
 
   /// Loads older messages. Returns `true` once the start of the room is reached.
   Future<bool> loadOlder();
+
+  /// Loads newer messages into a timeline opened at an event. Returns `true` once the
+  /// newest is there; always `true` for a live timeline.
+  Future<bool> loadNewer();
 
   /// Sends [text]; with [markdown], formatted from its markdown as Element sends it.
   Future<void> send(String text, {bool markdown = false});
