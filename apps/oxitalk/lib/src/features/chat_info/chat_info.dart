@@ -292,10 +292,7 @@ class _Members extends ConsumerWidget {
         if (index == 0) {
           return ListTile(
             key: const Key('info.invite'),
-            leading: const CircleAvatar(
-              radius: 20,
-              child: Icon(Icons.person_add_alt_rounded),
-            ),
+            leading: const IconAvatar(icon: Icons.person_add_alt_rounded),
             title: const Text('Invite people'),
             onTap: () => unawaited(inviteToRoom(context, ref, account, roomId)),
           );

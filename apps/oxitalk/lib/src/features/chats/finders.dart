@@ -407,9 +407,10 @@ class _PeopleDialogState extends State<PeopleDialog> {
         if (typed != null)
           ListTile(
             key: _key('typed'),
-            leading: const CircleAvatar(
+            leading: const IconAvatar(
               radius: 18,
-              child: Icon(Icons.person_add_alt_rounded, size: 20),
+              icon: Icons.person_add_alt_rounded,
+              iconSize: 20,
             ),
             title: Text(
               widget.multiple ? 'Add $typed' : 'Chat with $typed',
@@ -615,9 +616,10 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
         if (typed != null)
           ListTile(
             key: const Key('joinRoom.typed'),
-            leading: const CircleAvatar(
+            leading: const IconAvatar(
               radius: 18,
-              child: Icon(Icons.login_rounded, size: 20),
+              icon: Icons.login_rounded,
+              iconSize: 20,
             ),
             title: Text(
               'Join $typed',

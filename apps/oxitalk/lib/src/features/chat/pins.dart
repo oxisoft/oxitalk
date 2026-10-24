@@ -422,7 +422,7 @@ class _PinnedTile extends ConsumerWidget {
     return ListTile(
       key: Key('pins.item.${pin.eventId}'),
       leading: fields == null
-          ? const CircleAvatar(radius: 18, child: Icon(Icons.push_pin_outlined))
+          ? const IconAvatar(radius: 18, icon: Icons.push_pin_outlined)
           : MatrixAvatar(
               account: account,
               url: fields.senderAvatarUrl,

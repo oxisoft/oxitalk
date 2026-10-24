@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
+import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import 'voice/audio_player_view.dart';
@@ -205,10 +206,10 @@ class MediaPreview extends ConsumerWidget {
                   placeholder,
                 if (isVideo) ...[
                   const Center(
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black54,
-                      foregroundColor: Colors.white,
-                      child: Icon(Icons.play_arrow_rounded),
+                    child: IconAvatar(
+                      icon: Icons.play_arrow_rounded,
+                      background: Colors.black54,
+                      foreground: Colors.white,
                     ),
                   ),
                   if (media.duration case final duration?)
@@ -286,14 +287,10 @@ class FileRow extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              child: Icon(
-                media.kind == MediaKind.audio
-                    ? Icons.play_arrow_rounded
-                    : Icons.insert_drive_file_outlined,
-              ),
+            IconAvatar(
+              icon: media.kind == MediaKind.audio
+                  ? Icons.play_arrow_rounded
+                  : Icons.insert_drive_file_outlined,
             ),
             const SizedBox(width: 10),
             Flexible(

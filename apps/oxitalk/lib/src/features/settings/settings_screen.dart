@@ -312,14 +312,11 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
         ),
         ListTile(
           leading: local == null
-              ? const CircleAvatar(
-                  radius: 20,
-                  child: Icon(Icons.devices_rounded),
-                )
+              ? const IconAvatar(icon: Icons.devices_rounded)
               : PictureAvatar(
                   bytes: local,
                   radius: 20,
-                  fallback: const CircleAvatar(radius: 20),
+                  fallback: const IconAvatar(icon: null),
                 ),
           title: const Text('Picture on this device'),
           subtitle: const Text(

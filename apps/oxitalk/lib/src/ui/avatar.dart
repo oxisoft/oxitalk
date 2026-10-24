@@ -106,6 +106,39 @@ class InitialsAvatar extends StatelessWidget {
   }
 }
 
+/// An icon in the avatar shape, where a list row has no picture: on the quiet surface, in
+/// the text colour, unless [background] and [foreground] say otherwise.
+class IconAvatar extends StatelessWidget {
+  const IconAvatar({
+    required this.icon,
+    this.radius = 20,
+    this.iconSize,
+    this.background,
+    this.foreground,
+    super.key,
+  });
+
+  final IconData? icon;
+  final double radius;
+  final double? iconSize;
+  final Color? background;
+  final Color? foreground;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: radius * 2,
+    height: radius * 2,
+    alignment: Alignment.center,
+    decoration: ShapeDecoration(
+      color: background ?? context.oxi.panel2,
+      shape: avatarShape(radius),
+    ),
+    child: icon == null
+        ? null
+        : Icon(icon, size: iconSize, color: foreground ?? context.oxi.text),
+  );
+}
+
 /// Up to two initials: the first letters of the first two words, ignoring a leading `@`/`#`.
 String initials(String name) {
   final words = name
