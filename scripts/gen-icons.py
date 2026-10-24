@@ -1,86 +1,42 @@
 #!/usr/bin/env python3
-"""Regenerate every platform's app icon from branding/oxitalk-icon-source.png.
+"""Regenerate every platform's app icon from the SVG masters in branding/.
 
-The source is a full-bleed 1024x1024 square: white bubble on a blue gradient.
-Needs Pillow and numpy. Run from the repo root: python3 scripts/gen-icons.py
+branding/oxitalk-icon.svg            full-bleed 1024x1024 icon (ink background)
+branding/oxitalk-icon-foreground.svg Android adaptive foreground, transparent
+
+The SVGs are rendered with headless Chromium (chromium-browser, chromium or
+google-chrome on PATH, or $CHROME), then resized with Pillow.
+Run from anywhere: python3 scripts/gen-icons.py
 """
+import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
-import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "apps/oxitalk"
 BRAND = ROOT / "branding"
-SRC = BRAND / "oxitalk-icon-source.png"
-
-ZOOM = 0.82          # crop factor for the full-bleed icon (bubble fills the tile)
-ANDROID_PAD = 0.07   # extra gradient around the source for adaptive-icon safe zone
 
 
-def load():
-    return np.asarray(Image.open(SRC).convert("RGB")).astype(float)
+def chrome():
+    for name in (os.environ.get("CHROME"), "chromium-browser", "chromium", "google-chrome"):
+        path = shutil.which(name) if name else None
+        if path:
+            return path
+    raise SystemExit("gen-icons: no Chromium found; set $CHROME")
 
 
-def white_mask(a):
-    r, b = a[..., 0], a[..., 2]
-    return (r > 150) & (b - r < 70)
-
-
-def fit_gradient(a):
-    """Fit a smooth cubic gradient to the background so it can be extended."""
-    h, w = a.shape[:2]
-    obj = Image.fromarray((white_mask(a) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(61))
-    ys, xs = np.where(np.asarray(obj) == 0)
-    sel = np.random.default_rng(0).choice(len(ys), min(30000, len(ys)), replace=False)
-    ys, xs = ys[sel], xs[sel]
-
-    def feats(y, x):
-        y, x = y / h, x / w
-        return np.stack([np.ones_like(x), x, y, x * y, x * x, y * y,
-                         x * x * y, x * y * y, x ** 3, y ** 3], 1)
-
-    coef = [np.linalg.lstsq(feats(ys, xs), a[ys, xs, c], rcond=None)[0] for c in range(3)]
-    return lambda yy, xx: np.stack([feats(yy.ravel(), xx.ravel()) @ c for c in coef], 1).reshape(*yy.shape, 3)
-
-
-def full_bleed(a):
-    """Square icon with the bubble zoomed to fill it (iOS, Play Store, Android legacy)."""
-    im = Image.fromarray(a.astype(np.uint8))
-    w = im.width
-    c = int(w * ZOOM)
-    o = (w - c) // 2
-    return im.crop((o, o, o + c, o + c)).resize((1024, 1024), Image.Resampling.LANCZOS)
-
-
-def padded(a, grad):
-    """Source with the gradient extended on every side (Android adaptive background)."""
-    h, w = a.shape[:2]
-    pad = int(w * ANDROID_PAD)
-    n = w + 2 * pad
-    yy, xx = np.mgrid[0:n, 0:n].astype(float) - pad
-    out = grad(yy, xx)
-    feather = 24
-    m = np.zeros((n, n))
-    m[pad:pad + h, pad:pad + w] = 1
-    m = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(
-        ImageFilter.MinFilter(2 * feather + 1)).filter(ImageFilter.GaussianBlur(feather / 2))) / 255
-    inner = out.copy()
-    inner[pad:pad + h, pad:pad + w] = a
-    out = out * (1 - m[..., None]) + inner * m[..., None]
-    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)), pad
-
-
-def monochrome(a, pad):
-    """White silhouette of the bubble on transparent, same geometry as padded()."""
-    h, w = a.shape[:2]
-    n = w + 2 * pad
-    m = np.zeros((n, n), np.uint8)
-    m[pad:pad + h, pad:pad + w] = white_mask(a) * 255
-    alpha = Image.fromarray(m).filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.GaussianBlur(1.2))
-    im = Image.new("RGBA", (n, n), (255, 255, 255, 0))
-    im.putalpha(alpha)
-    return im
+def render(svg, out, size=1024):
+    """Render an SVG to a size x size PNG, keeping transparency."""
+    subprocess.run(
+        [chrome(), "--headless=new", "--disable-gpu", "--hide-scrollbars",
+         "--default-background-color=00000000", f"--window-size={size},{size}",
+         f"--screenshot={out}", svg.resolve().as_uri()],
+        check=True, capture_output=True)
+    return Image.open(out).convert("RGBA")
 
 
 def rounded_tile(img, size=1024, inset=100, radius_ratio=0.2237, shadow=True):
@@ -113,28 +69,35 @@ def save(im, path, size=None, mode=None):
 
 
 def main():
-    a = load()
-    grad = fit_gradient(a)
-    icon = full_bleed(a)
-    save(icon, BRAND / "oxitalk-icon-1024.png", mode="RGB")
-    save(icon, BRAND / "play-store-512.png", 512, "RGB")
+    with tempfile.TemporaryDirectory() as tmp:
+        icon = render(BRAND / "oxitalk-icon.svg", Path(tmp) / "icon.png").convert("RGB")
+        fg = render(BRAND / "oxitalk-icon-foreground.svg", Path(tmp) / "fg.png")
+
+    save(icon, BRAND / "oxitalk-icon-1024.png")
+    save(icon, BRAND / "play-store-512.png", 512)
+
+    # In the app: title bar and About screen (full-bleed; the app rounds the corners).
+    assets = APP / "assets/branding"
+    save(icon, assets / "oxitalk-icon-96.png", 96)
+    save(icon, assets / "oxitalk-icon-256.png", 256)
 
     # iOS: full-bleed, no alpha; the system masks the corners.
     ios = APP / "ios/Runner/Assets.xcassets/AppIcon.appiconset"
     for pts, scales in {20: (1, 2, 3), 29: (1, 2, 3), 40: (1, 2, 3), 60: (2, 3),
                         76: (1, 2), 83.5: (2,), 1024: (1,)}.items():
         for s in scales:
-            name = f"Icon-App-{pts:g}x{pts:g}@{s}x.png"
-            save(icon, ios / name, round(pts * s), "RGB")
+            save(icon, ios / f"Icon-App-{pts:g}x{pts:g}@{s}x.png", round(pts * s))
 
-    # Android: adaptive icon (minSdk 36), legacy PNGs kept in sync.
+    # Android: adaptive icon (minSdk 36) = ink colour (values/ic_launcher_background.xml)
+    # + transparent foreground + monochrome; legacy ic_launcher.png kept in sync.
     res = APP / "android/app/src/main/res"
-    bg, pad = padded(a, grad)
-    mono = monochrome(a, pad)
+    mono = Image.new("RGBA", fg.size, (255, 255, 255, 0))
+    mono.putalpha(fg.getchannel("A"))
     for d, scale in {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}.items():
-        save(icon, res / f"mipmap-{d}/ic_launcher.png", int(48 * scale), "RGB")
-        save(bg, res / f"mipmap-{d}/ic_launcher_background.png", int(108 * scale), "RGB")
+        save(icon, res / f"mipmap-{d}/ic_launcher.png", int(48 * scale))
+        save(fg, res / f"mipmap-{d}/ic_launcher_foreground.png", int(108 * scale))
         save(mono, res / f"mipmap-{d}/ic_launcher_monochrome.png", int(108 * scale))
+        (res / f"mipmap-{d}/ic_launcher_background.png").unlink(missing_ok=True)
 
     # macOS: Big Sur style tile, 824/1024 with shadow (macOS does not mask).
     tile = rounded_tile(icon)

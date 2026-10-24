@@ -56,7 +56,7 @@ abstract final class AboutLinks {
 void showOxiTalkAbout(BuildContext context) =>
     unawaited(context.push(Routes.about));
 
-/// About OxiTalk, full screen: the icon in a blue hero, the version, what it is, and where
+/// About OxiTalk, full screen: the icon in an ink hero, the version, what it is, and where
 /// it lives. Back, Esc or the system's back closes it.
 class AboutScreen extends ConsumerStatefulWidget {
   const AboutScreen({super.key});
@@ -212,7 +212,8 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
   }
 }
 
-/// The blue band at the top: the icon, the name and the version.
+/// The ink band at the top, in the icon's brand: the icon, the name and the version, a
+/// cut corner bottom right and a yellow and red signal stripe.
 class _Hero extends StatelessWidget {
   const _Hero({required this.version});
 
@@ -220,35 +221,20 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final top = MediaQuery.paddingOf(context).top + kToolbarHeight;
     return Container(
       key: const Key('about.hero'),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark
-              ? const [Color(0xFF1A5C8A), Color(0xFF17436B), Color(0xFF0E2A45)]
-              : const [Color(0xFF3FBCF5), OxiColors.accent, Color(0xFF1C82C4)],
+      decoration: const ShapeDecoration(
+        color: OxiBrand.ink,
+        shape: BeveledRectangleBorder(
+          borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
         ),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
       child: Stack(
         children: [
-          // Two soft light circles, for depth.
-          Positioned(
-            top: -60,
-            right: -40,
-            child: _Glow(size: 220, alpha: dark ? 0.06 : 0.12),
-          ),
-          Positioned(
-            bottom: -70,
-            left: -50,
-            child: _Glow(size: 200, alpha: dark ? 0.05 : 0.10),
-          ),
+          const Positioned(left: 24, bottom: 18, child: _SignalStripe()),
           Padding(
-            padding: EdgeInsets.fromLTRB(16, top + 8, 16, 32),
+            padding: EdgeInsets.fromLTRB(16, top + 8, 16, 40),
             child: Center(
               child: Column(
                 children: [
@@ -261,8 +247,8 @@ class _Hero extends StatelessWidget {
                       style: Theme.of(context).textTheme.headlineLarge
                           ?.copyWith(
                             color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
                           ),
                     ),
                   ),
@@ -274,20 +260,19 @@ class _Hero extends StatelessWidget {
                         horizontal: 12,
                         vertical: 4,
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.28),
+                      decoration: const ShapeDecoration(
+                        color: OxiBrand.yellow,
+                        shape: BeveledRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(6)),
                         ),
                       ),
                       child: Text(
                         version.label,
                         key: const Key('about.version'),
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: OxiBrand.ink,
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -302,31 +287,27 @@ class _Hero extends StatelessWidget {
   }
 }
 
-class _Glow extends StatelessWidget {
-  const _Glow({required this.size, required this.alpha});
-
-  final double size;
-  final double alpha;
+/// A short yellow bar and a red one, like a signal level.
+class _SignalStripe extends StatelessWidget {
+  const _SignalStripe();
 
   @override
-  Widget build(BuildContext context) => IgnorePointer(
-    child: Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            Colors.white.withValues(alpha: alpha),
-            Colors.white.withValues(alpha: 0),
-          ],
+  Widget build(BuildContext context) => const IgnorePointer(
+    child: Row(
+      children: [
+        SizedBox(
+          width: 56,
+          height: 4,
+          child: ColoredBox(color: OxiBrand.yellow),
         ),
-      ),
+        SizedBox(width: 6),
+        SizedBox(width: 16, height: 4, child: ColoredBox(color: OxiBrand.red)),
+      ],
     ),
   );
 }
 
-/// The app's icon as a rounded tile with a soft shadow.
+/// The app's icon as a rounded tile with a thin yellow edge and a soft shadow.
 class _AppIcon extends StatelessWidget {
   const _AppIcon({required this.size});
 
@@ -341,12 +322,12 @@ class _AppIcon extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: radius,
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.7),
-          width: 2,
+          color: OxiBrand.yellow.withValues(alpha: 0.35),
+          width: 1.5,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x40000000),
+            color: Color(0x66000000),
             blurRadius: 24,
             offset: Offset(0, 10),
           ),
@@ -379,8 +360,11 @@ class _LinkGroup extends StatelessWidget {
       elevation: 0,
       color: scheme.surfaceContainerLow,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+      shape: BeveledRectangleBorder(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(10),
+          bottomRight: Radius.circular(10),
+        ),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
@@ -420,11 +404,16 @@ class _LinkTile extends StatelessWidget {
     leading: Container(
       width: 36,
       height: 36,
-      decoration: BoxDecoration(
-        color: OxiColors.accent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(10),
+      decoration: const ShapeDecoration(
+        color: OxiBrand.ink,
+        shape: BeveledRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(8),
+            bottomRight: Radius.circular(8),
+          ),
+        ),
       ),
-      child: Icon(icon, size: 20, color: OxiColors.accent),
+      child: Icon(icon, size: 20, color: OxiBrand.yellow),
     ),
     title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
     subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),

@@ -22,6 +22,14 @@ abstract final class OxiColors {
   ];
 }
 
+/// The brand of the app icon (branding/oxitalk-icon.svg): a yellow bubble with cut
+/// corners and a red voice wave, on ink.
+abstract final class OxiBrand {
+  static const ink = Color(0xFF0B0B12);
+  static const yellow = Color(0xFFFCEE0A);
+  static const red = Color(0xFFFF1744);
+}
+
 /// From this width on, the chat list and the chat sit side by side.
 const wideLayoutBreakpoint = 840.0;
 
