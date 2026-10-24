@@ -197,10 +197,15 @@ class JumpHighlight extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     key: const Key('message.highlight'),
-    decoration: BoxDecoration(
-      color: OxiColors.accent.withValues(alpha: 0.16),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: OxiColors.accent, width: 2),
+    decoration: ShapeDecoration(
+      color: OxiBrand.yellow.withValues(alpha: 0.18),
+      shape: OxiShapes.cut(
+        10,
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
+      ),
     ),
     child: Padding(padding: const EdgeInsets.all(2), child: child),
   );
@@ -217,6 +222,10 @@ class JumpToLatestButton extends StatelessWidget {
     key: const Key('chat.toLatest'),
     heroTag: null,
     tooltip: 'Jump to the latest messages',
+    // Quiet: yellow is for sending and starting chats.
+    backgroundColor: context.oxi.panel,
+    foregroundColor: context.oxi.text,
+    shape: OxiShapes.cut(8, side: BorderSide(color: context.oxi.line)),
     onPressed: onPressed,
     child: const Icon(Icons.keyboard_double_arrow_down_rounded),
   );

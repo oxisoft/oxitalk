@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../app/theme.dart';
 
-/// A Matrix picture ([url], `mxc://`) of [account]'s server in a circle; [InitialsAvatar]
+/// A Matrix picture ([url], `mxc://`) of [account]'s server, its corners cut; [InitialsAvatar]
 /// while it loads, when it can't, or when there is none.
 class MatrixAvatar extends ConsumerWidget {
   const MatrixAvatar({
@@ -37,7 +37,12 @@ class MatrixAvatar extends ConsumerWidget {
   }
 }
 
-/// An encoded image in a circle; [fallback] if it can't be decoded.
+/// The shape of an avatar [radius] across half its side: a square with two cut corners,
+/// as the brand's bubble.
+ShapeBorder avatarShape(double radius) =>
+    OxiShapes.cut(radius < 12 ? 2 : (radius * 0.25).clamp(3, 8));
+
+/// An encoded image in the avatar shape; [fallback] if it can't be decoded.
 class PictureAvatar extends StatelessWidget {
   const PictureAvatar({
     required this.bytes,
@@ -51,7 +56,8 @@ class PictureAvatar extends StatelessWidget {
   final Widget fallback;
 
   @override
-  Widget build(BuildContext context) => ClipOval(
+  Widget build(BuildContext context) => ClipPath(
+    clipper: ShapeBorderClipper(shape: avatarShape(radius)),
     child: Image.memory(
       bytes,
       width: radius * 2,
@@ -63,7 +69,7 @@ class PictureAvatar extends StatelessWidget {
   );
 }
 
-/// A round avatar with initials on a color picked from [seed] (a room or user ID).
+/// An avatar with initials on a colour picked from [seed] (a room or user ID).
 class InitialsAvatar extends StatelessWidget {
   const InitialsAvatar({
     required this.name,
@@ -78,17 +84,22 @@ class InitialsAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        OxiColors.avatars[seed.hashCode.abs() % OxiColors.avatars.length];
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: color,
+    final color = seed.isEmpty
+        ? OxiColors.avatarFallback
+        : OxiColors.avatarOf(seed);
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      alignment: Alignment.center,
+      decoration: ShapeDecoration(color: color, shape: avatarShape(radius)),
       child: Text(
         initials(name),
+        maxLines: 1,
         style: TextStyle(
           color: Colors.white,
-          fontSize: radius * 0.8,
-          fontWeight: FontWeight.w600,
+          fontSize: radius * 0.72,
+          fontWeight: FontWeight.w800,
+          height: 1,
         ),
       ),
     );

@@ -124,7 +124,9 @@ void main() {
     });
 
     testWidgets('a count is smaller and quieter than its emoji, so 3️⃣ 2 '
-        'reads right; the user’s own stays highlighted', (tester) async {
+        'reads right; the user’s own count is in the text colour', (
+      tester,
+    ) async {
       await _open(
         tester,
         entries: [
@@ -152,7 +154,15 @@ void main() {
       final theme = Theme.of(
         tester.element(find.byKey(const Key('reactionChip.3️⃣'))),
       );
-      expect(count.style!.color, theme.colorScheme.onSurfaceVariant);
+      // The user's own count is in the text colour, the others' muted.
+      expect(count.style!.color, theme.colorScheme.onSurface);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('reactionChip.👀.count')))
+            .style!
+            .color,
+        theme.colorScheme.onSurfaceVariant,
+      );
       expect(
         tester.getSize(find.byKey(const Key('reactionChip.3️⃣.count'))).height,
         lessThan(
@@ -161,9 +171,10 @@ void main() {
               .height,
         ),
       );
+      // Every chip is the same quiet grey: the count marks the user's own.
       Color chipColor(String key) =>
           tester.widget<Material>(find.byKey(Key('reactionChip.$key'))).color!;
-      expect(chipColor('3️⃣'), isNot(chipColor('👀')));
+      expect(chipColor('3️⃣'), chipColor('👀'));
     });
 
     testWidgets('the toolbar’s React offers the quick ones and remembers the '

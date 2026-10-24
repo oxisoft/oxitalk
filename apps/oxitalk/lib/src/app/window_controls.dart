@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'providers.dart';
+import 'theme.dart';
 
 enum WindowButton { minimize, maximize, close }
 
@@ -245,28 +246,30 @@ class _RoundButton extends StatelessWidget {
   final bool danger;
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: scheme.onSurface.withValues(alpha: 0.1),
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            hoverColor: danger
-                ? const Color(0xFFE5484D)
-                : scheme.onSurface.withValues(alpha: 0.12),
-            onTap: onPressed,
-            child: SizedBox.square(
-              dimension: 24,
-              child: Icon(icon, size: 15, color: scheme.onSurface),
-            ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 3),
+    child: Tooltip(
+      message: tooltip,
+      // On the title bar's ink, in both themes.
+      child: Material(
+        color: Colors.transparent,
+        shape: OxiShapes.cut(4),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          hoverColor: danger
+              ? OxiBrand.red
+              : Colors.white.withValues(alpha: 0.10),
+          highlightColor: danger
+              ? OxiBrand.red
+              : Colors.white.withValues(alpha: 0.16),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 28,
+            height: 24,
+            child: Icon(icon, size: 15, color: OxiColors.titleBarMuted),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

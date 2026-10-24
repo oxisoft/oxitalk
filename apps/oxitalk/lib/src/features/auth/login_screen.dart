@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
-import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -80,10 +79,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
+                Icon(
                   Icons.forum_rounded,
                   size: 72,
-                  color: OxiColors.accent,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 16),
                 Text(

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
-import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
 /// "Confirm it's you": an unverified device sees only this until it is verified, with another
@@ -105,10 +104,10 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
   Widget _choose(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Icon(
+      Icon(
         Icons.verified_user_rounded,
         size: 72,
-        color: OxiColors.accent,
+        color: Theme.of(context).colorScheme.primary,
       ),
       const SizedBox(height: 16),
       Text(
@@ -348,7 +347,7 @@ class _Message extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 64, color: OxiColors.accent),
+      Icon(icon, size: 64, color: Theme.of(context).colorScheme.primary),
       const SizedBox(height: 16),
       Text(
         title,

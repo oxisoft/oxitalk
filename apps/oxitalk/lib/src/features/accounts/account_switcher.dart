@@ -37,53 +37,124 @@ class AccountRail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ids = _accountIds(ref);
     final active = ref.watch(activeAccountProvider);
+    // Always dark, in both themes: the brand's ink.
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: context.oxi.rail,
       child: SizedBox(
         width: 72,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                children: [
-                  for (final (index, id) in ids.indexed)
-                    _RailAccount(id: id, index: index, active: id == active),
-                  Center(
-                    child: IconButton.filledTonal(
-                      key: const Key('account.add'),
-                      tooltip: 'Add account',
-                      onPressed: () => context.go(Routes.addAccount),
-                      icon: const Icon(Icons.add_rounded),
-                    ),
-                  ),
-                ],
+        child: IconTheme.merge(
+          data: const IconThemeData(color: OxiColors.railIcon),
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  children: [
+                    for (final (index, id) in ids.indexed)
+                      _RailAccount(id: id, index: index, active: id == active),
+                    const Center(child: _AddAccountButton()),
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              key: const Key('rail.hide'),
-              tooltip: 'Hide accounts',
-              onPressed: () => ref.read(railHiddenProvider.notifier).toggle(),
-              icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
-            ),
-            IconButton(
-              key: const Key('rail.settings'),
-              tooltip: 'Settings',
-              onPressed: () => context.go(Routes.settings),
-              icon: const Icon(Icons.settings_outlined),
-            ),
-            IconButton(
-              key: const Key('rail.about'),
-              tooltip: 'About',
-              onPressed: () => showOxiTalkAbout(context),
-              icon: const Icon(Icons.info_outline_rounded),
-            ),
-            const SizedBox(height: 12),
-          ],
+              _railButton(
+                const Key('rail.hide'),
+                'Hide accounts',
+                Icons.keyboard_double_arrow_left_rounded,
+                () => ref.read(railHiddenProvider.notifier).toggle(),
+              ),
+              _railButton(
+                const Key('rail.settings'),
+                'Settings',
+                Icons.settings_outlined,
+                () => context.go(Routes.settings),
+              ),
+              _railButton(
+                const Key('rail.about'),
+                'About',
+                Icons.info_outline_rounded,
+                () => showOxiTalkAbout(context),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _railButton(
+    Key key,
+    String tooltip,
+    IconData icon,
+    VoidCallback onPressed,
+  ) => IconButton(
+    key: key,
+    tooltip: tooltip,
+    color: OxiColors.railIcon,
+    hoverColor: Colors.white.withValues(alpha: 0.08),
+    onPressed: onPressed,
+    icon: Icon(icon),
+  );
+}
+
+/// Adds an account: a dashed outline with cut corners around a grey +.
+class _AddAccountButton extends StatelessWidget {
+  const _AddAccountButton();
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'Add account',
+    child: Material(
+      color: Colors.transparent,
+      shape: OxiShapes.cut(6),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const Key('account.add'),
+        hoverColor: Colors.white.withValues(alpha: 0.08),
+        onTap: () => context.go(Routes.addAccount),
+        child: const CustomPaint(
+          painter: _DashedCutOutline(color: OxiColors.railAddOutline),
+          child: SizedBox.square(
+            dimension: 44,
+            child: Icon(
+              Icons.add_rounded,
+              color: OxiColors.titleBarMuted,
+              semanticLabel: 'Add account',
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// A dashed outline of a square with its top-left and bottom-right corners cut.
+class _DashedCutOutline extends CustomPainter {
+  const _DashedCutOutline({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const inset = 0.75;
+    final outline = OxiShapes.cut(6)
+        .getOuterPath((Offset.zero & size).deflate(inset));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    const dash = 4.0;
+    const gap = 3.0;
+    for (final metric in outline.computeMetrics()) {
+      for (var at = 0.0; at < metric.length; at += dash + gap) {
+        canvas.drawPath(metric.extractPath(at, at + dash), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedCutOutline oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _RailAccount extends ConsumerWidget {
@@ -107,24 +178,20 @@ class _RailAccount extends ConsumerWidget {
             unawaited(_menu(context, ref, details.globalPosition)),
         child: InkWell(
           key: Key('account.$id'),
-          customBorder: const CircleBorder(),
+          customBorder: OxiShapes.cut(6),
+          hoverColor: Colors.white.withValues(alpha: 0.06),
           onTap: () => ref.read(accountsProvider.notifier).activate(id),
           child: Row(
             children: [
-              // Marks the account in front, as Slack and Discord do.
+              // Marks the account in front, as Slack and Discord do: a straight yellow bar.
               AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 width: 4,
                 height: active ? 36 : 0,
-                decoration: const BoxDecoration(
-                  color: OxiColors.accent,
-                  borderRadius: BorderRadius.horizontal(
-                    right: Radius.circular(4),
-                  ),
-                ),
+                color: OxiBrand.yellow,
               ),
-              const SizedBox(width: 8),
-              AccountAvatar(account: id),
+              const SizedBox(width: 10),
+              AccountAvatar(account: id, ring: context.oxi.rail),
             ],
           ),
         ),
@@ -158,10 +225,18 @@ class _RailAccount extends ConsumerWidget {
 
 /// An account's avatar with its unread count, and a warning while it is unverified.
 class AccountAvatar extends ConsumerWidget {
-  const AccountAvatar({required this.account, this.radius = 22, super.key});
+  const AccountAvatar({
+    required this.account,
+    this.radius = 22,
+    this.ring,
+    super.key,
+  });
 
   final String account;
   final double radius;
+
+  /// Around the server's icon: what the avatar sits on.
+  final Color? ring;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -171,9 +246,8 @@ class AccountAvatar extends ConsumerWidget {
         VerificationStatus.unverified;
     return Badge(
       isLabelVisible: unverified || unread > 0,
-      backgroundColor: unverified
-          ? Theme.of(context).colorScheme.error
-          : OxiColors.accent,
+      backgroundColor: OxiBrand.red,
+      textColor: Colors.white,
       label: Text(
         unverified
             ? '!'
@@ -181,7 +255,7 @@ class AccountAvatar extends ConsumerWidget {
             ? '99+'
             : '$unread',
       ),
-      child: AccountPicture(account: account, radius: radius),
+      child: AccountPicture(account: account, radius: radius, ring: ring),
     );
   }
 }
@@ -189,10 +263,18 @@ class AccountAvatar extends ConsumerWidget {
 /// How an account shows: the picture picked for it on this device, else the user's Matrix
 /// avatar, with the website icon of its server in the corner.
 class AccountPicture extends ConsumerWidget {
-  const AccountPicture({required this.account, this.radius = 22, super.key});
+  const AccountPicture({
+    required this.account,
+    this.radius = 22,
+    this.ring,
+    super.key,
+  });
 
   final String account;
   final double radius;
+
+  /// Around the server's icon: what the picture sits on; the surface if `null`.
+  final Color? ring;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -230,17 +312,25 @@ class AccountPicture extends ConsumerWidget {
           child: Container(
             key: Key('serverIcon.$server'),
             padding: const EdgeInsets.all(1.5),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              shape: BoxShape.circle,
+            decoration: ShapeDecoration(
+              color: ring ?? Theme.of(context).colorScheme.surface,
+              shape: avatarShape(iconRadius + 1.5),
             ),
             child: icon != null
                 ? PictureAvatar(
                     bytes: icon,
                     radius: iconRadius,
-                    fallback: _ServerLetter(server: server, radius: iconRadius),
+                    fallback: _ServerLetter(
+                      server: server,
+                      radius: iconRadius,
+                      dark: ring != null,
+                    ),
                   )
-                : _ServerLetter(server: server, radius: iconRadius),
+                : _ServerLetter(
+                    server: server,
+                    radius: iconRadius,
+                    dark: ring != null,
+                  ),
           ),
         ),
       ],
@@ -250,21 +340,37 @@ class AccountPicture extends ConsumerWidget {
 
 /// A server without a website icon: its first letter.
 class _ServerLetter extends StatelessWidget {
-  const _ServerLetter({required this.server, required this.radius});
+  const _ServerLetter({
+    required this.server,
+    required this.radius,
+    this.dark = false,
+  });
 
   final String server;
   final double radius;
 
+  /// On the always-dark account rail.
+  final bool dark;
+
   @override
-  Widget build(BuildContext context) => CircleAvatar(
-    radius: radius,
-    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+  Widget build(BuildContext context) => Container(
+    width: radius * 2,
+    height: radius * 2,
+    alignment: Alignment.center,
+    decoration: ShapeDecoration(
+      color: dark
+          ? OxiColors.railAddOutline
+          : Theme.of(context).colorScheme.secondaryContainer,
+      shape: avatarShape(radius),
+    ),
     child: Text(
       server.isEmpty ? '?' : server[0].toUpperCase(),
       style: TextStyle(
         fontSize: radius * 1.1,
         fontWeight: FontWeight.w700,
-        color: Theme.of(context).colorScheme.onSecondaryContainer,
+        color: dark
+            ? OxiColors.titleBarText
+            : Theme.of(context).colorScheme.onSecondaryContainer,
       ),
     ),
   );
@@ -310,7 +416,7 @@ class AccountDropdown extends ConsumerWidget {
       message: 'Accounts',
       child: InkWell(
         key: const Key('account.dropdown'),
-        borderRadius: BorderRadius.circular(8),
+        customBorder: OxiShapes.small,
         onTap: () => unawaited(_open(context, ref)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -320,7 +426,7 @@ class AccountDropdown extends ConsumerWidget {
               Badge(
                 isLabelVisible: othersUnread,
                 smallSize: 10,
-                backgroundColor: OxiColors.accent,
+                backgroundColor: OxiBrand.red,
                 child: AccountPicture(account: account, radius: 16),
               ),
               if (!compact) ...[
@@ -388,7 +494,10 @@ class AccountDropdown extends ConsumerWidget {
                 SizedBox(
                   width: 28,
                   child: id == account
-                      ? const Icon(Icons.check_rounded, color: OxiColors.accent)
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        )
                       : null,
                 ),
               ],

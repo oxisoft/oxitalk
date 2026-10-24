@@ -7,16 +7,16 @@ import '../../matrix/api/matrix.dart';
 enum BadgeKind {
   none,
 
-  /// An invitation: an accent "!".
+  /// An invitation: a red "!".
   invite,
 
-  /// Unread mentions (or keywords): an accent "@" with the notifying count.
+  /// Unread mentions (or keywords): a yellow "@" with the notifying count.
   mention,
 
-  /// Unread messages that notify: an accent count.
+  /// Unread messages that notify: a red count.
   notifying,
 
-  /// Unread but nothing that notifies, or marked unread: a small grey dot.
+  /// Unread but nothing that notifies, or marked unread: a small grey mark.
   dot,
 }
 
@@ -61,15 +61,16 @@ class RoomBadgeView extends StatelessWidget {
         margin: const EdgeInsets.only(left: 8),
         width: 10,
         height: 10,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.outline,
-          shape: BoxShape.circle,
+        decoration: ShapeDecoration(
+          color: context.oxi.muted,
+          shape: OxiShapes.cut(3),
         ),
       ),
       BadgeKind.invite => _Pill(key: Key('badge.invite.${room.id}'), text: '!'),
       BadgeKind.mention => _Pill(
         key: Key('badge.mention.${room.id}'),
         text: badge.count > 0 ? '@ ${badgeCount(badge.count)}' : '@',
+        mention: true,
       ),
       BadgeKind.notifying => _Pill(
         key: Key('badge.notifying.${room.id}'),
@@ -79,7 +80,7 @@ class RoomBadgeView extends StatelessWidget {
   }
 }
 
-/// A count in an accent pill, as a section header shows its total.
+/// A count in a red tag, as a section header shows its total.
 class CountBadge extends StatelessWidget {
   const CountBadge({required this.count, super.key});
 
@@ -89,25 +90,31 @@ class CountBadge extends StatelessWidget {
   Widget build(BuildContext context) => _Pill(text: badgeCount(count));
 }
 
+/// A count in a small tag with cut corners: red under white, or yellow under ink for a
+/// mention.
 class _Pill extends StatelessWidget {
-  const _Pill({required this.text, super.key});
+  const _Pill({required this.text, this.mention = false, super.key});
 
   final String text;
+  final bool mention;
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(left: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(
-      color: OxiColors.accent,
-      borderRadius: BorderRadius.circular(12),
+    constraints: const BoxConstraints(minWidth: 22, minHeight: 20),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    alignment: Alignment.center,
+    decoration: ShapeDecoration(
+      color: mention ? OxiBrand.yellow : OxiBrand.red,
+      shape: OxiShapes.cut(5),
     ),
     child: Text(
       text,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
+      style: TextStyle(
+        color: mention ? OxiBrand.ink : Colors.white,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w800,
+        height: 1.2,
       ),
     ),
   );
@@ -133,11 +140,12 @@ class MutedIcon extends StatelessWidget {
 /// muted room shows its bell.
 Widget narrowBadge(BuildContext context, Room room, Widget child) {
   final badge = badgeOf(room);
-  final grey = Theme.of(context).colorScheme.outline;
+  final palette = context.oxi;
+  final grey = palette.muted;
   if (room.isMuted && room.membership != Membership.invited) {
     return Badge(
       key: Key('badge.muted.${room.id}'),
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      backgroundColor: palette.panel2,
       label: Icon(Icons.notifications_off_outlined, size: 10, color: grey),
       child: child,
     );
@@ -152,7 +160,10 @@ Widget narrowBadge(BuildContext context, Room room, Widget child) {
     ),
     BadgeKind.invite || BadgeKind.mention || BadgeKind.notifying => Badge(
       key: Key('badge.${badge.kind.name}.${room.id}'),
-      backgroundColor: OxiColors.accent,
+      backgroundColor: badge.kind == BadgeKind.mention
+          ? OxiBrand.yellow
+          : OxiBrand.red,
+      textColor: badge.kind == BadgeKind.mention ? OxiBrand.ink : Colors.white,
       label: Text(switch (badge.kind) {
         BadgeKind.invite => '!',
         BadgeKind.mention => '@',

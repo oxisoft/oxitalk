@@ -535,7 +535,7 @@ class _HitTile extends StatelessWidget {
       key: Key('search.hit.${hit.eventId}'),
       dense: true,
       selected: selected,
-      selectedTileColor: OxiColors.accent.withValues(alpha: 0.12),
+      selectedTileColor: context.oxi.selectedRow,
       leading: MatrixAvatar(
         account: account,
         url: hit.senderAvatarUrl,
@@ -566,7 +566,9 @@ class _HitTile extends StatelessWidget {
             text,
             query,
             TextStyle(
-              backgroundColor: OxiColors.accent.withValues(alpha: 0.3),
+              backgroundColor: OxiBrand.yellow.withValues(
+                alpha: context.isDark ? 0.3 : 0.6,
+              ),
               fontWeight: FontWeight.w600,
             ),
           ),

@@ -111,7 +111,7 @@ class ChatPane extends ConsumerWidget {
             message: 'Chat info',
             child: InkWell(
               key: const Key('chat.title'),
-              borderRadius: BorderRadius.circular(8),
+              customBorder: OxiShapes.small,
               onTap: () => context.go(Routes.roomInfo(roomId)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -139,6 +139,10 @@ class ChatPane extends ConsumerWidget {
                                   name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
                               if (room?.isMuted ?? false) ...[
@@ -155,12 +159,13 @@ class ChatPane extends ConsumerWidget {
                               typing,
                               key: const Key('chat.typing'),
                               style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: OxiColors.accent),
+                                  ?.copyWith(color: context.oxi.muted),
                             )
                           else if (room?.isEncrypted ?? false)
                             Text(
                               'end-to-end encrypted',
-                              style: Theme.of(context).textTheme.bodySmall,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: context.oxi.muted),
                             ),
                         ],
                       ),
@@ -178,9 +183,7 @@ class ChatPane extends ConsumerWidget {
           _sendDropped(context, ref, [for (final f in details.files) f.path]),
         ),
         child: ColoredBox(
-          color: context.isDark
-              ? OxiColors.wallpaperDark
-              : OxiColors.wallpaperLight,
+          color: context.oxi.wallpaper,
           child: Column(
             children: [
               if (searching)
@@ -796,13 +799,18 @@ class _DayChip extends StatelessWidget {
     child: Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(12),
+      decoration: ShapeDecoration(
+        color: context.oxi.panel,
+        shape: OxiShapes.cut(6),
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 13),
+        style: TextStyle(
+          color: context.oxi.muted,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+        ),
       ),
     ),
   );
@@ -861,9 +869,8 @@ class _HoverActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-    elevation: 2,
-    borderRadius: BorderRadius.circular(width / 2),
+    color: context.oxi.panel,
+    shape: OxiShapes.cut(8, side: BorderSide(color: context.oxi.line)),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Column(
@@ -1013,53 +1020,70 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
+    final palette = context.oxi;
     final isOwn = widget.isOwn;
     final color = widget.plain
         ? Colors.transparent
         : isOwn
-        ? (dark ? OxiColors.ownBubbleDark : OxiColors.ownBubbleLight)
-        : (dark ? OxiColors.bubbleDark : OxiColors.bubbleLight);
-    final meta = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
+        ? palette.ownBubble
+        : palette.bubble;
+    final meta = Theme.of(context).textTheme.bodySmall?.copyWith(
+      fontSize: 11,
+      color: isOwn && !widget.plain ? palette.ownMeta : palette.muted,
+    );
     final sender = widget.sender;
     final thread = widget.thread;
-    final radius = BorderRadius.only(
-      topLeft: const Radius.circular(14),
-      topRight: const Radius.circular(14),
-      bottomLeft: Radius.circular(isOwn ? 14 : 4),
-      bottomRight: Radius.circular(isOwn ? 4 : 14),
+    // Square, but for one cut corner where the tail would be: bottom left for others,
+    // bottom right for the user's own.
+    final shape = BeveledRectangleBorder(
+      borderRadius: isOwn
+          ? const BorderRadius.only(bottomRight: Radius.circular(10))
+          : const BorderRadius.only(bottomLeft: Radius.circular(10)),
     );
+    final strip = isOwn && !widget.plain ? palette.ownStrip : null;
+    final inner = switch (thread) {
+      // The thread's row is the bubble's last, across its full width; under big emojis
+      // it is a small chip of its own.
+      final thread? when !widget.plain => BubbleWithFooter(
+        content: _content(sender, meta),
+        footer: Material(type: MaterialType.transparency, child: thread),
+      ),
+      final thread? => Column(
+        crossAxisAlignment: isOwn
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [_content(sender, meta), thread],
+      ),
+      null => _content(sender, meta),
+    };
     final bubble = ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.sizeOf(context).width * 0.75,
       ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        decoration: BoxDecoration(color: color, borderRadius: radius),
-        // The thread's row is the bubble's last, across its full width; under big emojis
-        // it is a small chip of its own.
-        child: switch (thread) {
-          final thread? when !widget.plain => BubbleWithFooter(
-            content: _content(sender, meta),
-            footer: Material(
-              type: MaterialType.transparency,
-              borderRadius: BorderRadius.only(
-                bottomLeft: radius.bottomLeft,
-                bottomRight: radius.bottomRight,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: thread,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: DecoratedBox(
+          decoration: ShapeDecoration(color: color, shape: shape),
+          child: ClipPath(
+            clipper: ShapeBorderClipper(shape: shape),
+            clipBehavior: widget.plain ? Clip.none : Clip.antiAlias,
+            child: DefaultTextStyle.merge(
+              style: TextStyle(color: isOwn ? palette.ownText : palette.text),
+              child: strip == null
+                  ? inner
+                  // A thin yellow strip inside the right edge, in dark.
+                  : Container(
+                      foregroundDecoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: strip, width: 3),
+                        ),
+                      ),
+                      child: inner,
+                    ),
             ),
           ),
-          final thread? => Column(
-            crossAxisAlignment: isOwn
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [_content(sender, meta), thread],
-          ),
-          null => _content(sender, meta),
-        },
+        ),
       ),
     );
     final reactions = widget.reactions;
@@ -1129,10 +1153,9 @@ class _MessageBubbleState extends State<MessageBubble> {
               child: Text(
                 sender,
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color:
-                      OxiColors.avatars[sender.hashCode.abs() %
-                          OxiColors.avatars.length],
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: context.oxi.muted,
                 ),
               ),
             ),
@@ -1152,7 +1175,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                     Text(clockTime(widget.time), style: meta),
                     if (isOwn && widget.sendState != null) ...[
                       const SizedBox(width: 3),
-                      _SendStateIcon(state: widget.sendState!),
+                      _SendStateIcon(
+                        state: widget.sendState!,
+                        color: meta?.color,
+                      ),
                     ],
                   ],
                 ),
@@ -1315,21 +1341,25 @@ class _ToolbarPosition extends SingleChildLayoutDelegate {
 }
 
 class _SendStateIcon extends StatelessWidget {
-  const _SendStateIcon({required this.state});
+  const _SendStateIcon({required this.state, this.color});
 
   final SendState state;
 
+  /// The message time's colour.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) => switch (state) {
-    SendState.sending => const Icon(
+    SendState.sending => Icon(
       Icons.schedule_rounded,
       size: 14,
+      color: color,
       semanticLabel: 'Sending',
     ),
-    SendState.sent => const Icon(
+    SendState.sent => Icon(
       Icons.done_rounded,
       size: 14,
-      color: OxiColors.accent,
+      color: color,
       semanticLabel: 'Sent',
     ),
     SendState.failed => Icon(
@@ -1625,9 +1655,10 @@ class _ComposerState extends ConsumerState<Composer> {
       }
       if (next != null) _focus.requestFocus();
     });
-    final theme = Theme.of(context);
+    final palette = context.oxi;
     return Material(
-      color: theme.colorScheme.surface,
+      color: palette.panel,
+      shape: Border(top: BorderSide(color: palette.line)),
       child: SafeArea(
         top: false,
         child: Column(
@@ -1636,11 +1667,11 @@ class _ComposerState extends ConsumerState<Composer> {
             if (mode != null)
               _ModeBar(mode: mode, onCancel: () => _setMode(null)),
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+              padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
               child: ListenableBuilder(
                 listenable: Listenable.merge([_voice, _text]),
                 builder: (context, _) => Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (_voice.isActive)
                       Expanded(child: VoiceDraftBar(draft: _voice))
@@ -1688,7 +1719,13 @@ class _ComposerState extends ConsumerState<Composer> {
                               hintText: widget.thread == null
                                   ? 'Message'
                                   : 'Reply in thread',
-                              border: InputBorder.none,
+                              isDense: true,
+                              // Quiet while typing, as the mockup: no outline.
+                              focusedBorder: const OxiInputBorder(cut: 6),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 11,
+                              ),
                             ),
                           ),
                         ),
@@ -1721,7 +1758,14 @@ class _ComposerState extends ConsumerState<Composer> {
                       IconButton(
                         key: const Key('composer.send'),
                         tooltip: mode is Editing ? 'Save' : 'Send',
-                        color: OxiColors.accent,
+                        // Yellow under ink, in both themes.
+                        style: IconButton.styleFrom(
+                          backgroundColor: OxiBrand.yellow,
+                          foregroundColor: OxiBrand.ink,
+                          hoverColor: OxiBrand.ink.withValues(alpha: 0.08),
+                          shape: OxiShapes.small,
+                          fixedSize: const Size(44, 40),
+                        ),
                         icon: Icon(
                           mode is Editing
                               ? Icons.check_rounded
@@ -1759,7 +1803,7 @@ class _ModeBar extends StatelessWidget {
           Icon(
             mode is Editing ? Icons.edit_rounded : Icons.reply_rounded,
             size: 18,
-            color: OxiColors.accent,
+            color: Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1768,9 +1812,9 @@ class _ModeBar extends StatelessWidget {
               children: [
                 Text(
                   mode is Editing ? 'Editing' : 'Replying to $name',
-                  style: const TextStyle(
-                    color: OxiColors.accent,
-                    fontWeight: FontWeight.w600,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
@@ -1814,10 +1858,14 @@ class ThreadBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final latest = thread.latest;
-    final muted = theme.textTheme.bodySmall?.copyWith(fontSize: 11);
+    final link = context.oxi.threadLink;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      fontSize: 11,
+      color: context.oxi.muted,
+    );
     final row = Row(
       children: [
-        const Icon(Icons.forum_outlined, size: 16, color: OxiColors.accent),
+        Icon(Icons.forum_outlined, size: 16, color: link),
         const SizedBox(width: 6),
         if (latest != null) ...[
           SizedBox.square(
@@ -1839,10 +1887,10 @@ class ThreadBar extends StatelessWidget {
               children: [
                 TextSpan(
                   text: replyCountLabel(thread.replyCount),
-                  style: const TextStyle(
-                    color: OxiColors.accent,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                  style: TextStyle(
+                    color: link,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
                   ),
                 ),
                 if (latest != null)
@@ -1855,11 +1903,7 @@ class ThreadBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        const Icon(
-          Icons.chevron_right_rounded,
-          size: 18,
-          color: OxiColors.accent,
-        ),
+        Icon(Icons.chevron_right_rounded, size: 18, color: link),
       ],
     );
     if (compact) {
@@ -1867,8 +1911,8 @@ class ThreadBar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(top: 2),
           child: Material(
-            color: theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
+            color: context.oxi.panel2,
+            shape: OxiShapes.cut(5),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onTap,

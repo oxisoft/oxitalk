@@ -151,9 +151,7 @@ class _ThreadPaneState extends ConsumerState<ThreadPane>
         title: _Title(title: 'Thread', subtitle: room?.name),
       ),
       body: ColoredBox(
-        color: context.isDark
-            ? OxiColors.wallpaperDark
-            : OxiColors.wallpaperLight,
+        color: context.oxi.wallpaper,
         child: Column(
           children: [
             Expanded(
@@ -341,7 +339,7 @@ class _ThreadTile extends StatelessWidget {
             ].join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: OxiColors.accent),
+            style: TextStyle(color: context.oxi.threadLink),
           ),
         ],
       ),

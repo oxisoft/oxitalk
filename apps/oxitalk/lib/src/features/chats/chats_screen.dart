@@ -187,9 +187,7 @@ class _WelcomePaneState extends ConsumerState<WelcomePane> {
     final name =
         profile?.displayName ?? widget.account.substring(1).split(':').first;
     return Scaffold(
-      backgroundColor: context.isDark
-          ? OxiColors.wallpaperDark
-          : OxiColors.wallpaperLight,
+      backgroundColor: context.oxi.wallpaper,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -202,11 +200,18 @@ class _WelcomePaneState extends ConsumerState<WelcomePane> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircleAvatar(
-                      radius: 36,
-                      backgroundColor: OxiColors.accent,
-                      foregroundColor: Colors.white,
-                      child: Icon(Icons.forum_rounded, size: 36),
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: ShapeDecoration(
+                        color: OxiBrand.ink,
+                        shape: OxiShapes.cut(14),
+                      ),
+                      child: const Icon(
+                        Icons.forum_rounded,
+                        size: 36,
+                        color: OxiBrand.yellow,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -526,7 +531,8 @@ class SectionHeader extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall?.copyWith(
-                    color: theme.colorScheme.primary,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -689,9 +695,11 @@ class RoomTile extends ConsumerWidget {
       ref.watch(typingProvider(account)).value?[room.id],
       direct: room.isDm,
     );
-    return ListTile(
+    final palette = context.oxi;
+    final tile = ListTile(
       selected: selected,
-      selectedTileColor: theme.colorScheme.primaryContainer,
+      selectedTileColor: palette.selectedRow,
+      selectedColor: palette.text,
       leading: MatrixAvatar(
         account: account,
         url: room.avatarUrl,
@@ -701,11 +709,7 @@ class RoomTile extends ConsumerWidget {
       title: Row(
         children: [
           if (room.isEncrypted) ...[
-            Icon(
-              Icons.lock_rounded,
-              size: 14,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(Icons.lock_rounded, size: 13, color: palette.muted),
             const SizedBox(width: 4),
           ],
           Expanded(
@@ -713,10 +717,14 @@ class RoomTile extends ConsumerWidget {
               room.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
           if (room.lastActivity case final time?)
-            Text(listTime(time), style: theme.textTheme.bodySmall),
+            Text(
+              listTime(time),
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
+            ),
         ],
       ),
       subtitle: Row(
@@ -728,9 +736,11 @@ class RoomTile extends ConsumerWidget {
                   : typing ?? room.lastMessage ?? '',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: invited || typing != null
-                  ? TextStyle(color: theme.colorScheme.primary)
-                  : null,
+              style: TextStyle(
+                color: palette.muted,
+                fontStyle: typing != null ? FontStyle.italic : null,
+                fontWeight: invited ? FontWeight.w600 : null,
+              ),
             ),
           ),
           if (room.isMuted && !invited)
@@ -743,6 +753,14 @@ class RoomTile extends ConsumerWidget {
       ),
       onTap: () => unawaited(_open(context, ref)),
     );
+    if (!selected) return tile;
+    // The open chat: a yellow bar at its left edge.
+    return Container(
+      foregroundDecoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: OxiBrand.yellow, width: 3)),
+      ),
+      child: tile,
+    );
   }
 
   Widget _narrowTile(
@@ -753,7 +771,10 @@ class RoomTile extends ConsumerWidget {
   ) => Tooltip(
     message: room.name,
     child: Material(
-      color: selected ? theme.colorScheme.primaryContainer : Colors.transparent,
+      color: selected ? context.oxi.selectedRow : Colors.transparent,
+      shape: selected
+          ? const Border(left: BorderSide(color: OxiBrand.yellow, width: 3))
+          : null,
       child: InkWell(
         onTap: () => unawaited(_open(context, ref)),
         child: Padding(

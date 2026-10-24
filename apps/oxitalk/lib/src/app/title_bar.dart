@@ -21,24 +21,15 @@ class AppTitleBar extends ConsumerWidget {
     if (!ref.watch(windowControlsProvider).drawsTitleBar) {
       return const SizedBox.shrink();
     }
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     final router = ref.watch(routerProvider);
+    // Flat ink in both themes, as the app icon's background.
     return Material(
       key: const Key('titleBar'),
+      color: OxiColors.titleBar,
       child: Container(
         height: height,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: dark
-                ? const [Color(0xFF17212B), Color(0xFF1B2D3E)]
-                : const [Color(0xFFF4F8FB), Color(0xFFE2F1FB)],
-          ),
-          border: Border(
-            bottom: BorderSide(
-              color: OxiColors.accent.withValues(alpha: dark ? 0.35 : 0.3),
-            ),
-          ),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: OxiColors.titleBarLine)),
         ),
         child: Stack(
           children: [
@@ -95,22 +86,30 @@ class _Title extends ConsumerWidget {
             .firstOrNull,
       _ => null,
     };
-    final muted = theme.colorScheme.onSurfaceVariant;
+    const muted = OxiColors.titleBarMuted;
     // The whole account, user and server (@bkv:chat.oxisoft.net), not just a name.
     final accountName = account;
-    Widget chevron() => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+    Widget chevron() => const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 10),
+      child: Text(
+        '›',
+        style: TextStyle(
+          color: OxiBrand.yellow,
+          fontWeight: FontWeight.w800,
+          fontSize: 16,
+          height: 1,
+        ),
+      ),
     );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(5),
           child: Image.asset(
             'assets/branding/oxitalk-icon-96.png',
-            width: 22,
-            height: 22,
+            width: 20,
+            height: 20,
             filterQuality: FilterQuality.medium,
           ),
         ),
@@ -119,7 +118,8 @@ class _Title extends ConsumerWidget {
           'OxiTalk',
           key: const Key('titleBar.app'),
           style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0.3,
           ),
         ),
@@ -131,16 +131,14 @@ class _Title extends ConsumerWidget {
               key: const Key('titleBar.account'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: muted),
             ),
           ),
         ],
         if (room != null) ...[
           chevron(),
           if (room.isEncrypted) ...[
-            Icon(Icons.lock_rounded, size: 13, color: OxiColors.accent),
+            const Icon(Icons.lock_rounded, size: 13, color: muted),
             const SizedBox(width: 4),
           ],
           Flexible(
@@ -149,7 +147,9 @@ class _Title extends ConsumerWidget {
               key: const Key('titleBar.room'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(color: muted),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: OxiColors.titleBarText,
+              ),
             ),
           ),
           if (room.isMuted) ...[

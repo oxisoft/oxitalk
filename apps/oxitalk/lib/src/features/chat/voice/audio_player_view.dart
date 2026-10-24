@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../app/theme.dart';
 import '../../../matrix/api/matrix.dart';
 import '../../../ui/format.dart';
 import '../media_views.dart';
@@ -168,11 +169,17 @@ class AudioPlayerRow extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox.square(
-              dimension: 40,
+              dimension: 36,
               child: IconButton.filled(
                 key: Key('audio.play.$playKey'),
                 tooltip: state.playing ? 'Pause' : 'Play',
                 padding: EdgeInsets.zero,
+                // On the quiet surface, in the text colour.
+                style: IconButton.styleFrom(
+                  backgroundColor: context.oxi.panel2,
+                  foregroundColor: context.oxi.text,
+                  shape: OxiShapes.cut(6),
+                ),
                 onPressed: () => unawaited(
                   _guard(context, () => playback.toggle(playKey, load)),
                 ),
@@ -181,7 +188,7 @@ class AudioPlayerRow extends ConsumerWidget {
                         dimension: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: theme.colorScheme.onPrimary,
+                          color: context.oxi.text,
                         ),
                       )
                     : Icon(
@@ -210,8 +217,8 @@ class AudioPlayerRow extends ConsumerWidget {
                       key: Key('audio.waveform.$playKey'),
                       points: waveform,
                       progress: active ? state.progress : 0,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                      activeColor: theme.colorScheme.primary,
+                      color: context.oxi.muted.withValues(alpha: 0.6),
+                      activeColor: context.oxi.text,
                       onSeek: (fraction) => unawaited(
                         _guard(
                           context,

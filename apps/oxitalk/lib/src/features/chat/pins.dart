@@ -233,10 +233,10 @@ class _PinnedBannerState extends ConsumerState<PinnedBanner> {
             children: [
               _PinIndicator(count: pins.length, index: index),
               const SizedBox(width: 10),
-              const Icon(
+              Icon(
                 Icons.push_pin_outlined,
                 size: 18,
-                color: OxiColors.accent,
+                color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -250,8 +250,8 @@ class _PinnedBannerState extends ConsumerState<PinnedBanner> {
                           : 'Pinned message ${index + 1} of ${pins.length}',
                       key: const Key('pins.banner.label'),
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: OxiColors.accent,
-                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     Row(
@@ -317,9 +317,8 @@ class _PinIndicator extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: first + i == index
-                      ? OxiColors.accent
-                      : OxiColors.accent.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+                      ? context.oxi.quoteBar
+                      : context.oxi.quoteBar.withValues(alpha: 0.3),
                 ),
               ),
             ),

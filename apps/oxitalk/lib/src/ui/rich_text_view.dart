@@ -160,16 +160,16 @@ class _RichTextViewState extends State<RichTextView> {
       color: hidden
           ? Colors.transparent
           : span.link != null
-          ? scheme.primary
+          ? context.oxi.threadLink
           : span.mention != null
-          ? OxiColors.accent
+          ? scheme.onSurface
           : parseCssColor(span.color),
       backgroundColor: hidden
           ? scheme.onSurface.withValues(alpha: 0.35)
           : span.code
           ? scheme.surfaceContainerHighest.withValues(alpha: 0.6)
           : span.mention != null
-          ? OxiColors.accent.withValues(alpha: 0.15)
+          ? OxiBrand.yellow.withValues(alpha: context.isDark ? 0.22 : 0.55)
           : null,
     );
   }

@@ -356,8 +356,9 @@ class _ForwardDialogState extends ConsumerState<_ForwardDialog> {
   }
 }
 
-/// The reactions under a message: an emoji each, with a count from two up, the user's own
-/// highlighted; a click gives or takes back the user's, hovering shows who gave it.
+/// The reactions under a message: an emoji each, with a count from two up, quiet grey tags
+/// with cut corners; the user's own count is in the text colour, the others' muted. A click
+/// gives or takes back the user's, hovering shows who gave it.
 class ReactionChips extends StatelessWidget {
   const ReactionChips({
     required this.reactions,
@@ -370,7 +371,7 @@ class ReactionChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final palette = context.oxi;
     return Padding(
       padding: const EdgeInsets.only(top: 2, bottom: 4),
       child: Wrap(
@@ -382,24 +383,13 @@ class ReactionChips extends StatelessWidget {
               message: reaction.senders.join('\n'),
               child: Material(
                 key: Key('reactionChip.${reaction.key}'),
-                color: reaction.mine
-                    ? OxiColors.accent.withValues(alpha: 0.35)
-                    : scheme.surfaceContainerHighest,
-                shape: StadiumBorder(
-                  side: BorderSide(
-                    color: reaction.mine
-                        ? OxiColors.accent
-                        : scheme.outlineVariant,
-                  ),
-                ),
+                color: palette.reaction,
+                shape: OxiShapes.cut(5),
+                clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  customBorder: const StadiumBorder(),
                   onTap: () => onToggle(reaction.key),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(6, 1, 7, 1),
                     child: _ReactionLabel(reaction: reaction),
                   ),
                 ),
@@ -442,8 +432,11 @@ class _ReactionLabel extends StatelessWidget {
             key: Key('reactionChip.${reaction.key}.count'),
             style: TextStyle(
               fontSize: reactionCountSize,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              // The user's own in the text colour, the others' muted.
+              color: reaction.mine
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -462,19 +455,16 @@ class ReplyQuoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = quote.senderName ?? quote.sender;
-    final color = name == null
-        ? OxiColors.accent
-        : OxiColors.avatars[name.hashCode.abs() % OxiColors.avatars.length];
+    final palette = context.oxi;
     return GestureDetector(
       key: const Key('message.quote'),
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+        margin: const EdgeInsets.only(top: 2, bottom: 4),
+        padding: const EdgeInsets.fromLTRB(8, 3, 8, 3),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          border: Border(left: BorderSide(color: color, width: 3)),
-          borderRadius: BorderRadius.circular(4),
+          color: palette.quote,
+          border: Border(left: BorderSide(color: palette.quoteBar, width: 3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,15 +475,19 @@ class ReplyQuoteView extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: color, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             Text(
               quote.text ?? 'Loading…',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: quote.text == null
-                  ? const TextStyle(fontStyle: FontStyle.italic)
-                  : null,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontStyle: quote.text == null ? FontStyle.italic : null,
+              ),
             ),
           ],
         ),
