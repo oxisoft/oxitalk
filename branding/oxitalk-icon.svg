@@ -2,8 +2,8 @@
  <!-- OxiTalk app icon (2026-10-22): yellow chat bubble with cut corners, red voice wave, on ink.
       Master for every platform; scripts/gen-icons.py renders it. Ink #0B0B12, yellow #FCEE0A, red #FF1744. -->
  <rect width="1024" height="1024" fill="#0B0B12"/>
- <g transform="translate(12,10)">
-  <path d="M310 180 H690 L800 290 V650 L850 850 L650 780 H310 L200 670 V290 Z" fill="none" stroke="#FCEE0A" stroke-width="76" stroke-linejoin="miter" stroke-miterlimit="10"/>
+ <g transform="translate(12,32)">
+  <path d="M310 180 H690 L800 290 V660 L830 815 L665 780 H310 L200 670 V290 Z" fill="none" stroke="#FCEE0A" stroke-width="76" stroke-linejoin="miter" stroke-miterlimit="10"/>
   <g fill="#FF1744">
    <rect x="306" y="410" width="52" height="140"/>
    <rect x="390" y="345" width="52" height="270"/>

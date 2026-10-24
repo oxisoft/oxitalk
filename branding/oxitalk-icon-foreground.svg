@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
  <!-- Android adaptive-icon foreground (108dp layer), transparent; same art as oxitalk-icon.svg,
-      scaled so its farthest point stays inside the 72dp visible circle. -->
- <g transform="translate(512,512) scale(0.62) translate(-532,-525)">
-  <path d="M310 180 H690 L800 290 V650 L850 850 L650 780 H310 L200 670 V290 Z" fill="none" stroke="#FCEE0A" stroke-width="76" stroke-linejoin="miter" stroke-miterlimit="10"/>
+      centred on the bubble body; the tail tip stays inside the 72dp visible circle. -->
+ <g transform="translate(512,512) scale(0.6) translate(-500,-480)">
+  <path d="M310 180 H690 L800 290 V660 L830 815 L665 780 H310 L200 670 V290 Z" fill="none" stroke="#FCEE0A" stroke-width="76" stroke-linejoin="miter" stroke-miterlimit="10"/>
   <g fill="#FF1744">
    <rect x="306" y="410" width="52" height="140"/>
    <rect x="390" y="345" width="52" height="270"/>
