@@ -33,6 +33,8 @@ List<String> _accountIds(WidgetRef ref) => [
 class AccountRail extends ConsumerWidget {
   const AccountRail({super.key});
 
+  static const width = 72.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ids = _accountIds(ref);
@@ -41,7 +43,7 @@ class AccountRail extends ConsumerWidget {
     return Material(
       color: context.oxi.rail,
       child: SizedBox(
-        width: 72,
+        width: width,
         child: IconTheme.merge(
           data: const IconThemeData(color: OxiColors.railIcon),
           child: Column(

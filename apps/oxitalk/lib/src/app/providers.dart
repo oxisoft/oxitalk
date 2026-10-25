@@ -83,6 +83,42 @@ class RailHidden extends _$RailHidden {
   }
 }
 
+/// The width the chat list was dragged to on a wide window; null for the default.
+@Riverpod(keepAlive: true)
+class ListWidth extends _$ListWidth {
+  @override
+  double? build() => ref.watch(uiPrefsProvider).listWidth;
+
+  /// While a divider is dragged: shown, not saved yet.
+  void drag(double width) => state = width;
+
+  /// Saves where the divider was let go.
+  void save() => unawaited(ref.read(uiPrefsProvider).setListWidth(state));
+
+  void reset() {
+    state = null;
+    save();
+  }
+}
+
+/// The width the thread pane was dragged to on a wide window; null for the default.
+@Riverpod(keepAlive: true)
+class ThreadWidth extends _$ThreadWidth {
+  @override
+  double? build() => ref.watch(uiPrefsProvider).threadWidth;
+
+  /// While a divider is dragged: shown, not saved yet.
+  void drag(double width) => state = width;
+
+  /// Saves where the divider was let go.
+  void save() => unawaited(ref.read(uiPrefsProvider).setThreadWidth(state));
+
+  void reset() {
+    state = null;
+    save();
+  }
+}
+
 /// Whether messages are sent formatted from their markdown, as Element sends them.
 @Riverpod(keepAlive: true)
 class UseMarkdown extends _$UseMarkdown {

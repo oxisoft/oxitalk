@@ -1,11 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// How the window was left, on this device: the chat list narrowed, the account rail hidden,
-/// and each account's open chat.
+/// How the window was left, on this device: the chat list narrowed or resized, the thread
+/// pane resized, the account rail hidden, and each account's open chat.
 abstract interface class UiPrefs {
   bool get narrowList;
   bool get railHidden;
+
+  /// The width the chat list was dragged to on a wide window; null for the default.
+  double? get listWidth;
+
+  /// The width the thread pane was dragged to; null for the default.
+  double? get threadWidth;
 
   /// Whether messages are sent formatted from their markdown; on unless turned off.
   bool get useMarkdown;
@@ -35,6 +41,12 @@ abstract interface class UiPrefs {
 
   Future<void> setNarrowList({required bool narrow});
   Future<void> setRailHidden({required bool hidden});
+
+  /// Null goes back to the default width.
+  Future<void> setListWidth(double? width);
+
+  /// Null goes back to the default width.
+  Future<void> setThreadWidth(double? width);
   Future<void> setUseMarkdown({required bool on});
   Future<void> setSendTyping({required bool on});
   Future<void> setReplaceEmoticons({required bool on});
@@ -78,6 +90,12 @@ final class FileUiPrefs implements UiPrefs {
   bool get railHidden => _json['railHidden'] == true;
 
   @override
+  double? get listWidth => (_json['listWidth'] as num?)?.toDouble();
+
+  @override
+  double? get threadWidth => (_json['threadWidth'] as num?)?.toDouble();
+
+  @override
   bool get useMarkdown => _json['useMarkdown'] != false;
 
   @override
@@ -108,6 +126,19 @@ final class FileUiPrefs implements UiPrefs {
   @override
   Future<void> setRailHidden({required bool hidden}) =>
       _save(() => _json['railHidden'] = hidden);
+
+  @override
+  Future<void> setListWidth(double? width) => _save(
+    () =>
+        width == null ? _json.remove('listWidth') : _json['listWidth'] = width,
+  );
+
+  @override
+  Future<void> setThreadWidth(double? width) => _save(
+    () => width == null
+        ? _json.remove('threadWidth')
+        : _json['threadWidth'] = width,
+  );
 
   @override
   Future<void> setUseMarkdown({required bool on}) =>
@@ -159,6 +190,8 @@ final class MemoryUiPrefs implements UiPrefs {
   MemoryUiPrefs({
     this.narrowList = false,
     this.railHidden = false,
+    this.listWidth,
+    this.threadWidth,
     this.useMarkdown = true,
     this.sendTyping = true,
     this.replaceEmoticons = true,
@@ -174,6 +207,12 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   bool railHidden;
+
+  @override
+  double? listWidth;
+
+  @override
+  double? threadWidth;
 
   @override
   bool useMarkdown;
@@ -208,6 +247,12 @@ final class MemoryUiPrefs implements UiPrefs {
   @override
   Future<void> setRailHidden({required bool hidden}) async =>
       railHidden = hidden;
+
+  @override
+  Future<void> setListWidth(double? width) async => listWidth = width;
+
+  @override
+  Future<void> setThreadWidth(double? width) async => threadWidth = width;
 
   @override
   Future<void> setUseMarkdown({required bool on}) async => useMarkdown = on;

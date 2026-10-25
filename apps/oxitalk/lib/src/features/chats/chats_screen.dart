@@ -11,6 +11,7 @@ import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../../ui/format.dart';
+import '../../ui/pane_divider.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
 import '../chat/threads.dart';
@@ -20,12 +21,14 @@ import 'badges.dart';
 import 'finders.dart';
 import 'new_room.dart';
 import 'notification_actions.dart';
+import 'pane_layout.dart';
 import 'room_groups.dart';
 import 'section_actions.dart';
 
 /// The active account's chats: on a wide window the account rail (unless hidden), the list
 /// (perhaps narrowed) and the open chat or its info side by side, with a thread or the thread
-/// list beside the chat; otherwise the list alone.
+/// list beside the chat, the lines between them dragged to resize the list and the thread;
+/// otherwise the list alone.
 class ChatsScreen extends ConsumerWidget {
   const ChatsScreen({
     this.roomId,
@@ -72,37 +75,95 @@ class ChatsScreen extends ConsumerWidget {
         }
         final narrow = ref.watch(narrowListProvider);
         final railHidden = ref.watch(railHiddenProvider);
-        return Row(
+        final window = constraints.maxWidth;
+        final rail = railHidden ? 0.0 : AccountRail.width + 1;
+        final hasSide =
+            roomId != null &&
+            !showInfo &&
+            !showNotifications &&
+            (thread != null || showThreads);
+        final panes = PaneLayout.fit(
+          window: window,
+          rail: rail,
+          list: ref.watch(listWidthProvider),
+          narrow: narrow,
+          thread: ref.watch(threadWidthProvider),
+          hasThread: hasSide,
+        );
+        final listWidth = ref.read(listWidthProvider.notifier);
+        final threadWidth = ref.read(threadWidthProvider.notifier);
+        // The grips lie over the lines, half a grip either side.
+        const grip = PaneDivider.gripWidth;
+        return Stack(
+          fit: StackFit.expand,
           children: [
-            if (!railHidden) ...[
-              const AccountRail(),
-              const VerticalDivider(width: 1),
-            ],
-            SizedBox(
-              width: narrow ? 96 : 360,
-              child: ChatListPane(account: account, selectedRoomId: roomId),
+            Row(
+              children: [
+                if (!railHidden) ...[
+                  const AccountRail(),
+                  const VerticalDivider(width: 1),
+                ],
+                SizedBox(
+                  width: panes.list,
+                  child: ChatListPane(account: account, selectedRoomId: roomId),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  // Its own messenger: a snack bar shows in the pane it is about, not in
+                  // every pane of the window.
+                  child: ScaffoldMessenger(
+                    child: switch (roomId) {
+                      final id? when showNotifications => RoomNotificationsPane(
+                        key: ValueKey((account, id, 'notifications')),
+                        account: account,
+                        roomId: id,
+                      ),
+                      final id? when showInfo => ChatInfoPane(
+                        key: ValueKey((account, id, 'info')),
+                        account: account,
+                        roomId: id,
+                      ),
+                      final id? => _withSide(account, id, panes.thread),
+                      null => WelcomePane(account: account),
+                    },
+                  ),
+                ),
+              ],
             ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              // Its own messenger: a snack bar shows in the pane it is about, not in
-              // every pane of the window.
-              child: ScaffoldMessenger(
-                child: switch (roomId) {
-                  final id? when showNotifications => RoomNotificationsPane(
-                    key: ValueKey((account, id, 'notifications')),
-                    account: account,
-                    roomId: id,
-                  ),
-                  final id? when showInfo => ChatInfoPane(
-                    key: ValueKey((account, id, 'info')),
-                    account: account,
-                    roomId: id,
-                  ),
-                  final id? => _withSide(account, id),
-                  null => WelcomePane(account: account),
-                },
+            // The narrowed list keeps its width: no grip.
+            if (!narrow)
+              Positioned(
+                left: rail + panes.list + 0.5 - grip / 2,
+                top: 0,
+                bottom: 0,
+                width: grip,
+                child: PaneDivider(
+                  key: const Key('divider.list'),
+                  label: 'Resize chat list',
+                  width: panes.list,
+                  growsRight: true,
+                  onResize: (width) => listWidth.drag(panes.clampList(width)),
+                  onResizeEnd: listWidth.save,
+                  onReset: listWidth.reset,
+                ),
               ),
-            ),
+            if (panes.thread case final width?)
+              Positioned(
+                right: width + 0.5 - grip / 2,
+                top: 0,
+                bottom: 0,
+                width: grip,
+                child: PaneDivider(
+                  key: const Key('divider.thread'),
+                  label: 'Resize thread',
+                  width: width,
+                  growsRight: false,
+                  onResize: (width) =>
+                      threadWidth.drag(panes.clampThread(width)),
+                  onResizeEnd: threadWidth.save,
+                  onReset: threadWidth.reset,
+                ),
+              ),
           ],
         );
       },
@@ -111,8 +172,8 @@ class ChatsScreen extends ConsumerWidget {
 }
 
 extension on ChatsScreen {
-  /// The chat, and beside it the open thread or the thread list.
-  Widget _withSide(String account, String roomId) {
+  /// The chat, and beside it the open thread or the thread list, [sideWidth] wide.
+  Widget _withSide(String account, String roomId, double? sideWidth) {
     final side = switch ((thread, showThreads)) {
       (final root?, _) => ThreadPane(
         key: ValueKey((account, roomId, root)),
@@ -140,7 +201,10 @@ extension on ChatsScreen {
       children: [
         Expanded(child: chat),
         const VerticalDivider(width: 1),
-        SizedBox(width: 400, child: ScaffoldMessenger(child: side)),
+        SizedBox(
+          width: sideWidth ?? PaneLayout.threadDefault,
+          child: ScaffoldMessenger(child: side),
+        ),
       ],
     );
   }

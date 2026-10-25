@@ -458,6 +458,121 @@ abstract class _$RailHidden extends $Notifier<bool> {
   }
 }
 
+/// The width the chat list was dragged to on a wide window; null for the default.
+
+@ProviderFor(ListWidth)
+final listWidthProvider = ListWidthProvider._();
+
+/// The width the chat list was dragged to on a wide window; null for the default.
+final class ListWidthProvider extends $NotifierProvider<ListWidth, double?> {
+  /// The width the chat list was dragged to on a wide window; null for the default.
+  ListWidthProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'listWidthProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$listWidthHash();
+
+  @$internal
+  @override
+  ListWidth create() => ListWidth();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(double? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<double?>(value),
+    );
+  }
+}
+
+String _$listWidthHash() => r'400311501c353924d27c41215a73ea9841536561';
+
+/// The width the chat list was dragged to on a wide window; null for the default.
+
+abstract class _$ListWidth extends $Notifier<double?> {
+  double? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<double?, double?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<double?, double?>,
+              double?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// The width the thread pane was dragged to on a wide window; null for the default.
+
+@ProviderFor(ThreadWidth)
+final threadWidthProvider = ThreadWidthProvider._();
+
+/// The width the thread pane was dragged to on a wide window; null for the default.
+final class ThreadWidthProvider
+    extends $NotifierProvider<ThreadWidth, double?> {
+  /// The width the thread pane was dragged to on a wide window; null for the default.
+  ThreadWidthProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'threadWidthProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$threadWidthHash();
+
+  @$internal
+  @override
+  ThreadWidth create() => ThreadWidth();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(double? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<double?>(value),
+    );
+  }
+}
+
+String _$threadWidthHash() => r'4fec1af659b0704295ed68e17c709969c4a79e09';
+
+/// The width the thread pane was dragged to on a wide window; null for the default.
+
+abstract class _$ThreadWidth extends $Notifier<double?> {
+  double? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<double?, double?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<double?, double?>,
+              double?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Whether messages are sent formatted from their markdown, as Element sends them.
 
 @ProviderFor(UseMarkdown)
