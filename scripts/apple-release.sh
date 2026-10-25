@@ -66,7 +66,8 @@ echo "archived $bundle"
 step "ad-hoc sign with the release entitlements"
 # Distribution builds take the production push environment.
 sed -e "s/\$(AppIdentifierPrefix)/$team./g" "$entitlements" >"$out/release.entitlements"
-plutil -replace "$aps_key" -string production "$out/release.entitlements"
+# PlistBuddy, not plutil: plutil reads the dots in the macOS key as a key path.
+/usr/libexec/PlistBuddy -c "Set :$aps_key production" "$out/release.entitlements"
 find "$bundle/$frameworks" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) \
   -exec codesign --force --sign - --timestamp=none {} \;
 codesign --force --sign - --timestamp=none --entitlements "$out/release.entitlements" "$bundle"
