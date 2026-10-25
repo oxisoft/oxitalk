@@ -36,6 +36,12 @@ abstract final class Routes {
   static String settingsSection(SettingsSection section) =>
       '$settings/${section.slug}';
 
+  /// The Account section about [userId], whichever account is in front.
+  static String settingsAccount(String userId) => Uri(
+    path: settingsSection(SettingsSection.account),
+    queryParameters: {'user': userId},
+  ).toString();
+
   static const about = '/about';
   static const chats = '/';
 
@@ -139,15 +145,20 @@ GoRouter router(Ref ref) {
               final section = SettingsSection.bySlug(
                 state.pathParameters['section'],
               )!;
+              // Which account the Account section is about; see editedAccount.
+              final user = state.uri.queryParameters['user'];
               // Wide: beside the menu. Narrow: a page of its own over it.
               return MediaQuery.sizeOf(context).width >= wideLayoutBreakpoint
                   ? NoTransitionPage(
                       key: state.pageKey,
-                      child: SettingsScreen(section: section),
+                      child: SettingsScreen(section: section, user: user),
                     )
                   : MaterialPage(
                       key: state.pageKey,
-                      child: SettingsSectionScreen(section: section),
+                      child: SettingsSectionScreen(
+                        section: section,
+                        user: user,
+                      ),
                     );
             },
           ),

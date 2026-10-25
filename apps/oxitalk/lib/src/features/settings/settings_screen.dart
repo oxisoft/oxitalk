@@ -74,10 +74,14 @@ class CollectLogs extends Notifier<bool> {
 /// (the first one at first); otherwise the menu alone, and each section a page of its own
 /// ([SettingsSectionScreen]).
 class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({this.section, super.key});
+  const SettingsScreen({this.section, this.user, super.key});
 
   /// The section open beside the menu on a wide window; `null` for the first.
   final SettingsSection? section;
+
+  /// The account the Account section is about (`?user=` in its link); the active one if
+  /// `null` or not logged in.
+  final String? user;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -114,7 +118,11 @@ class SettingsScreen extends ConsumerWidget {
                     automaticallyImplyLeading: false,
                     title: Text(open.title),
                   ),
-                  body: SettingsSectionPane(key: ValueKey(open), section: open),
+                  body: SettingsSectionPane(
+                    key: ValueKey(open),
+                    section: open,
+                    user: user,
+                  ),
                 ),
               ),
             ),
@@ -135,9 +143,12 @@ const settingsMenuWidth = 300.0;
 /// One section of Settings as a page of its own, over the menu (narrow windows); Back and
 /// the system's back return to the menu.
 class SettingsSectionScreen extends StatelessWidget {
-  const SettingsSectionScreen({required this.section, super.key});
+  const SettingsSectionScreen({required this.section, this.user, super.key});
 
   final SettingsSection section;
+
+  /// As [SettingsScreen.user].
+  final String? user;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -152,7 +163,7 @@ class SettingsSectionScreen extends StatelessWidget {
       ),
       title: Text(section.title),
     ),
-    body: SettingsSectionPane(section: section),
+    body: SettingsSectionPane(section: section, user: user),
   );
 }
 
@@ -165,7 +176,13 @@ class SettingsMenu extends ConsumerWidget {
   final SettingsSection? selected;
 
   String _summary(WidgetRef ref, SettingsSection section) => switch (section) {
-    SettingsSection.account => ref.watch(activeAccountProvider) ?? '',
+    SettingsSection.account => switch (ref.watch(
+      accountsProvider.select((accounts) => accounts.value?.sessions.length),
+    )) {
+      null || 0 => '',
+      1 => ref.watch(activeAccountProvider) ?? '',
+      final count => '$count accounts',
+    },
     SettingsSection.appearance => switch (ref.watch(appThemeProvider)) {
       ThemeMode.system => 'Automatic',
       ThemeMode.light => 'Light',
@@ -278,9 +295,12 @@ class SettingsMenuTile extends StatelessWidget {
 
 /// The settings of [section], wherever they show: beside the menu or as a page.
 class SettingsSectionPane extends ConsumerWidget {
-  const SettingsSectionPane({required this.section, super.key});
+  const SettingsSectionPane({required this.section, this.user, super.key});
 
   final SettingsSection section;
+
+  /// As [SettingsScreen.user].
+  final String? user;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -293,11 +313,17 @@ class SettingsSectionPane extends ConsumerWidget {
         ),
         null => const SizedBox.shrink(),
       },
-      SettingsSection.account => switch (account) {
-        final account? => ListView(
+      SettingsSection.account => switch (editedAccount(
+        ref.watch(accountsProvider).value,
+        user,
+      )) {
+        final edited? => ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
-            _AccountPictures(key: ValueKey(account), account: account),
+            const _Heading('Accounts'),
+            SettingsAccountSwitcher(selected: edited),
+            const Divider(height: 25, indent: 16, endIndent: 16),
+            _AccountPictures(key: ValueKey(edited), account: edited),
           ],
         ),
         null => const SizedBox.shrink(),
@@ -318,6 +344,159 @@ class SettingsSectionPane extends ConsumerWidget {
         constraints: const BoxConstraints(maxWidth: 720),
         child: content,
       ),
+    );
+  }
+}
+
+/// The account the Account section is about: [user] while it is logged in, else the
+/// active one; `null` without accounts.
+String? editedAccount(AccountsState? accounts, String? user) {
+  if (accounts == null) return null;
+  if (user != null && accounts.byId(user) != null) return user;
+  return accounts.activeId;
+}
+
+/// A heading over a group of settings.
+class _Heading extends StatelessWidget {
+  const _Heading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Text(
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Every logged-in account, the [selected] one marked as the open chat is, then adding
+/// one. Picking an account shows its settings below; it doesn't bring it to the front.
+class SettingsAccountSwitcher extends ConsumerWidget {
+  const SettingsAccountSwitcher({required this.selected, super.key});
+
+  final String selected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ids = [
+      for (final session
+          in ref.watch(accountsProvider).value?.sessions ??
+              const <MatrixSession>[])
+        session.userId,
+    ];
+    final active = ref.watch(activeAccountProvider);
+    final palette = context.oxi;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final id in ids)
+          _SwitcherAccount(
+            key: Key('settings.accounts.$id'),
+            account: id,
+            selected: id == selected,
+            active: id == active && ids.length > 1,
+          ),
+        ListTile(
+          key: const Key('settings.accounts.add'),
+          leading: SizedBox.square(
+            dimension: 40,
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                shape: OxiShapes.cut(
+                  6,
+                  side: BorderSide(color: palette.muted, width: 1.5),
+                ),
+              ),
+              child: Icon(Icons.add_rounded, color: palette.muted),
+            ),
+          ),
+          title: const Text('Add account'),
+          onTap: () => context.go(Routes.addAccount),
+        ),
+      ],
+    );
+  }
+}
+
+/// An account in [SettingsAccountSwitcher]: its picture, name and user ID, and whether it
+/// is the one in front or not verified yet.
+class _SwitcherAccount extends ConsumerWidget {
+  const _SwitcherAccount({
+    required this.account,
+    required this.selected,
+    required this.active,
+    super.key,
+  });
+
+  final String account;
+  final bool selected;
+
+  /// In front in the app (only told with several accounts).
+  final bool active;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.oxi;
+    final theme = Theme.of(context);
+    final name = ref.watch(profileProvider(account)).value?.displayName;
+    final unverified =
+        ref.watch(verificationStatusProvider(account)).value ==
+        VerificationStatus.unverified;
+    final tile = ListTile(
+      selected: selected,
+      selectedTileColor: palette.selectedRow,
+      selectedColor: palette.text,
+      leading: AccountAvatar(account: account, radius: 20),
+      title: Text(
+        name ?? account,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text.rich(
+        TextSpan(
+          children: [
+            if (name != null) TextSpan(text: account),
+            if (unverified) ...[
+              if (name != null) const TextSpan(text: '  ·  '),
+              TextSpan(
+                text: 'Not verified',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: palette.muted),
+      ),
+      trailing: active
+          ? Text(
+              'In use',
+              key: Key('settings.accounts.active.$account'),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: palette.muted,
+              ),
+            )
+          : null,
+      onTap: selected
+          ? null
+          : () => context.go(Routes.settingsAccount(account)),
+    );
+    if (!selected) return tile;
+    return Container(
+      foregroundDecoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: OxiBrand.yellow, width: 3)),
+      ),
+      child: tile,
     );
   }
 }
@@ -491,6 +670,16 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
 
   Future<PickedImage?> _pick() => ref.read(pickImageProvider)();
 
+  /// Logs out of this account. Another account's settings then show the active one's; the
+  /// active one's, as anywhere, leave for the next account's chats (or the login).
+  void _logout() {
+    final wasActive = ref.read(activeAccountProvider) == _account;
+    unawaited(ref.read(accountsProvider.notifier).logout(_account));
+    if (!wasActive) {
+      context.go(Routes.settingsSection(SettingsSection.account));
+    }
+  }
+
   Future<void> _setProfilePicture() async {
     final image = await _pick();
     final session = _session;
@@ -532,8 +721,7 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
           subtitle: Text(_account),
           trailing: OutlinedButton.icon(
             key: const Key('settings.logout'),
-            onPressed: () =>
-                unawaited(ref.read(accountsProvider.notifier).logout(_account)),
+            onPressed: _logout,
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Log out'),
           ),

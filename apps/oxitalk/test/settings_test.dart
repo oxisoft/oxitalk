@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
+import 'package:oxitalk/src/app/providers.dart';
 import 'package:oxitalk/src/app/router.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
+import 'package:oxitalk/src/features/settings/settings_screen.dart';
+import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 
 import 'support/app.dart';
@@ -31,6 +34,47 @@ Future<void> _go(WidgetTester tester, String location) async {
 }
 
 Finder _pane(String slug) => find.byKey(Key('settings.pane.$slug'));
+
+const _alex = '@alex:oxisoft.net';
+const _work = '@alex:work.example';
+const _bot = '@bot:matrix.org';
+
+/// Three accounts, the first one in front; the third isn't verified.
+({FakeMatrixClientFactory factory, List<FakeSession> sessions}) _accounts() {
+  final sessions = [
+    FakeSession(
+      userId: _alex,
+      rooms: const [],
+      profile: const Profile(displayName: 'Alex'),
+    ),
+    FakeSession(
+      userId: _work,
+      rooms: const [],
+      profile: const Profile(displayName: 'Alex at work'),
+    ),
+    FakeSession(userId: _bot, rooms: const [])
+      ..verification.value = VerificationStatus.unverified,
+  ];
+  return (
+    factory: FakeMatrixClientFactory(saved: sessions, active: _alex),
+    sessions: sessions,
+  );
+}
+
+ProviderContainer _container(WidgetTester tester) =>
+    ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+
+/// The account the Account section shows the settings of.
+Finder _edited(String account) => find.byKey(ValueKey(account));
+
+bool _switcherSelected(WidgetTester tester, String account) => tester
+    .widget<ListTile>(
+      find.descendant(
+        of: find.byKey(Key('settings.accounts.$account')),
+        matching: find.byType(ListTile),
+      ),
+    )
+    .selected;
 
 bool _selected(WidgetTester tester, String slug) => tester
     .widget<ListTile>(
@@ -206,6 +250,142 @@ void main() {
       for (final slug in _sections) {
         expect(_pane(slug), findsNothing);
       }
+    });
+  });
+
+  group('accounts', () {
+    testWidgets('one account: its ID under Account in the menu', (
+      tester,
+    ) async {
+      await pumpApp(tester, _factory(), size: _wide);
+      await _go(tester, Routes.settings);
+      expect(find.text('@me:example.org'), findsWidgets);
+      expect(
+        find.byKey(const Key('settings.accounts.@me:example.org')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('every account in the switcher, the active one picked', (
+      tester,
+    ) async {
+      await pumpApp(tester, _accounts().factory, size: _wide);
+      await _go(tester, Routes.settings);
+      expect(find.text('3 accounts'), findsOneWidget);
+      for (final id in [_alex, _work, _bot]) {
+        expect(find.byKey(Key('settings.accounts.$id')), findsOneWidget);
+      }
+      expect(find.byKey(const Key('settings.accounts.add')), findsOneWidget);
+      expect(_switcherSelected(tester, _alex), isTrue);
+      expect(_switcherSelected(tester, _work), isFalse);
+      expect(_edited(_alex), findsOneWidget);
+      expect(
+        find.byKey(const Key('settings.accounts.active.$_alex')),
+        findsOneWidget,
+      );
+      // Names with their full IDs; the unverified one says so.
+      expect(find.text('Alex at work'), findsOneWidget);
+      expect(find.textContaining('Not verified'), findsOneWidget);
+    });
+
+    testWidgets('picking another account shows its settings, the active '
+        'one stays', (tester) async {
+      final (:factory, :sessions) = _accounts();
+      await pumpApp(tester, factory, size: _wide);
+      await _go(tester, Routes.settings);
+      await tester.tap(find.byKey(const Key('settings.accounts.$_work')));
+      await tester.pumpAndSettle();
+      expect(_switcherSelected(tester, _work), isTrue);
+      expect(_switcherSelected(tester, _alex), isFalse);
+      expect(_edited(_work), findsOneWidget);
+      expect(_edited(_alex), findsNothing);
+      expect(find.byKey(const Key('settings.logout')), findsOneWidget);
+      expect(_container(tester).read(activeAccountProvider), _alex);
+      expect(factory.active, _alex);
+      // Linkable: the pick is in the location.
+      expect(
+        _container(tester)
+            .read(routerProvider)
+            .routerDelegate
+            .currentConfiguration
+            .uri
+            .toString(),
+        Routes.settingsAccount(_work),
+      );
+    });
+
+    testWidgets('logging out of another account keeps the active one', (
+      tester,
+    ) async {
+      final (:factory, :sessions) = _accounts();
+      await pumpApp(tester, factory, size: _wide);
+      await _go(tester, Routes.settingsAccount(_work));
+      await tester.tap(find.byKey(const Key('settings.logout')));
+      await tester.pumpAndSettle();
+      expect(sessions[1].loggedOut, isTrue);
+      expect(sessions[0].loggedOut, isFalse);
+      expect(_container(tester).read(activeAccountProvider), _alex);
+      // Still in Settings, now about the active account.
+      expect(find.byKey(const Key('settings.accounts.$_work')), findsNothing);
+      expect(_switcherSelected(tester, _alex), isTrue);
+      expect(_edited(_alex), findsOneWidget);
+      expect(find.text('2 accounts'), findsOneWidget);
+    });
+
+    testWidgets('Add account opens the login to add one', (tester) async {
+      await pumpApp(tester, _accounts().factory, size: _wide);
+      await _go(tester, Routes.settings);
+      await tester.tap(find.byKey(const Key('settings.accounts.add')));
+      await tester.pumpAndSettle();
+      expect(
+        _container(tester)
+            .read(routerProvider)
+            .routerDelegate
+            .currentConfiguration
+            .uri
+            .path,
+        Routes.addAccount,
+      );
+    });
+
+    for (final (layout, size) in [
+      ('wide', _wide),
+      ('narrow', const Size(400, 800)),
+    ]) {
+      testWidgets('$layout: a link with a user opens that account', (
+        tester,
+      ) async {
+        await pumpApp(tester, _accounts().factory, size: size);
+        await _go(tester, Routes.settingsAccount(_bot));
+        expect(_pane('account'), findsOneWidget);
+        expect(_switcherSelected(tester, _bot), isTrue);
+        expect(_edited(_bot), findsOneWidget);
+        expect(_container(tester).read(activeAccountProvider), _alex);
+      });
+
+      testWidgets('$layout: a link with an unknown user opens the active one', (
+        tester,
+      ) async {
+        await pumpApp(tester, _accounts().factory, size: size);
+        await _go(tester, Routes.settingsAccount('@nobody:nowhere.example'));
+        expect(_pane('account'), findsOneWidget);
+        expect(_switcherSelected(tester, _alex), isTrue);
+        expect(_edited(_alex), findsOneWidget);
+      });
+    }
+
+    testWidgets('narrow: picking an account keeps the page', (tester) async {
+      await pumpApp(tester, _accounts().factory);
+      await _go(tester, Routes.settingsSection(SettingsSection.account));
+      await tester.tap(find.byKey(const Key('settings.accounts.$_work')));
+      await tester.pumpAndSettle();
+      expect(_edited(_work), findsOneWidget);
+      expect(_container(tester).read(activeAccountProvider), _alex);
+      // Back still returns to the menu.
+      await tester.tap(find.byKey(const Key('settings.back')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('settings.messages')), findsOneWidget);
+      expect(_pane('account'), findsNothing);
     });
   });
 }
