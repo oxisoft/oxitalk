@@ -67,14 +67,27 @@ ProviderContainer _container(WidgetTester tester) =>
 /// The account the Account section shows the settings of.
 Finder _edited(String account) => find.byKey(ValueKey(account));
 
-bool _switcherSelected(WidgetTester tester, String account) => tester
-    .widget<ListTile>(
-      find.descendant(
-        of: find.byKey(Key('settings.accounts.$account')),
-        matching: find.byType(ListTile),
-      ),
+/// Whether the account dropdown shows [account] as the one picked.
+bool _switcherSelected(WidgetTester tester, String account) => find
+    .descendant(
+      of: find.byKey(const Key('settings.accounts.picker')),
+      matching: find.byKey(Key('settings.accounts.picked.$account')),
     )
-    .selected;
+    .evaluate()
+    .isNotEmpty;
+
+/// Opens the account dropdown.
+Future<void> _openPicker(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('settings.accounts.picker')));
+  await tester.pumpAndSettle();
+}
+
+/// Picks [account] in the account dropdown.
+Future<void> _pickAccount(WidgetTester tester, String account) async {
+  await _openPicker(tester);
+  await tester.tap(find.byKey(Key('settings.accounts.$account')));
+  await tester.pumpAndSettle();
+}
 
 bool _selected(WidgetTester tester, String slug) => tester
     .widget<ListTile>(
@@ -260,28 +273,50 @@ void main() {
       await pumpApp(tester, _factory(), size: _wide);
       await _go(tester, Routes.settings);
       expect(find.text('@me:example.org'), findsWidgets);
+      expect(_switcherSelected(tester, '@me:example.org'), isTrue);
+      // The dropdown still opens, for Add account; one account is no use for "In use".
+      expect(
+        find.byKey(const Key('settings.accounts.active.@me:example.org')),
+        findsNothing,
+      );
+      await _openPicker(tester);
       expect(
         find.byKey(const Key('settings.accounts.@me:example.org')),
         findsOneWidget,
       );
+      expect(find.byKey(const Key('settings.accounts.add')), findsOneWidget);
     });
 
-    testWidgets('every account in the switcher, the active one picked', (
-      tester,
-    ) async {
+    testWidgets('the dropdown shows the active account; opened, every '
+        'account, the picked one checked, and Add account', (tester) async {
       await pumpApp(tester, _accounts().factory, size: _wide);
       await _go(tester, Routes.settings);
       expect(find.text('3 accounts'), findsOneWidget);
-      for (final id in [_alex, _work, _bot]) {
-        expect(find.byKey(Key('settings.accounts.$id')), findsOneWidget);
-      }
-      expect(find.byKey(const Key('settings.accounts.add')), findsOneWidget);
+      // Closed: only the picked account, no list.
       expect(_switcherSelected(tester, _alex), isTrue);
       expect(_switcherSelected(tester, _work), isFalse);
+      for (final id in [_alex, _work, _bot]) {
+        expect(find.byKey(Key('settings.accounts.$id')), findsNothing);
+      }
+      expect(find.byKey(const Key('settings.accounts.add')), findsNothing);
       expect(_edited(_alex), findsOneWidget);
       expect(
         find.byKey(const Key('settings.accounts.active.$_alex')),
         findsOneWidget,
+      );
+
+      await _openPicker(tester);
+      for (final id in [_alex, _work, _bot]) {
+        expect(find.byKey(Key('settings.accounts.$id')), findsOneWidget);
+      }
+      expect(find.byKey(const Key('settings.accounts.add')), findsOneWidget);
+      expect(
+        find.byKey(const Key('settings.accounts.current.$_alex')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('settings.accounts.current.$_work')),
+        findsNothing,
       );
       // Names with their full IDs; the unverified one says so.
       expect(find.text('Alex at work'), findsOneWidget);
@@ -293,8 +328,9 @@ void main() {
       final (:factory, :sessions) = _accounts();
       await pumpApp(tester, factory, size: _wide);
       await _go(tester, Routes.settings);
-      await tester.tap(find.byKey(const Key('settings.accounts.$_work')));
-      await tester.pumpAndSettle();
+      await _pickAccount(tester, _work);
+      // The dropdown closes and shows the picked account.
+      expect(find.byKey(const Key('settings.accounts.add')), findsNothing);
       expect(_switcherSelected(tester, _work), isTrue);
       expect(_switcherSelected(tester, _alex), isFalse);
       expect(_edited(_work), findsOneWidget);
@@ -326,7 +362,7 @@ void main() {
       expect(sessions[0].loggedOut, isFalse);
       expect(_container(tester).read(activeAccountProvider), _alex);
       // Still in Settings, now about the active account.
-      expect(find.byKey(const Key('settings.accounts.$_work')), findsNothing);
+      expect(_switcherSelected(tester, _work), isFalse);
       expect(_switcherSelected(tester, _alex), isTrue);
       expect(_edited(_alex), findsOneWidget);
       expect(find.text('2 accounts'), findsOneWidget);
@@ -335,6 +371,7 @@ void main() {
     testWidgets('Add account opens the login to add one', (tester) async {
       await pumpApp(tester, _accounts().factory, size: _wide);
       await _go(tester, Routes.settings);
+      await _openPicker(tester);
       await tester.tap(find.byKey(const Key('settings.accounts.add')));
       await tester.pumpAndSettle();
       expect(
@@ -377,8 +414,7 @@ void main() {
     testWidgets('narrow: picking an account keeps the page', (tester) async {
       await pumpApp(tester, _accounts().factory);
       await _go(tester, Routes.settingsSection(SettingsSection.account));
-      await tester.tap(find.byKey(const Key('settings.accounts.$_work')));
-      await tester.pumpAndSettle();
+      await _pickAccount(tester, _work);
       expect(_edited(_work), findsOneWidget);
       expect(_container(tester).read(activeAccountProvider), _alex);
       // Back still returns to the menu.

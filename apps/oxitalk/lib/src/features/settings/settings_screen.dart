@@ -322,6 +322,7 @@ class SettingsSectionPane extends ConsumerWidget {
           children: [
             const _Heading('Accounts'),
             SettingsAccountSwitcher(selected: edited),
+            const SizedBox(height: 8),
             const Divider(height: 25, indent: 16, endIndent: 16),
             _AccountPictures(key: ValueKey(edited), account: edited),
           ],
@@ -377,15 +378,35 @@ class _Heading extends StatelessWidget {
   }
 }
 
-/// Every logged-in account, the [selected] one marked as the open chat is, then adding
-/// one. Picking an account shows its settings below; it doesn't bring it to the front.
-class SettingsAccountSwitcher extends ConsumerWidget {
+/// Which account the Account section is about, as a dropdown: the [selected] account's
+/// picture, name and user ID; opened, every logged-in account (the selected one checked),
+/// then adding one. Picking an account shows its settings below; it doesn't bring it to the
+/// front. With one account it still opens, for Add account.
+class SettingsAccountSwitcher extends ConsumerStatefulWidget {
   const SettingsAccountSwitcher({required this.selected, super.key});
 
   final String selected;
 
+  /// The closed control's height, a field's.
+  static const height = 56.0;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsAccountSwitcher> createState() =>
+      _SettingsAccountSwitcherState();
+}
+
+class _SettingsAccountSwitcherState
+    extends ConsumerState<SettingsAccountSwitcher> {
+  final _menu = MenuController();
+
+  void _pick(String account) {
+    if (account != widget.selected) {
+      context.go(Routes.settingsAccount(account));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ids = [
       for (final session
           in ref.watch(accountsProvider).value?.sessions ??
@@ -394,53 +415,202 @@ class SettingsAccountSwitcher extends ConsumerWidget {
     ];
     final active = ref.watch(activeAccountProvider);
     final palette = context.oxi;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final id in ids)
-          _SwitcherAccount(
-            key: Key('settings.accounts.$id'),
-            account: id,
-            selected: id == selected,
-            active: id == active && ids.length > 1,
-          ),
-        ListTile(
-          key: const Key('settings.accounts.add'),
-          leading: SizedBox.square(
-            dimension: 40,
-            child: DecoratedBox(
-              decoration: ShapeDecoration(
-                shape: OxiShapes.cut(
-                  6,
-                  side: BorderSide(color: palette.muted, width: 1.5),
+    bool inUse(String id) => id == active && ids.length > 1;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              return MenuAnchor(
+                controller: _menu,
+                alignmentOffset: const Offset(0, 4),
+                style: MenuStyle(
+                  minimumSize: WidgetStatePropertyAll(Size(width, 0)),
+                  maximumSize: WidgetStatePropertyAll(
+                    Size(width, double.infinity),
+                  ),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(vertical: 6),
+                  ),
+                  backgroundColor: WidgetStatePropertyAll(palette.panel),
+                  // Flat, outlined as the secondary buttons are.
+                  elevation: const WidgetStatePropertyAll(0),
+                  shape: WidgetStatePropertyAll(
+                    OxiShapes.cut(
+                      8,
+                      side: BorderSide(color: OxiButtons.outline(palette)),
+                    ),
+                  ),
                 ),
-              ),
-              child: Icon(Icons.add_rounded, color: palette.muted),
-            ),
+                menuChildren: [
+                  for (final id in ids)
+                    // As wide as the control: a menu is only as wide as its items.
+                    SizedBox(
+                      width: width,
+                      child: _PickerAccount(
+                        key: Key('settings.accounts.$id'),
+                        account: id,
+                        current: id == widget.selected,
+                        inUse: inUse(id),
+                        onPressed: () => _pick(id),
+                      ),
+                    ),
+                  const Divider(height: 13),
+                  MenuItemButton(
+                    key: const Key('settings.accounts.add'),
+                    style: _PickerAccount.itemStyle,
+                    leadingIcon: SizedBox.square(
+                      dimension: 36,
+                      child: DecoratedBox(
+                        decoration: ShapeDecoration(
+                          shape: OxiShapes.cut(
+                            6,
+                            side: BorderSide(color: palette.muted, width: 1.5),
+                          ),
+                        ),
+                        child: Icon(Icons.add_rounded, color: palette.muted),
+                      ),
+                    ),
+                    onPressed: () => context.go(Routes.addAccount),
+                    child: const Padding(
+                      padding: EdgeInsetsDirectional.only(start: 4),
+                      child: Text('Add account'),
+                    ),
+                  ),
+                ],
+                builder: (context, menu, _) => Material(
+                  key: const Key('settings.accounts.picker'),
+                  color: palette.panel2,
+                  shape: OxiShapes.cut(
+                    6,
+                    side: BorderSide(color: palette.line),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => menu.isOpen ? menu.close() : menu.open(),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: SettingsAccountSwitcher.height,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          10,
+                          8,
+                          8,
+                          8,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _AccountLine(
+                                key: Key(
+                                  'settings.accounts.picked.${widget.selected}',
+                                ),
+                                account: widget.selected,
+                                inUse: inUse(widget.selected),
+                                ring: palette.panel2,
+                                inUseKey: Key(
+                                  'settings.accounts.active.${widget.selected}',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              menu.isOpen
+                                  ? Icons.expand_less_rounded
+                                  : Icons.expand_more_rounded,
+                              color: palette.muted,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-          title: const Text('Add account'),
-          onTap: () => context.go(Routes.addAccount),
         ),
-      ],
+      ),
     );
   }
 }
 
-/// An account in [SettingsAccountSwitcher]: its picture, name and user ID, and whether it
-/// is the one in front or not verified yet.
-class _SwitcherAccount extends ConsumerWidget {
-  const _SwitcherAccount({
+/// An account in the [SettingsAccountSwitcher]'s menu; the [current] one is checked.
+class _PickerAccount extends StatelessWidget {
+  const _PickerAccount({
     required this.account,
-    required this.selected,
-    required this.active,
+    required this.current,
+    required this.inUse,
+    required this.onPressed,
     super.key,
   });
 
   final String account;
-  final bool selected;
+  final bool current;
+  final bool inUse;
+  final VoidCallback onPressed;
+
+  static final itemStyle = ButtonStyle(
+    minimumSize: const WidgetStatePropertyAll(
+      Size(0, SettingsAccountSwitcher.height),
+    ),
+    padding: const WidgetStatePropertyAll(
+      EdgeInsetsDirectional.fromSTEB(10, 6, 12, 6),
+    ),
+    shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.oxi;
+    return MenuItemButton(
+      style: itemStyle.copyWith(
+        backgroundColor: WidgetStatePropertyAll(
+          current ? palette.selectedRow : null,
+        ),
+      ),
+      trailingIcon: current
+          ? Icon(
+              Icons.check_rounded,
+              key: Key('settings.accounts.current.$account'),
+              size: 20,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : const SizedBox(width: 20),
+      onPressed: onPressed,
+      child: _AccountLine(
+        account: account,
+        inUse: inUse,
+        ring: current ? palette.selectedRow : palette.panel,
+      ),
+    );
+  }
+}
+
+/// An account as the [SettingsAccountSwitcher] shows it: its picture, name and user ID, and
+/// whether it is the one in front or not verified yet.
+class _AccountLine extends ConsumerWidget {
+  const _AccountLine({
+    required this.account,
+    required this.inUse,
+    required this.ring,
+    this.inUseKey,
+    super.key,
+  });
+
+  final String account;
+
+  /// What the line sits on, around the avatar's server icon.
+  final Color ring;
 
   /// In front in the app (only told with several accounts).
-  final bool active;
+  final bool inUse;
+  final Key? inUseKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -450,53 +620,56 @@ class _SwitcherAccount extends ConsumerWidget {
     final unverified =
         ref.watch(verificationStatusProvider(account)).value ==
         VerificationStatus.unverified;
-    final tile = ListTile(
-      selected: selected,
-      selectedTileColor: palette.selectedRow,
-      selectedColor: palette.text,
-      leading: AccountAvatar(account: account, radius: 20),
-      title: Text(
-        name ?? account,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text.rich(
-        TextSpan(
-          children: [
-            if (name != null) TextSpan(text: account),
-            if (unverified) ...[
-              if (name != null) const TextSpan(text: '  ·  '),
-              TextSpan(
-                text: 'Not verified',
-                style: TextStyle(color: theme.colorScheme.error),
+    return Row(
+      children: [
+        AccountAvatar(account: account, radius: 18, ring: ring),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name ?? account,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: palette.text,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              if (name != null || unverified)
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      if (name != null) TextSpan(text: account),
+                      if (unverified) ...[
+                        if (name != null) const TextSpan(text: '  ·  '),
+                        TextSpan(
+                          text: 'Not verified',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ],
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: palette.muted,
+                  ),
+                ),
             ],
-          ],
+          ),
         ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: palette.muted),
-      ),
-      trailing: active
-          ? Text(
-              'In use',
-              key: Key('settings.accounts.active.$account'),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: palette.muted,
-              ),
-            )
-          : null,
-      onTap: selected
-          ? null
-          : () => context.go(Routes.settingsAccount(account)),
-    );
-    if (!selected) return tile;
-    return Container(
-      foregroundDecoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: OxiBrand.yellow, width: 3)),
-      ),
-      child: tile,
+        if (inUse) ...[
+          const SizedBox(width: 8),
+          Text(
+            'In use',
+            key: inUseKey,
+            style: theme.textTheme.labelMedium?.copyWith(color: palette.muted),
+          ),
+        ],
+      ],
     );
   }
 }
