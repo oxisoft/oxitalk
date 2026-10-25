@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/media_prefs.dart';
-import '../../app/notification_service.dart';
 import '../../app/pick_image.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
@@ -17,14 +16,15 @@ import '../../ui/format.dart';
 import '../about/about_screen.dart';
 import '../accounts/account_switcher.dart';
 import 'notification_settings_screen.dart';
+import 'settings_heading.dart';
 
 /// The categories of Settings, in the order of the menu; each has its own route under
-/// [Routes.settings], named by its [slug].
+/// [Routes.settings], named by its [slug]. Notifications are in Account, by account, with
+/// this device's own switches after them ([Routes.oldNotificationSettings] leads there).
 enum SettingsSection {
   account('account', 'Account', Icons.person_outline_rounded),
   appearance('appearance', 'Appearance', Icons.palette_outlined),
   messages('messages', 'Messages', Icons.chat_bubble_outline_rounded),
-  notifications('notifications', 'Notifications', Icons.notifications_outlined),
   media('media', 'Media & storage', Icons.perm_media_outlined),
   diagnostics('diagnostics', 'Diagnostics', Icons.bug_report_outlined);
 
@@ -35,8 +35,8 @@ enum SettingsSection {
   final String title;
   final IconData icon;
 
-  /// Account and Notifications are about the active account, so they need one.
-  bool get needsAccount => this == account || this == notifications;
+  /// Account is about an account, so it needs one.
+  bool get needsAccount => this == account;
 
   /// The section named [slug] in a route, if any.
   static SettingsSection? bySlug(String? slug) {
@@ -74,7 +74,12 @@ class CollectLogs extends Notifier<bool> {
 /// (the first one at first); otherwise the menu alone, and each section a page of its own
 /// ([SettingsSectionScreen]).
 class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({this.section, this.user, super.key});
+  const SettingsScreen({
+    this.section,
+    this.user,
+    this.showNotifications = false,
+    super.key,
+  });
 
   /// The section open beside the menu on a wide window; `null` for the first.
   final SettingsSection? section;
@@ -82,6 +87,10 @@ class SettingsScreen extends ConsumerWidget {
   /// The account the Account section is about (`?user=` in its link); the active one if
   /// `null` or not logged in.
   final String? user;
+
+  /// Whether the Account section opens scrolled to its notifications (an old link to
+  /// Settings › Notifications).
+  final bool showNotifications;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -122,6 +131,7 @@ class SettingsScreen extends ConsumerWidget {
                     key: ValueKey(open),
                     section: open,
                     user: user,
+                    showNotifications: showNotifications,
                   ),
                 ),
               ),
@@ -143,27 +153,35 @@ const settingsMenuWidth = 300.0;
 /// One section of Settings as a page of its own, over the menu (narrow windows); Back and
 /// the system's back return to the menu.
 class SettingsSectionScreen extends StatelessWidget {
-  const SettingsSectionScreen({required this.section, this.user, super.key});
+  const SettingsSectionScreen({
+    required this.section,
+    this.user,
+    this.showNotifications = false,
+    super.key,
+  });
 
   final SettingsSection section;
 
   /// As [SettingsScreen.user].
   final String? user;
 
+  /// As [SettingsScreen.showNotifications].
+  final bool showNotifications;
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       leading: BackButton(
-        key: Key(
-          section == SettingsSection.notifications
-              ? 'notificationSettings.back'
-              : 'settings.back',
-        ),
+        key: const Key('settings.back'),
         onPressed: () => context.go(Routes.settings),
       ),
       title: Text(section.title),
     ),
-    body: SettingsSectionPane(section: section, user: user),
+    body: SettingsSectionPane(
+      section: section,
+      user: user,
+      showNotifications: showNotifications,
+    ),
   );
 }
 
@@ -192,13 +210,6 @@ class SettingsMenu extends ConsumerWidget {
       if (ref.watch(useMarkdownProvider)) 'Markdown' else 'Plain text',
       if (ref.watch(sendTypingProvider)) 'typing shown' else 'typing hidden',
     ].join(', '),
-    SettingsSection.notifications => switch (ref.watch(
-      deviceNotificationsProvider,
-    )) {
-      DeviceNotificationPrefs(enabled: false) => 'Off on this device',
-      DeviceNotificationPrefs(sound: true) => 'On, with sound',
-      _ => 'On, silent',
-    },
     SettingsSection.media => switch (ref.watch(mediaRetentionProvider)) {
       null => 'Media kept forever',
       final days => 'Media kept for ${retentionLabel(days)}',
@@ -295,37 +306,31 @@ class SettingsMenuTile extends StatelessWidget {
 
 /// The settings of [section], wherever they show: beside the menu or as a page.
 class SettingsSectionPane extends ConsumerWidget {
-  const SettingsSectionPane({required this.section, this.user, super.key});
+  const SettingsSectionPane({
+    required this.section,
+    this.user,
+    this.showNotifications = false,
+    super.key,
+  });
 
   final SettingsSection section;
 
   /// As [SettingsScreen.user].
   final String? user;
 
+  /// As [SettingsScreen.showNotifications].
+  final bool showNotifications;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final account = ref.watch(activeAccountProvider);
     final Widget content = switch (section) {
-      SettingsSection.notifications => switch (account) {
-        final account? => NotificationSettingsPane(
-          key: ValueKey(account),
-          account: account,
-        ),
-        null => const SizedBox.shrink(),
-      },
       SettingsSection.account => switch (editedAccount(
         ref.watch(accountsProvider).value,
         user,
       )) {
-        final edited? => ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            const _Heading('Accounts'),
-            SettingsAccountSwitcher(selected: edited),
-            const SizedBox(height: 8),
-            const Divider(height: 25, indent: 16, endIndent: 16),
-            _AccountPictures(key: ValueKey(edited), account: edited),
-          ],
+        final edited? => _AccountSettings(
+          account: edited,
+          showNotifications: showNotifications,
         ),
         null => const SizedBox.shrink(),
       },
@@ -357,22 +362,74 @@ String? editedAccount(AccountsState? accounts, String? user) {
   return accounts.activeId;
 }
 
-/// A heading over a group of settings.
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
+/// Everything about one [account], top to bottom: which account (the picker), its
+/// pictures, its notifications (kept on its server), then this device's notification
+/// switches, which are for all accounts, and logging out last.
+class _AccountSettings extends ConsumerStatefulWidget {
+  const _AccountSettings({
+    required this.account,
+    required this.showNotifications,
+  });
 
-  final String text;
+  final String account;
+
+  /// Scrolls to the notifications once they are laid out.
+  final bool showNotifications;
+
+  @override
+  ConsumerState<_AccountSettings> createState() => _AccountSettingsState();
+}
+
+class _AccountSettingsState extends ConsumerState<_AccountSettings> {
+  final _notifications = GlobalKey(debugLabel: 'settings.notifications');
+
+  /// Whether the notifications are still to be scrolled to.
+  late var _toReveal = widget.showNotifications;
+
+  /// Scrolls to the notifications once they are laid out in full: before the server's
+  /// settings come, the page may be too short to bring them to the top.
+  void _revealWhenLoaded(bool loaded) {
+    if (!_toReveal || !loaded) return;
+    _toReveal = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final group = _notifications.currentContext;
+      if (!mounted || group == null) return;
+      unawaited(Scrollable.ensureVisible(group));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Text(
-        text,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.primary,
-        ),
+    final account = widget.account;
+    _revealWhenLoaded(
+      ref.watch(notificationSettingsProvider(account)).value != null,
+    );
+    const divider = Divider(height: 33, indent: 16, endIndent: 16);
+    // A scroll view, not a list: the notifications are built even when off screen, so a
+    // link can scroll to them.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SettingsHeading('Accounts'),
+          SettingsAccountSwitcher(selected: account),
+          divider,
+          const SettingsHeading('Profile'),
+          _AccountPictures(key: ValueKey(account), account: account),
+          divider,
+          KeyedSubtree(
+            key: _notifications,
+            child: AccountNotificationSettings(
+              key: ValueKey(('notifications', account)),
+              account: account,
+            ),
+          ),
+          divider,
+          const DeviceNotificationSettings(),
+          divider,
+          _LogOut(key: ValueKey(('logout', account)), account: account),
+        ],
       ),
     );
   }
@@ -843,16 +900,6 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
 
   Future<PickedImage?> _pick() => ref.read(pickImageProvider)();
 
-  /// Logs out of this account. Another account's settings then show the active one's; the
-  /// active one's, as anywhere, leave for the next account's chats (or the login).
-  void _logout() {
-    final wasActive = ref.read(activeAccountProvider) == _account;
-    unawaited(ref.read(accountsProvider.notifier).logout(_account));
-    if (!wasActive) {
-      context.go(Routes.settingsSection(SettingsSection.account));
-    }
-  }
-
   Future<void> _setProfilePicture() async {
     final image = await _pick();
     final session = _session;
@@ -946,21 +993,38 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
             ],
           ),
         ),
-        // The account itself is named in the picker above; logging out sits last.
-        ListTile(
-          leading: const IconAvatar(icon: Icons.logout_rounded),
-          title: const Text('Log out'),
-          subtitle: const Text('OxiTalk on this device forgets this account.'),
-          trailing: OutlinedButton(
-            key: const Key('settings.logout'),
-            style: OxiButtons.destructive(context),
-            onPressed: _logout,
-            child: const Text('Log out'),
-          ),
-        ),
       ],
     );
   }
+}
+
+/// Logging out of [account], the last row of the Account section; the account itself is
+/// named in the picker at its top.
+class _LogOut extends ConsumerWidget {
+  const _LogOut({required this.account, super.key});
+
+  final String account;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ListTile(
+    leading: const IconAvatar(icon: Icons.logout_rounded),
+    title: const Text('Log out'),
+    subtitle: const Text('OxiTalk on this device forgets this account.'),
+    trailing: OutlinedButton(
+      key: const Key('settings.logout'),
+      style: OxiButtons.destructive(context),
+      // Another account's settings then show the active one's; the active one's, as
+      // anywhere, leave for the next account's chats (or the login).
+      onPressed: () {
+        final wasActive = ref.read(activeAccountProvider) == account;
+        unawaited(ref.read(accountsProvider.notifier).logout(account));
+        if (!wasActive) {
+          context.go(Routes.settingsSection(SettingsSection.account));
+        }
+      },
+      child: const Text('Log out'),
+    ),
+  );
 }
 
 /// How long pictures and files are kept, and the cache's size, for all accounts.

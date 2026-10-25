@@ -99,7 +99,7 @@ class _RoomNotificationsPaneState extends ConsumerState<RoomNotificationsPane> {
           subtitle: Text(
             'Default for ${room.isOneToOne ? 'direct chats' : 'group chats'}: '
             '${notificationModeLabel(room.defaultNotificationMode)}. '
-            'Change it in Settings.',
+            'Change it in Settings › Account.',
           ),
           value: followsDefault,
           onChanged: _saving

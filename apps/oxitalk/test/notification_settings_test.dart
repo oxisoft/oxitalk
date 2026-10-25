@@ -31,14 +31,9 @@ void main() {
         FakeMatrixClientFactory(saved: [session]),
         size: const Size(800, 2000),
       );
+      // In Settings › Account, under the account's pictures.
       await pickFromAccountMenu(tester, 'accountMenu.settings');
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('settings.notifications')),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('settings.notifications')));
-      await tester.pumpAndSettle();
+      await openSettingsSection(tester, 'account');
       return session;
     }
 
@@ -138,9 +133,10 @@ void main() {
         findsNothing,
       );
 
-      await tester.tap(find.byKey(const Key('notificationSettings.back')));
+      await tester.tap(find.byKey(const Key('settings.back')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('settings.notifications')), findsOneWidget);
+      expect(find.byKey(const Key('settings.account')), findsOneWidget);
+      expect(find.byKey(const Key('settings.notifications')), findsNothing);
     });
   });
 }

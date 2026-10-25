@@ -13,14 +13,7 @@ import 'support/app.dart';
 
 const _wide = Size(1400, 900);
 
-const _sections = [
-  'account',
-  'appearance',
-  'messages',
-  'notifications',
-  'media',
-  'diagnostics',
-];
+const _sections = ['account', 'appearance', 'messages', 'media', 'diagnostics'];
 
 FakeMatrixClientFactory _factory() =>
     FakeMatrixClientFactory(saved: [FakeSession(rooms: const [])]);
@@ -78,6 +71,8 @@ bool _switcherSelected(WidgetTester tester, String account) => find
 
 /// Opens the account dropdown.
 Future<void> _openPicker(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const Key('settings.accounts.picker')));
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('settings.accounts.picker')));
   await tester.pumpAndSettle();
 }
@@ -206,11 +201,34 @@ void main() {
 
     testWidgets('a link opens its section beside the menu', (tester) async {
       await pumpApp(tester, _factory(), size: _wide);
-      await _go(tester, Routes.notificationSettings);
+      await _go(tester, Routes.settingsSection(SettingsSection.media));
       expect(find.byKey(const Key('settings.account')), findsOneWidget);
-      expect(_pane('notifications'), findsOneWidget);
-      expect(find.byKey(const Key('settings.device.enabled')), findsOneWidget);
-      expect(_selected(tester, 'notifications'), isTrue);
+      expect(_pane('media'), findsOneWidget);
+      expect(_selected(tester, 'media'), isTrue);
+    });
+
+    testWidgets('no Notifications in the menu: they are in Account', (
+      tester,
+    ) async {
+      await pumpApp(tester, _factory(), size: _wide);
+      await _go(tester, Routes.settings);
+      expect(find.byKey(const Key('settings.notifications')), findsNothing);
+      expect(SettingsSection.bySlug('notifications'), isNull);
+      expect(_pane('account'), findsOneWidget);
+      // Top to bottom: the picker, the profile, the account's notifications, this
+      // device's, then logging out.
+      double top(Finder finder) => tester.getTopLeft(finder).dy;
+      final picker = top(find.byKey(const Key('settings.accounts.picker')));
+      final profile = top(find.byKey(const Key('settings.setAvatar')));
+      final account = top(find.byKey(const Key('settings.notifications.dm')));
+      final device = top(find.byKey(const Key('settings.device.enabled')));
+      final logout = top(find.byKey(const Key('settings.logout')));
+      expect(picker, lessThan(profile));
+      expect(profile, lessThan(account));
+      expect(account, lessThan(device));
+      expect(device, lessThan(logout));
+      expect(find.text('Notifications on this device'), findsOneWidget);
+      expect(find.text('For all accounts'), findsOneWidget);
     });
   });
 
@@ -247,13 +265,12 @@ void main() {
       tester,
     ) async {
       await pumpApp(tester, _factory());
-      await _go(tester, Routes.notificationSettings);
-      expect(_pane('notifications'), findsOneWidget);
-      expect(find.byKey(const Key('settings.device.enabled')), findsOneWidget);
-      await tester.tap(find.byKey(const Key('notificationSettings.back')));
+      await _go(tester, Routes.settingsSection(SettingsSection.messages));
+      expect(_pane('messages'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('settings.back')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('settings.notifications')), findsOneWidget);
-      expect(_pane('notifications'), findsNothing);
+      expect(find.byKey(const Key('settings.messages')), findsOneWidget);
+      expect(_pane('messages'), findsNothing);
     });
 
     testWidgets('an unknown section is the menu', (tester) async {
@@ -356,6 +373,9 @@ void main() {
       final (:factory, :sessions) = _accounts();
       await pumpApp(tester, factory, size: _wide);
       await _go(tester, Routes.settingsAccount(_work));
+      // The last row, under the notifications.
+      await tester.ensureVisible(find.byKey(const Key('settings.logout')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('settings.logout')));
       await tester.pumpAndSettle();
       expect(sessions[1].loggedOut, isTrue);
@@ -423,5 +443,146 @@ void main() {
       expect(find.byKey(const Key('settings.messages')), findsOneWidget);
       expect(_pane('account'), findsNothing);
     });
+
+    testWidgets('notifications are the picked account’s', (tester) async {
+      final (:factory, :sessions) = _accounts();
+      sessions[0].notificationState.value = const NotificationSettings(
+        roomMentions: true,
+        invites: true,
+      );
+      sessions[1].notificationState.value = const NotificationSettings(
+        groupDefault: NotificationMode.mentionsAndKeywords,
+        roomMentions: false,
+        invites: true,
+      );
+      await pumpApp(tester, factory, size: _wide);
+      await _go(tester, Routes.settings);
+      expect(_groupMode(tester), NotificationMode.allMessages);
+      expect(_switchOn(tester, 'roomMentions'), isTrue);
+
+      await _pickAccount(tester, _work);
+      expect(_groupMode(tester), NotificationMode.mentionsAndKeywords);
+      expect(_switchOn(tester, 'roomMentions'), isFalse);
+    });
+
+    testWidgets('changing another account’s notifications changes only '
+        'that account', (tester) async {
+      final (:factory, :sessions) = _accounts();
+      for (final session in sessions) {
+        session.notificationState.value = const NotificationSettings(
+          roomMentions: true,
+          invites: true,
+        );
+      }
+      await pumpApp(tester, factory, size: _wide);
+      await _go(tester, Routes.settingsAccount(_work));
+      final group = find.descendant(
+        of: find.byKey(const Key('settings.notifications.group')),
+        matching: find.text('Mentions and keywords'),
+      );
+      await tester.ensureVisible(group);
+      await tester.pumpAndSettle();
+      await tester.tap(group);
+      await tester.pumpAndSettle();
+      final invites = find.byKey(const Key('settings.notifications.invites'));
+      await tester.ensureVisible(invites);
+      await tester.pumpAndSettle();
+      await tester.tap(invites);
+      await tester.pumpAndSettle();
+      expect(sessions[1].notificationCalls, [
+        'default group mentionsAndKeywords',
+        'invites false',
+      ]);
+      expect(sessions[0].notificationCalls, isEmpty);
+      expect(sessions[2].notificationCalls, isEmpty);
+      expect(sessions[0].notificationState.value?.invites, isTrue);
+      expect(_container(tester).read(activeAccountProvider), _alex);
+
+      // Back on the active account, its settings are as they were.
+      await _pickAccount(tester, _alex);
+      expect(_groupMode(tester), NotificationMode.allMessages);
+      expect(_switchOn(tester, 'invites'), isTrue);
+    });
+  });
+
+  group('old notifications link', () {
+    String location(WidgetTester tester) =>
+        _container(tester)
+            .read(routerProvider)
+            .routerDelegate
+            .currentConfiguration
+            .uri
+            .toString();
+
+    double scrolled(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find
+              .descendant(
+                of: _pane('account'),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position
+        .pixels;
+
+    for (final (layout, size) in [
+      ('wide', _wide),
+      ('narrow', const Size(400, 800)),
+    ]) {
+      testWidgets('$layout: lands on Account, at its notifications', (
+        tester,
+      ) async {
+        await pumpApp(tester, _factory(), size: size);
+        await _go(tester, Routes.oldNotificationSettings);
+        expect(location(tester), Routes.accountNotifications());
+        expect(_pane('account'), findsOneWidget);
+        if (layout == 'wide') expect(_selected(tester, 'account'), isTrue);
+        // Scrolled so the group's heading is at the top of the pane.
+        final position = tester
+            .state<ScrollableState>(
+              find
+                  .descendant(
+                    of: _pane('account'),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            )
+            .position;
+        expect(position.pixels, greaterThan(0));
+        final heading = tester.getRect(find.text('Notifications'));
+        final pane = tester.getRect(_pane('account'));
+        expect(heading.top, greaterThanOrEqualTo(pane.top));
+        expect(heading.top, lessThan(pane.top + 24));
+      });
+    }
+
+    testWidgets('keeps the account it names', (tester) async {
+      await pumpApp(tester, _accounts().factory, size: _wide);
+      await _go(tester, '${Routes.oldNotificationSettings}?user=$_work');
+      expect(location(tester), Routes.accountNotifications(_work));
+      expect(_switcherSelected(tester, _work), isTrue);
+      expect(_container(tester).read(activeAccountProvider), _alex);
+      expect(scrolled(tester), greaterThan(0));
+    });
+
+    testWidgets('Account itself opens at the top', (tester) async {
+      await pumpApp(tester, _factory(), size: _wide);
+      await _go(tester, Routes.settingsSection(SettingsSection.account));
+      expect(scrolled(tester), 0);
+    });
   });
 }
+
+/// The default for group chats the Account section shows.
+NotificationMode _groupMode(WidgetTester tester) => tester
+    .widget<SegmentedButton<NotificationMode>>(
+      find.byKey(const Key('settings.notifications.group')),
+    )
+    .selected
+    .single;
+
+/// Whether the Account section's notification switch [key] is on.
+bool _switchOn(WidgetTester tester, String key) => tester
+    .widget<SwitchListTile>(find.byKey(Key('settings.notifications.$key')))
+    .value;

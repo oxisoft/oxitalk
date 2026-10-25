@@ -309,7 +309,7 @@ void main() {
       expect(presenter.shown, isEmpty);
     });
 
-    testWidgets('Settings › Notifications: this device’s switches', (
+    testWidgets('Settings › Account: this device’s notification switches', (
       tester,
     ) async {
       final ui = MemoryUiPrefs();
@@ -321,13 +321,7 @@ void main() {
         size: const Size(800, 2000),
       );
       await pickFromAccountMenu(tester, 'accountMenu.settings');
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('settings.notifications')),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('settings.notifications')));
-      await tester.pumpAndSettle();
+      await openSettingsSection(tester, 'account');
 
       await tester.tap(find.byKey(const Key('settings.device.showText')));
       await tester.pumpAndSettle();

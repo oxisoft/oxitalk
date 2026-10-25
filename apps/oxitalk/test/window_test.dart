@@ -380,6 +380,9 @@ void main() {
       await _open(tester, session: session);
       await tester.tap(find.byKey(const Key('rail.settings')));
       await tester.pumpAndSettle();
+      // The last row of Account, under the notifications.
+      await tester.ensureVisible(find.byKey(const Key('settings.logout')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('settings.logout')));
       await tester.pumpAndSettle();
       expect(session.loggedOut, isTrue);

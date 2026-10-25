@@ -12,7 +12,7 @@ import 'router.dart';
 
 part 'notification_service.g.dart';
 
-/// How notifications show on this device, for every account (Settings › Notifications).
+/// How notifications show on this device, for every account (Settings › Account).
 final class DeviceNotificationPrefs {
   const DeviceNotificationPrefs({
     this.enabled = true,

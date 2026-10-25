@@ -6,22 +6,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/notification_service.dart';
 import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
+import 'settings_heading.dart';
 
-/// The account's notification settings as Element X has them in Settings › Notifications:
-/// the defaults for direct and group chats, @room, invitations, and (as Element Web)
-/// keywords; with a warning and a fix when another client left the defaults inconsistent.
-class NotificationSettingsPane extends ConsumerStatefulWidget {
-  const NotificationSettingsPane({required this.account, super.key});
+/// [account]'s notification settings, kept on its server, as Element X has them in
+/// Settings › Notifications: the defaults for direct and group chats, @room, invitations,
+/// and (as Element Web) keywords; with a warning and a fix when another client left the
+/// defaults inconsistent. A group of the Account section, under its heading; every change
+/// goes to [account], whichever account is in front.
+class AccountNotificationSettings extends ConsumerStatefulWidget {
+  const AccountNotificationSettings({required this.account, super.key});
 
   final String account;
 
   @override
-  ConsumerState<NotificationSettingsPane> createState() =>
-      _NotificationSettingsPaneState();
+  ConsumerState<AccountNotificationSettings> createState() =>
+      _AccountNotificationSettingsState();
 }
 
-class _NotificationSettingsPaneState
-    extends ConsumerState<NotificationSettingsPane> {
+class _AccountNotificationSettingsState
+    extends ConsumerState<AccountNotificationSettings> {
   var _busy = false;
 
   MatrixSession? get _session =>
@@ -102,10 +105,10 @@ class _NotificationSettingsPaneState
         .watch(notificationSettingsProvider(widget.account))
         .value;
     final theme = Theme.of(context);
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const DeviceNotificationSettings(),
-        _Heading('This account (${widget.account})'),
+        const SettingsHeading('Notifications', subtitle: 'For this account'),
         if (settings == null)
           const Padding(
             padding: EdgeInsets.all(16),
@@ -228,27 +231,6 @@ class _NotificationSettingsPaneState
   }
 }
 
-/// Asks for a word that makes a message notify; pops it, or `null` when cancelled.
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        text,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.primary,
-        ),
-      ),
-    );
-  }
-}
-
 /// How notifications show on this device, for all its accounts, as Element Desktop has them:
 /// on or off, the message text or only "New message", sound.
 class DeviceNotificationSettings extends ConsumerWidget {
@@ -261,7 +243,10 @@ class DeviceNotificationSettings extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Heading('This device (all accounts)'),
+        const SettingsHeading(
+          'Notifications on this device',
+          subtitle: 'For all accounts',
+        ),
         SwitchListTile(
           key: const Key('settings.device.enabled'),
           title: const Text('Enable notifications on this device'),
@@ -307,6 +292,7 @@ class DeviceNotificationSettings extends ConsumerWidget {
   }
 }
 
+/// Asks for a word that makes a message notify; pops it, or `null` when cancelled.
 class _KeywordDialog extends StatefulWidget {
   const _KeywordDialog();
 

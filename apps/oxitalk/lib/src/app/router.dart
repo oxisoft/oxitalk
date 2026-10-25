@@ -29,7 +29,9 @@ abstract final class Routes {
   static const verify = '/verify';
   static const addAccount = '/add-account';
   static const settings = '/settings';
-  static const notificationSettings = '/settings/notifications';
+
+  /// Where Settings › Notifications used to be; it leads to [accountNotifications].
+  static const oldNotificationSettings = '/settings/notifications';
 
   /// One section of Settings: beside the menu on a wide window, a page of its own on a
   /// narrow one.
@@ -40,6 +42,13 @@ abstract final class Routes {
   static String settingsAccount(String userId) => Uri(
     path: settingsSection(SettingsSection.account),
     queryParameters: {'user': userId},
+  ).toString();
+
+  /// The Account section scrolled to the notifications of [userId] (the active account's
+  /// without one).
+  static String accountNotifications([String? userId]) => Uri(
+    path: settingsSection(SettingsSection.account),
+    queryParameters: {'user': ?userId, 'show': 'notifications'},
   ).toString();
 
   static const about = '/about';
@@ -136,28 +145,40 @@ GoRouter router(Ref ref) {
         routes: [
           GoRoute(
             path: ':section',
-            // An unknown section is the menu.
-            redirect: (_, state) =>
-                SettingsSection.bySlug(state.pathParameters['section']) == null
-                ? Routes.settings
-                : null,
+            // Notifications moved into Account; an unknown section is the menu.
+            redirect: (_, state) => switch (state.pathParameters['section']) {
+              'notifications' => Routes.accountNotifications(
+                state.uri.queryParameters['user'],
+              ),
+              final slug when SettingsSection.bySlug(slug) == null =>
+                Routes.settings,
+              _ => null,
+            },
             pageBuilder: (context, state) {
               final section = SettingsSection.bySlug(
                 state.pathParameters['section'],
               )!;
               // Which account the Account section is about; see editedAccount.
               final user = state.uri.queryParameters['user'];
+              // Account scrolled to its notifications (from an old link).
+              final showNotifications =
+                  state.uri.queryParameters['show'] == 'notifications';
               // Wide: beside the menu. Narrow: a page of its own over it.
               return MediaQuery.sizeOf(context).width >= wideLayoutBreakpoint
                   ? NoTransitionPage(
                       key: state.pageKey,
-                      child: SettingsScreen(section: section, user: user),
+                      child: SettingsScreen(
+                        section: section,
+                        user: user,
+                        showNotifications: showNotifications,
+                      ),
                     )
                   : MaterialPage(
                       key: state.pageKey,
                       child: SettingsSectionScreen(
                         section: section,
                         user: user,
+                        showNotifications: showNotifications,
                       ),
                     );
             },
