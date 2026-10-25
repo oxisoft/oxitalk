@@ -2,42 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/notification_service.dart';
 import '../../app/providers.dart';
-import '../../app/router.dart';
 import '../../matrix/api/matrix.dart';
-
-/// Settings › Notifications for the active account.
-class NotificationSettingsScreen extends ConsumerWidget {
-  const NotificationSettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final account = ref.watch(activeAccountProvider);
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(
-          key: const Key('notificationSettings.back'),
-          onPressed: () => context.go(Routes.settings),
-        ),
-        title: const Text('Notifications'),
-      ),
-      body: account == null
-          ? const SizedBox.shrink()
-          : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: NotificationSettingsPane(
-                  key: ValueKey(account),
-                  account: account,
-                ),
-              ),
-            ),
-    );
-  }
-}
 
 /// The account's notification settings as Element X has them in Settings › Notifications:
 /// the defaults for direct and group chats, @room, invitations, and (as Element Web)

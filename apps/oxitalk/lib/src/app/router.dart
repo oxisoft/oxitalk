@@ -11,7 +11,6 @@ import '../features/chat/threads.dart';
 import '../features/chat_info/chat_info.dart';
 import '../features/chat_info/room_notifications.dart';
 import '../features/chats/chats_screen.dart';
-import '../features/settings/notification_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/verify/verify_screen.dart';
 import '../matrix/api/matrix.dart';
@@ -31,6 +30,12 @@ abstract final class Routes {
   static const addAccount = '/add-account';
   static const settings = '/settings';
   static const notificationSettings = '/settings/notifications';
+
+  /// One section of Settings: beside the menu on a wide window, a page of its own on a
+  /// narrow one.
+  static String settingsSection(SettingsSection section) =>
+      '$settings/${section.slug}';
+
   static const about = '/about';
   static const chats = '/';
 
@@ -97,7 +102,7 @@ GoRouter router(Ref ref) {
       if (location == Routes.addAccount ||
           location == Routes.about ||
           location == Routes.settings ||
-          location == Routes.notificationSettings) {
+          location.startsWith('${Routes.settings}/')) {
         return null;
       }
       // An unverified account sees nothing else until it is verified (or logged out).
@@ -124,8 +129,27 @@ GoRouter router(Ref ref) {
         builder: (_, _) => const SettingsScreen(),
         routes: [
           GoRoute(
-            path: 'notifications',
-            builder: (_, _) => const NotificationSettingsScreen(),
+            path: ':section',
+            // An unknown section is the menu.
+            redirect: (_, state) =>
+                SettingsSection.bySlug(state.pathParameters['section']) == null
+                ? Routes.settings
+                : null,
+            pageBuilder: (context, state) {
+              final section = SettingsSection.bySlug(
+                state.pathParameters['section'],
+              )!;
+              // Wide: beside the menu. Narrow: a page of its own over it.
+              return MediaQuery.sizeOf(context).width >= wideLayoutBreakpoint
+                  ? NoTransitionPage(
+                      key: state.pageKey,
+                      child: SettingsScreen(section: section),
+                    )
+                  : MaterialPage(
+                      key: state.pageKey,
+                      child: SettingsSectionScreen(section: section),
+                    );
+            },
           ),
         ],
       ),

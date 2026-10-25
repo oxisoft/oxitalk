@@ -80,6 +80,13 @@ Future<void> pumpApp(
   await tester.pumpAndSettle();
 }
 
+/// Opens the section of Settings with [slug] from the settings menu: beside the menu on a
+/// wide window, a page of its own on a narrow one.
+Future<void> openSettingsSection(WidgetTester tester, String slug) async {
+  await tester.tap(find.byKey(Key('settings.$slug')));
+  await tester.pumpAndSettle();
+}
+
 /// Opens the account dropdown in the chat list's header and picks the entry with [key].
 Future<void> pickFromAccountMenu(WidgetTester tester, String key) async {
   await tester.tap(find.byKey(const Key('account.dropdown')));

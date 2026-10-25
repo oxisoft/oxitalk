@@ -298,10 +298,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('rail.settings')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('settings.clearCache')),
-      200,
-    );
+    await openSettingsSection(tester, 'media');
     expect(find.text('1 month'), findsOneWidget);
     expect(find.text('1.2 KB'), findsOneWidget);
 

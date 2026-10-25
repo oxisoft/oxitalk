@@ -157,6 +157,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('rail.settings')));
     await tester.pumpAndSettle();
+    await openSettingsSection(tester, 'messages');
     await tester.tap(find.byKey(const Key('settings.markdown')));
     await tester.pumpAndSettle();
     expect(ui.useMarkdown, isFalse);

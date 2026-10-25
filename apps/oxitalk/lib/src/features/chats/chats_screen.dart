@@ -164,7 +164,7 @@ const _smallTalk = [
   'Click a chat’s name at the top to see its members, photos, files and links.',
   'Matrix is an open network: you can talk to people on any server, like email.',
   'Sections you make here show up in Element too, and the other way round.',
-  'Pictures and files are kept on this device for as long as Settings → Media says.',
+  'Pictures and files are kept on this device for as long as Settings → Media & storage says.',
 ];
 
 /// `Good morning`, `Good afternoon`, `Good evening`, or `Good night`, for [hour].

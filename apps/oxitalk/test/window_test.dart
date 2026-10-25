@@ -369,7 +369,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('rail.settings')));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Collect logs'), 200);
+      await openSettingsSection(tester, 'diagnostics');
       expect(find.text('Collect logs'), findsOneWidget);
     });
   });
