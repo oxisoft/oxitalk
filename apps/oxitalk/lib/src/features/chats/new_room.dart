@@ -247,7 +247,7 @@ class _NewRoomDialogState extends ConsumerState<NewRoomDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),

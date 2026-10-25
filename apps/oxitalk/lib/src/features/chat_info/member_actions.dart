@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
+import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
 /// The power levels the role choices stand for.
@@ -266,16 +267,13 @@ class _ReasonDialogState extends State<_ReasonDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         FilledButton(
           key: const Key('member.confirm'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
+          style: OxiButtons.destructiveFilled(context),
           onPressed: _confirm,
           child: Text(widget.action),
         ),
@@ -416,7 +414,7 @@ class _RoleDialogState extends State<RoleDialog> {
               ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),

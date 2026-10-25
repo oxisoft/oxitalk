@@ -185,6 +185,161 @@ abstract final class OxiShapes {
   static final medium = cut(10);
 }
 
+/// The app's one button system. Every button has the same geometry: [height] tall, 16 px
+/// either side, the [OxiShapes.small] bevel, a 14 px semibold label and an 18 px icon; no
+/// elevation, no gradient, no glow. Three kinds:
+///
+/// * primary, [FilledButton]: yellow under ink in dark, ink under white in light;
+/// * secondary, [OutlinedButton]: no fill, a quiet neutral outline, the text colour;
+/// * destructive, [OutlinedButton] with [destructive]: the secondary shape in [danger].
+///   A dialog that confirms a destructive action uses [FilledButton] with
+///   [destructiveFilled].
+///
+/// [TextButton] stays borderless for the framework's own text actions (snack bar actions,
+/// the text selection menu); the app itself uses [OutlinedButton] wherever it shows a
+/// button, so nothing that acts as a button reads as plain text.
+abstract final class OxiButtons {
+  static const height = 40.0;
+  static const padding = EdgeInsets.symmetric(horizontal: 16);
+  static const iconSize = 18.0;
+  static const label = TextStyle(
+    // A button's text style replaces the theme's, font included.
+    fontFamily: textFont,
+    fontFamilyFallback: [emojiFont],
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.1,
+  );
+
+  /// Red for destructive labels and outlines: the brand red on dark; on light a darker red,
+  /// as the brand red is too light for text on white (3.8:1, this is 5.4:1).
+  static Color danger(Brightness brightness) =>
+      brightness == Brightness.dark ? OxiBrand.red : dangerOnLight;
+
+  static const dangerOnLight = Color(0xFFD50032);
+
+  /// The secondary button's outline: the muted text colour at 60%.
+  static Color outline(OxiPalette p) => p.muted.withValues(alpha: 0.6);
+
+  /// What every kind shares.
+  static ButtonStyle base() => ButtonStyle(
+    minimumSize: const WidgetStatePropertyAll(Size(64, height)),
+    padding: const WidgetStatePropertyAll(padding),
+    iconSize: const WidgetStatePropertyAll(iconSize),
+    textStyle: const WidgetStatePropertyAll(label),
+    elevation: const WidgetStatePropertyAll(0),
+    shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+    surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+    shape: WidgetStatePropertyAll<OutlinedBorder>(OxiShapes.small),
+    // The same height on desktop (compact density) as on phones.
+    visualDensity: VisualDensity.standard,
+  );
+
+  /// Primary: [ColorScheme.primary] under [ColorScheme.onPrimary].
+  static ButtonStyle primary(ColorScheme scheme) => base().copyWith(
+    backgroundColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled)
+          ? scheme.onSurface.withValues(alpha: 0.12)
+          : scheme.primary,
+    ),
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled)
+          ? scheme.onSurface.withValues(alpha: 0.38)
+          : scheme.onPrimary,
+    ),
+    iconColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled)
+          ? scheme.onSurface.withValues(alpha: 0.38)
+          : scheme.onPrimary,
+    ),
+    overlayColor: _overlay(scheme.onPrimary),
+  );
+
+  /// Secondary: no fill, [outline], the text colour; [OxiPalette.panel2] under the pointer.
+  static ButtonStyle secondary(OxiPalette p) {
+    Color fore(Set<WidgetState> states) => states.contains(WidgetState.disabled)
+        ? p.text.withValues(alpha: 0.38)
+        : p.text;
+    return base().copyWith(
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => _active(states) ? p.panel2 : Colors.transparent,
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith(fore),
+      iconColor: WidgetStateProperty.resolveWith(fore),
+      overlayColor: _overlay(p.text),
+      side: WidgetStateProperty.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.disabled) ? p.line : outline(p),
+        ),
+      ),
+    );
+  }
+
+  /// Destructive, on an [OutlinedButton]: the secondary shape with a red label and outline.
+  static ButtonStyle destructive(BuildContext context) {
+    final p = context.oxi;
+    final red = danger(Theme.of(context).brightness);
+    Color fore(Set<WidgetState> states) => states.contains(WidgetState.disabled)
+        ? p.text.withValues(alpha: 0.38)
+        : red;
+    return ButtonStyle(
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            _active(states) ? red.withValues(alpha: 0.1) : Colors.transparent,
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith(fore),
+      iconColor: WidgetStateProperty.resolveWith(fore),
+      overlayColor: _overlay(red),
+      side: WidgetStateProperty.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.disabled) ? p.line : red,
+        ),
+      ),
+    );
+  }
+
+  /// Destructive, on a [FilledButton]: the confirm button of a dialog that deletes or
+  /// removes something. White on [dangerOnLight] in both themes (white on the brand red
+  /// would be 3.8:1).
+  static ButtonStyle destructiveFilled(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ButtonStyle(
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? scheme.onSurface.withValues(alpha: 0.12)
+            : dangerOnLight,
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? scheme.onSurface.withValues(alpha: 0.38)
+            : Colors.white,
+      ),
+      iconColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? scheme.onSurface.withValues(alpha: 0.38)
+            : Colors.white,
+      ),
+      overlayColor: _overlay(Colors.white),
+    );
+  }
+
+  static bool _active(Set<WidgetState> states) =>
+      states.contains(WidgetState.hovered) ||
+      states.contains(WidgetState.focused) ||
+      states.contains(WidgetState.pressed);
+
+  /// A subtle wash over a button the pointer is on or presses.
+  static WidgetStateProperty<Color?> _overlay(Color color) =>
+      WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.pressed)
+            ? color.withValues(alpha: 0.12)
+            : states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused)
+            ? color.withValues(alpha: 0.08)
+            : null,
+      );
+}
+
 /// From this width on, the chat list and the chat sit side by side.
 const wideLayoutBreakpoint = 840.0;
 
@@ -341,17 +496,15 @@ ThemeData oxiTheme(Brightness brightness) {
       ),
       textStyle: const TextStyle(color: Color(0xFFF2F2F5), fontSize: 12),
     ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: ButtonStyle(shape: buttonShape),
-    ),
+    // One button system (OxiButtons): primary = filled (and elevated), secondary =
+    // outlined. Text buttons keep only the shape: the framework's own text actions (snack
+    // bar actions, the text selection menu) use them; the app uses outlined buttons.
+    filledButtonTheme: FilledButtonThemeData(style: OxiButtons.primary(scheme)),
     elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ButtonStyle(
-        shape: buttonShape,
-        elevation: const WidgetStatePropertyAll(0),
-      ),
+      style: OxiButtons.primary(scheme),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
-      style: ButtonStyle(shape: buttonShape),
+      style: OxiButtons.secondary(p),
     ),
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(shape: buttonShape),

@@ -127,7 +127,7 @@ class _NotificationSettingsPaneState
                   'Another app set different defaults for encrypted and '
                   'unencrypted chats. Fix makes them the same again.',
                 ),
-                trailing: TextButton(
+                trailing: OutlinedButton(
                   key: const Key('settings.notifications.fix'),
                   onPressed: _busy
                       ? null
@@ -204,7 +204,7 @@ class _NotificationSettingsPaneState
                   ],
                   const SizedBox(height: 4),
                   // In a dialog: a text field here would be a second scrollable on the page.
-                  TextButton.icon(
+                  OutlinedButton.icon(
                     key: const Key('settings.notifications.newKeyword'),
                     onPressed: _busy ? null : () => unawaited(_addKeyword()),
                     icon: const Icon(Icons.add_rounded),
@@ -336,7 +336,7 @@ class _KeywordDialogState extends State<_KeywordDialog> {
       onSubmitted: (_) => _add(),
     ),
     actions: [
-      TextButton(
+      OutlinedButton(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),

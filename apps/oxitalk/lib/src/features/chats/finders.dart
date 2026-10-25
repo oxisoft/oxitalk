@@ -60,7 +60,7 @@ class _FinderDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),

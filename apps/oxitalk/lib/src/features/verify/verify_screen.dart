@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 
 /// "Confirm it's you": an unverified device sees only this until it is verified, with another
@@ -154,7 +155,8 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
         label: const Text('Enter recovery key'),
       ),
       const SizedBox(height: 24),
-      TextButton(
+      OutlinedButton(
+        style: OxiButtons.destructive(context),
         onPressed: () {
           if (_session case final session?) {
             unawaited(
@@ -210,7 +212,10 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
             : const Text('Continue'),
       ),
       const SizedBox(height: 12),
-      TextButton(onPressed: _busy ? null : _back, child: const Text('Back')),
+      OutlinedButton(
+        onPressed: _busy ? null : _back,
+        child: const Text('Back'),
+      ),
     ],
   );
 }
@@ -252,7 +257,7 @@ class VerificationFlow extends StatelessWidget {
         title: 'Verification request',
         text: 'Another of your devices wants to verify with this one.',
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => _cancel(verification),
             child: const Text('Decline'),
           ),
@@ -325,7 +330,7 @@ class _Waiting extends StatelessWidget {
       const SizedBox(height: 8),
       Text(text, textAlign: TextAlign.center),
       const SizedBox(height: 24),
-      TextButton(onPressed: onCancel, child: const Text('Cancel')),
+      OutlinedButton(onPressed: onCancel, child: const Text('Cancel')),
     ],
   );
 }

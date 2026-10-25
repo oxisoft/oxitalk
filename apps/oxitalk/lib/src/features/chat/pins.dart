@@ -389,7 +389,7 @@ class PinnedMessagesDialog extends ConsumerWidget {
               ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
         ),

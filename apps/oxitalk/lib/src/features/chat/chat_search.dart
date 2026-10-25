@@ -401,7 +401,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                     ),
                   ),
                   if (!search.reachedStart)
-                    TextButton(
+                    OutlinedButton(
                       key: const Key('search.loadOlder'),
                       onPressed: search.loadingOlder
                           ? null

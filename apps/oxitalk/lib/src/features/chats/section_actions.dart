@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import 'room_groups.dart';
 
@@ -100,12 +101,13 @@ final class SectionActions {
           'Its chats go back to People or Rooms. Nothing else is deleted.',
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           FilledButton(
             key: const Key('section.delete'),
+            style: OxiButtons.destructiveFilled(context),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -220,7 +222,7 @@ class _NameDialogState extends State<_NameDialog> {
       onSubmitted: (_) => _submit(),
     ),
     actions: [
-      TextButton(
+      OutlinedButton(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),

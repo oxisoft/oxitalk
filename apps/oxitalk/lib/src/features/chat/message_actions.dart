@@ -187,12 +187,13 @@ final class MessageActions {
         title: const Text('Delete this message?'),
         content: const Text('It is removed for everyone in the chat.'),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           FilledButton(
             key: const Key('message.deleteConfirm'),
+            style: OxiButtons.destructiveFilled(context),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -347,7 +348,7 @@ class _ForwardDialogState extends ConsumerState<_ForwardDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),

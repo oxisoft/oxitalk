@@ -415,7 +415,7 @@ class _VideoRecordScreenState extends ConsumerState<VideoRecordScreen> {
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      TextButton.icon(
+                      OutlinedButton.icon(
                         key: const Key('video.retake'),
                         onPressed: () => unawaited(_retake()),
                         icon: const Icon(Icons.replay_rounded),

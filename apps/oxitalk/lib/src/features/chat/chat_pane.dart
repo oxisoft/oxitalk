@@ -827,14 +827,16 @@ class _FailedActions extends StatelessWidget {
   Widget build(BuildContext context) => SelectionContainer.disabled(
     child: Row(
       mainAxisSize: MainAxisSize.min,
+      spacing: 8,
       children: [
-        TextButton(
+        OutlinedButton(
           key: const Key('message.retry'),
           onPressed: onRetry,
           child: const Text('Retry'),
         ),
-        TextButton(
+        OutlinedButton(
           key: const Key('message.remove'),
+          style: OxiButtons.destructive(context),
           onPressed: onRemove,
           child: const Text('Remove'),
         ),

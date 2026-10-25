@@ -721,6 +721,7 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
           subtitle: Text(_account),
           trailing: OutlinedButton.icon(
             key: const Key('settings.logout'),
+            style: OxiButtons.destructive(context),
             onPressed: _logout,
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Log out'),
@@ -737,16 +738,17 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
           title: const Text('Profile picture'),
           subtitle: const Text('Everyone you chat with sees it.'),
           trailing: Wrap(
-            spacing: 4,
+            spacing: 8,
             children: [
-              TextButton(
+              OutlinedButton(
                 key: const Key('settings.setAvatar'),
                 onPressed: _busy ? null : _setProfilePicture,
                 child: const Text('Change'),
               ),
               if (profile?.avatarUrl != null)
-                TextButton(
+                OutlinedButton(
                   key: const Key('settings.removeAvatar'),
+                  style: OxiButtons.destructive(context),
                   onPressed: _busy ? null : _removeProfilePicture,
                   child: const Text('Remove'),
                 ),
@@ -767,15 +769,15 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
             'the profile picture. Nobody else sees it.',
           ),
           trailing: Wrap(
-            spacing: 4,
+            spacing: 8,
             children: [
-              TextButton(
+              OutlinedButton(
                 key: const Key('settings.setLocalPicture'),
                 onPressed: _busy ? null : _setLocalPicture,
                 child: const Text('Choose'),
               ),
               if (local != null)
-                TextButton(
+                OutlinedButton(
                   key: const Key('settings.resetLocalPicture'),
                   onPressed: _busy ? null : _resetLocalPicture,
                   child: const Text('Reset'),
@@ -872,8 +874,9 @@ class _MediaSettingsState extends ConsumerState<_MediaSettings> {
             size == null ? 'Measuring…' : fileSize(size),
             key: const Key('settings.cacheSize'),
           ),
-          trailing: TextButton(
+          trailing: OutlinedButton(
             key: const Key('settings.clearCache'),
+            style: OxiButtons.destructive(context),
             onPressed: _clearing || size == 0 ? null : _clear,
             child: const Text('Clear'),
           ),

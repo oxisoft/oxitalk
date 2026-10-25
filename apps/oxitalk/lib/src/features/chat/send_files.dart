@@ -124,7 +124,7 @@ class _SendFilesDialogState extends State<_SendFilesDialog> {
                 onChanged: (on) => setState(() => _compress = on),
               ),
             const Spacer(),
-            TextButton(
+            OutlinedButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
