@@ -30,6 +30,14 @@ flutter run            # the Rust core is built by the Flutter build hook
 After changing the Rust API, regenerate the bindings with `flutter_rust_bridge_codegen generate`
 in `apps/oxitalk`.
 
+## Releasing
+
+Pushing a tag `v<version>` that matches `version:` in `apps/oxitalk/pubspec.yaml` builds the
+iOS and macOS apps and uploads them to TestFlight (`.github/workflows/app-store.yml`, which
+runs `scripts/apple-release.sh`). The App Store Connect API key is kept in the secrets of the
+`app-store` environment. The same workflow can be run by hand on any branch, also without
+uploading.
+
 ## License
 
 [MIT](LICENSE)
