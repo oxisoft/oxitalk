@@ -889,18 +889,6 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
-          leading: AccountPicture(account: _account, radius: 28),
-          title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(_account),
-          trailing: OutlinedButton.icon(
-            key: const Key('settings.logout'),
-            style: OxiButtons.destructive(context),
-            onPressed: _logout,
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Log out'),
-          ),
-        ),
-        ListTile(
           leading: MatrixAvatar(
             account: _account,
             url: profile?.avatarUrl,
@@ -956,6 +944,18 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
                   child: const Text('Reset'),
                 ),
             ],
+          ),
+        ),
+        // The account itself is named in the picker above; logging out sits last.
+        ListTile(
+          leading: const IconAvatar(icon: Icons.logout_rounded),
+          title: const Text('Log out'),
+          subtitle: const Text('OxiTalk on this device forgets this account.'),
+          trailing: OutlinedButton(
+            key: const Key('settings.logout'),
+            style: OxiButtons.destructive(context),
+            onPressed: _logout,
+            child: const Text('Log out'),
           ),
         ),
       ],

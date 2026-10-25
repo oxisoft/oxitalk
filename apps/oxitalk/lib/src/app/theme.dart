@@ -282,7 +282,11 @@ abstract final class OxiButtons {
     Color fore(Set<WidgetState> states) => states.contains(WidgetState.disabled)
         ? p.text.withValues(alpha: 0.38)
         : red;
-    return ButtonStyle(
+    return base().copyWith(
+      // Red reads thinner than white on ink at the same weight: one step heavier.
+      textStyle: WidgetStatePropertyAll(
+        label.copyWith(fontWeight: FontWeight.w700),
+      ),
       backgroundColor: WidgetStateProperty.resolveWith(
         (states) =>
             _active(states) ? red.withValues(alpha: 0.1) : Colors.transparent,
