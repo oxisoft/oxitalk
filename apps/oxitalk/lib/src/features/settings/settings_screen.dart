@@ -935,7 +935,7 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
+        _ActionRow(
           leading: MatrixAvatar(
             account: _account,
             url: profile?.avatarUrl,
@@ -943,9 +943,9 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
             seed: _account,
             radius: 20,
           ),
-          title: const Text('Profile picture'),
-          subtitle: const Text('Everyone you chat with sees it.'),
-          trailing: Wrap(
+          title: 'Profile picture',
+          subtitle: 'Everyone you chat with sees it.',
+          actions: Wrap(
             spacing: 8,
             children: [
               OutlinedButton(
@@ -963,7 +963,7 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
             ],
           ),
         ),
-        ListTile(
+        _ActionRow(
           leading: local == null
               ? const IconAvatar(icon: Icons.devices_rounded)
               : PictureAvatar(
@@ -971,12 +971,11 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
                   radius: 20,
                   fallback: const IconAvatar(icon: null),
                 ),
-          title: const Text('Picture on this device'),
-          subtitle: const Text(
-            'Marks this account in OxiTalk on this device only, instead of '
-            'the profile picture. Nobody else sees it.',
-          ),
-          trailing: Wrap(
+          title: 'Picture on this device',
+          subtitle:
+              'Marks this account in OxiTalk on this device only, instead of '
+              'the profile picture. Nobody else sees it.',
+          actions: Wrap(
             spacing: 8,
             children: [
               OutlinedButton(
@@ -1006,11 +1005,11 @@ class _LogOut extends ConsumerWidget {
   final String account;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ListTile(
+  Widget build(BuildContext context, WidgetRef ref) => _ActionRow(
     leading: const IconAvatar(icon: Icons.logout_rounded),
-    title: const Text('Log out'),
-    subtitle: const Text('OxiTalk on this device forgets this account.'),
-    trailing: OutlinedButton(
+    title: 'Log out',
+    subtitle: 'OxiTalk on this device forgets this account.',
+    actions: OutlinedButton(
       key: const Key('settings.logout'),
       style: OxiButtons.destructive(context),
       // Another account's settings then show the active one's; the active one's, as
@@ -1132,3 +1131,63 @@ String retentionLabel(int? days) => switch (days) {
   365 => '1 year',
   _ => '$days days',
 };
+
+/// A settings row with buttons: beside the text where there is room, under it on a narrow
+/// screen, so the text is not squeezed into a thin column.
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.leading,
+    required this.title,
+    required this.subtitle,
+    required this.actions,
+  });
+
+  final Widget leading;
+  final String title;
+  final String subtitle;
+  final Widget actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.bodyLarge),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 520;
+          return Row(
+            crossAxisAlignment: narrow
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
+            children: [
+              leading,
+              const SizedBox(width: 16),
+              Expanded(
+                child: narrow
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [text, const SizedBox(height: 10), actions],
+                      )
+                    : text,
+              ),
+              if (!narrow) ...[const SizedBox(width: 16), actions],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}

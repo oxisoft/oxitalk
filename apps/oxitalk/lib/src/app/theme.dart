@@ -513,8 +513,31 @@ ThemeData oxiTheme(Brightness brightness) {
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(shape: buttonShape),
     ),
+    // The picked segment is filled like a primary button: yellow under ink in dark, ink
+    // under white in light; the others stay plain.
     segmentedButtonTheme: SegmentedButtonThemeData(
-      style: ButtonStyle(shape: buttonShape),
+      style: ButtonStyle(
+        shape: buttonShape,
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? (dark ? OxiBrand.yellow : OxiBrand.ink)
+              : Colors.transparent,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? p.text.withValues(alpha: 0.38)
+              : states.contains(WidgetState.selected)
+              ? (dark ? OxiBrand.ink : Colors.white)
+              : p.text,
+        ),
+        iconColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? (dark ? OxiBrand.ink : Colors.white)
+              : p.text,
+        ),
+        side: WidgetStatePropertyAll(BorderSide(color: OxiButtons.outline(p))),
+        textStyle: const WidgetStatePropertyAll(OxiButtons.label),
+      ),
     ),
     iconButtonTheme: IconButtonThemeData(
       style: ButtonStyle(shape: buttonShape),
