@@ -241,46 +241,127 @@ final class MessageActions {
     );
   }
 
+  /// What can be done with [entry], in the order the menus show it.
+  List<MessageAction> actions(
+    TimelineEntry entry, {
+    required bool canRedactOthers,
+  }) {
+    final fields = eventFields(entry);
+    if (fields == null || entry is RedactedEntry) return const [];
+    final sent = fields.meta.eventId != null;
+    return [
+      if (sent && entry is! UndecryptableEntry) ...[
+        MessageAction(
+          'react',
+          'React…',
+          Icons.add_reaction_outlined,
+          () => unawaited(react(entry)),
+        ),
+        MessageAction(
+          'reply',
+          'Reply',
+          Icons.reply_rounded,
+          () => reply(entry),
+        ),
+        if (thread == null)
+          MessageAction(
+            'thread',
+            'Reply in thread',
+            Icons.forum_outlined,
+            () => openThread(entry),
+          ),
+      ],
+      if (entry is MessageEntry || entry is MediaEntry)
+        MessageAction(
+          'copy',
+          'Copy message',
+          Icons.copy_rounded,
+          () => copy(entry),
+        ),
+      if (sent && (entry is MessageEntry || entry is MediaEntry))
+        MessageAction(
+          'forward',
+          'Forward…',
+          Icons.shortcut_rounded,
+          () => unawaited(forward(entry)),
+        ),
+      if (fields.meta.eventId case final eventId?
+          when entry is! UndecryptableEntry && canPin(_ref, account, roomId))
+        isPinned(_ref, account, roomId, eventId)
+            ? MessageAction(
+                'unpin',
+                'Unpin',
+                Icons.push_pin_rounded,
+                () => unawaited(setPin(entry, pinned: false)),
+              )
+            : MessageAction(
+                'pin',
+                'Pin',
+                Icons.push_pin_outlined,
+                () => unawaited(setPin(entry, pinned: true)),
+              ),
+      if (fields.meta.isEditable)
+        MessageAction('edit', 'Edit', Icons.edit_outlined, () => edit(entry)),
+      if (entry is MediaEntry)
+        MessageAction(
+          'save',
+          'Save as…',
+          Icons.download_rounded,
+          () => unawaited(save(entry)),
+        ),
+      if (fields.sendState == SendState.failed)
+        MessageAction(
+          'retry',
+          'Retry',
+          Icons.refresh_rounded,
+          () => unawaited(retry(entry)),
+        ),
+      if (fields.isOwn || canRedactOthers)
+        MessageAction(
+          'delete',
+          'Delete',
+          Icons.delete_outline_rounded,
+          () => unawaited(delete(entry)),
+          destructive: true,
+        ),
+    ];
+  }
+
   /// The menu items for [entry], in the order the menu shows them.
   List<ContextMenuButtonItem> menuItems(
     TimelineEntry entry, {
     required bool canRedactOthers,
     required VoidCallback close,
-  }) {
-    final fields = eventFields(entry);
-    if (fields == null || entry is RedactedEntry) return const [];
-    final sent = fields.meta.eventId != null;
-    ContextMenuButtonItem item(String label, void Function() action) =>
-        ContextMenuButtonItem(
-          label: label,
-          onPressed: () {
-            close();
-            action();
-          },
-        );
-    return [
-      if (sent && entry is! UndecryptableEntry) ...[
-        item('React…', () => unawaited(react(entry))),
-        item('Reply', () => reply(entry)),
-        if (thread == null) item('Reply in thread', () => openThread(entry)),
-      ],
-      if (entry is MessageEntry || entry is MediaEntry)
-        item('Copy message', () => copy(entry)),
-      if (sent && (entry is MessageEntry || entry is MediaEntry))
-        item('Forward…', () => unawaited(forward(entry))),
-      if (fields.meta.eventId case final eventId?
-          when entry is! UndecryptableEntry && canPin(_ref, account, roomId))
-        isPinned(_ref, account, roomId, eventId)
-            ? item('Unpin', () => unawaited(setPin(entry, pinned: false)))
-            : item('Pin', () => unawaited(setPin(entry, pinned: true))),
-      if (fields.meta.isEditable) item('Edit', () => edit(entry)),
-      if (entry is MediaEntry) item('Save as…', () => unawaited(save(entry))),
-      if (fields.sendState == SendState.failed)
-        item('Retry', () => unawaited(retry(entry))),
-      if (fields.isOwn || canRedactOthers)
-        item('Delete', () => unawaited(delete(entry))),
-    ];
-  }
+  }) => [
+    for (final action in actions(entry, canRedactOthers: canRedactOthers))
+      ContextMenuButtonItem(
+        label: action.label,
+        onPressed: () {
+          close();
+          action.run();
+        },
+      ),
+  ];
+}
+
+/// One thing to do with a message, as the menus and the touch action sheet show it.
+final class MessageAction {
+  const MessageAction(
+    this.id,
+    this.label,
+    this.icon,
+    this.run, {
+    this.destructive = false,
+  });
+
+  /// Stable, for keys: `reply`, `copy`, `delete`…
+  final String id;
+  final String label;
+  final IconData icon;
+  final VoidCallback run;
+
+  /// It removes something, so it shows in red.
+  final bool destructive;
 }
 
 /// A chat to forward to: the account's joined chats, with a search field.

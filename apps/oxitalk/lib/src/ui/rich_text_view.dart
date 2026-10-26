@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../app/theme.dart';
 import '../matrix/api/models.dart';
+import 'touch.dart';
 
 final _url = RegExp(r'https?://[^\s<>"]+');
 
@@ -305,12 +306,7 @@ class _CodeBlockState extends State<_CodeBlock> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final touch = switch (theme.platform) {
-      TargetPlatform.android ||
-      TargetPlatform.iOS ||
-      TargetPlatform.fuchsia => true,
-      _ => false,
-    };
+    final touch = isTouchPlatform(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),

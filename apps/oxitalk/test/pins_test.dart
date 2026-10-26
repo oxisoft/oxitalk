@@ -104,7 +104,7 @@ void main() {
     expect(_banner, findsNothing);
     // Without pins, the timeline of pinned messages is closed.
     expect(session.pinnedTimelines[_room]!.closed, isTrue);
-  });
+  }, variant: desktop);
 
   testWidgets('without the power level the menu has no Pin and the list no '
       'Unpin', (tester) async {
@@ -124,7 +124,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key(r'pins.item.$m3')), findsOneWidget);
     expect(find.byKey(const Key(r'pins.unpin.$m3')), findsNothing);
-  });
+  }, variant: desktop);
 
   testWidgets('a tap on the banner scrolls to the pin, highlights it a moment '
       'and moves the banner to the pin before', (tester) async {
