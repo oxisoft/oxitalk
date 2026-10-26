@@ -145,6 +145,8 @@ void main() {
       'messageSheet.thread',
       'messageSheet.copy',
       'messageSheet.forward',
+      // Someone else's message.
+      'messageSheet.report',
     ]);
 
     await tester.tap(find.byKey(const Key('messageSheet.reply')));

@@ -23,6 +23,10 @@ import 'chat_search.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
 import 'jump.dart';
+import '../people/people_providers.dart';
+import '../people/user_profile.dart';
+import 'mentions/composer_controller.dart';
+import 'mentions/mention_suggestions.dart';
 import 'media_views.dart';
 import 'message_actions.dart';
 import 'message_sheet.dart';
@@ -669,6 +673,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       MessageEntry(:final formatted?) => RichTextView(
         blocks: formatted,
         onLink: _openLink,
+        onMention: (userId, name) => _openProfile(userId, name: name),
       ),
       MessageEntry(:final body) => LinkifiedText(text: body, onLink: _openLink),
       MediaEntry(:final media) => MediaMessageView(
@@ -694,6 +699,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       isOwn: fields.isOwn,
       plain: entry is MessageEntry && isEmojiOnly(entry.body),
       sender: _senderLabel(fields, previous),
+      onSender: () => _openProfile(
+        fields.sender,
+        name: fields.senderName,
+        avatarUrl: fields.senderAvatarUrl,
+      ),
       avatar: _senderAvatar(entry.id, fields, next),
       time: fields.time,
       sendState: fields.sendState,
@@ -772,6 +782,19 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     );
   }
 
+  /// Someone's profile, from their name, picture or a pill.
+  void _openProfile(String userId, {String? name, String? avatarUrl}) =>
+      unawaited(
+        showUserProfile(
+          context,
+          account: widget.account,
+          userId: userId,
+          roomId: widget.roomId,
+          name: name,
+          avatarUrl: avatarUrl,
+        ),
+      );
+
   void _openLink(String url) {
     final uri = Uri.tryParse(url);
     if (uri != null) unawaited(ref.read(fileActionsProvider).launch(uri));
@@ -785,13 +808,23 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     if (_sameSender(next, fields.sender)) {
       return const SizedBox(width: _senderAvatarRadius * 2);
     }
-    return MatrixAvatar(
-      key: Key('senderAvatar.$id'),
-      account: widget.account,
-      url: fields.senderAvatarUrl,
-      name: fields.senderName ?? fields.sender,
-      seed: fields.sender,
-      radius: _senderAvatarRadius,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _openProfile(
+          fields.sender,
+          name: fields.senderName,
+          avatarUrl: fields.senderAvatarUrl,
+        ),
+        child: MatrixAvatar(
+          key: Key('senderAvatar.$id'),
+          account: widget.account,
+          url: fields.senderAvatarUrl,
+          name: fields.senderName ?? fields.sender,
+          seed: fields.sender,
+          radius: _senderAvatarRadius,
+        ),
+      ),
     );
   }
 
@@ -1003,11 +1036,15 @@ class MessageBubble extends StatefulWidget {
     this.thread,
     this.hoverActions,
     this.onTap,
+    this.onSender,
     super.key,
   });
 
   final bool isOwn;
   final String? sender;
+
+  /// A tap on [sender]: opens their profile.
+  final VoidCallback? onSender;
 
   /// Beside the bubble, on its left.
   final Widget? avatar;
@@ -1189,12 +1226,21 @@ class _MessageBubbleState extends State<MessageBubble> {
         children: [
           if (sender != null)
             SelectionContainer.disabled(
-              child: Text(
-                sender,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  color: context.oxi.muted,
+              child: MouseRegion(
+                cursor: widget.onSender == null
+                    ? MouseCursor.defer
+                    : SystemMouseCursors.click,
+                child: GestureDetector(
+                  key: const Key('message.sender'),
+                  onTap: widget.onSender,
+                  child: Text(
+                    sender,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: context.oxi.muted,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1433,7 +1479,7 @@ class Composer extends ConsumerStatefulWidget {
 }
 
 class _ComposerState extends ConsumerState<Composer> {
-  final _text = TextEditingController();
+  final _text = ComposerController();
   late final _emoticons = EmoticonFormatter(
     enabled: () => ref.read(replaceEmoticonsProvider),
   );
@@ -1467,10 +1513,76 @@ class _ComposerState extends ConsumerState<Composer> {
       )
       .value;
 
+  /// The `@…` or `#…` being typed, for the suggestions; `null` for none.
+  MentionQuery? _query;
+
+  /// The suggestion lit for Enter or Tab.
+  var _selected = 0;
+
+  /// Esc closed the suggestions; they come back with the next letter.
+  var _dismissed = false;
+
+  /// The suggestions shown, as last built.
+  var _suggestions = const <MentionSuggestion>[];
+  final _popupLink = LayerLink();
+  final _popup = OverlayPortalController();
+
   @override
   void initState() {
     super.initState();
-    _text.addListener(_onText);
+    _text
+      ..addListener(_onText)
+      ..addListener(_onQuery);
+    _popup.show();
+  }
+
+  /// Follows what is typed before the cursor for the suggestions.
+  void _onQuery() {
+    final query = mentionQueryAt(_text.value);
+    if (query == _query) return;
+    setState(() {
+      if (query?.text != _query?.text || query?.trigger != _query?.trigger) {
+        _selected = 0;
+        _dismissed = false;
+      }
+      _query = query;
+    });
+  }
+
+  /// What the popup offers for [query]: members (and @room) for `@`, rooms for `#`.
+  List<MentionSuggestion> _suggestionsFor(MentionQuery? query) {
+    if (query == null || _dismissed) return const [];
+    if (query.trigger == '#') {
+      final session = ref.read(accountsProvider).value?.byId(widget.account);
+      return roomSuggestions(query.text, session?.mentionRooms() ?? const []);
+    }
+    final members =
+        ref.watch(roomMembersProvider(widget.account, widget.roomId)).value ??
+        const <RoomMember>[];
+    final canMentionRoom =
+        ref
+            .watch(canMentionRoomProvider((widget.account, widget.roomId)))
+            .value ??
+        false;
+    return memberSuggestions(
+      query.text,
+      members,
+      own: widget.account,
+      canMentionRoom: canMentionRoom,
+    );
+  }
+
+  /// Puts [suggestion] as a pill where its `@…` is.
+  void _pick(MentionSuggestion suggestion) {
+    final query = _query;
+    if (query == null) return;
+    _text.insertPill(query.start, query.end, suggestion.part);
+    _focus.requestFocus();
+  }
+
+  void _moveSelection(int by) {
+    if (_suggestions.isEmpty) return;
+    setState(() => _selected = (_selected + by) % _suggestions.length);
   }
 
   @override
@@ -1515,15 +1627,17 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.read(composerModeProvider(_chat).notifier).set(mode);
 
   Future<void> _send() async {
-    final typed = _text.text.trim();
-    final text = ref.read(replaceEmoticonsProvider)
-        ? withTrailingEmoticon(typed)
-        : typed;
+    final parts = _text.parts();
+    // The emoticon at the very end, which the formatter only replaces after a space.
+    if (ref.read(replaceEmoticonsProvider) && parts.lastOrNull is TextPart) {
+      final last = parts.removeLast() as TextPart;
+      parts.add(TextPart(withTrailingEmoticon(last.text)));
+    }
     final mode = ref.read(composerModeProvider(_chat));
     final timeline = _timeline;
     // An empty edit of a caption removes it; empty text sends nothing.
     final editingCaption = mode is Editing && mode.entry is MediaEntry;
-    if ((text.isEmpty && !editingCaption) || timeline == null) return;
+    if ((parts.isEmpty && !editingCaption) || timeline == null) return;
     _text.clear();
     _setMode(null);
     _focus.requestFocus();
@@ -1531,18 +1645,19 @@ class _ComposerState extends ConsumerState<Composer> {
     try {
       switch (mode) {
         case null:
-          await timeline.send(text, markdown: markdown);
+          await timeline.sendMessage(parts, markdown: markdown);
         case Replying(:final entry):
-          final eventId = eventFields(entry)?.meta.eventId;
-          eventId == null
-              ? await timeline.send(text, markdown: markdown)
-              : await timeline.sendReply(text, eventId, markdown: markdown);
+          await timeline.sendMessage(
+            parts,
+            replyTo: eventFields(entry)?.meta.eventId,
+            markdown: markdown,
+          );
         case Editing(:final entry):
           final ref = eventFields(entry)?.meta.ref;
           if (ref != null) {
-            await timeline.edit(
+            await timeline.editMessage(
               ref,
-              text,
+              parts,
               caption: entry is MediaEntry,
               markdown: markdown,
             );
@@ -1685,9 +1800,14 @@ class _ComposerState extends ConsumerState<Composer> {
     final mode = ref.watch(composerModeProvider(_chat));
     ref.listen(composerModeProvider(_chat), (previous, next) {
       if (next is Editing) {
-        _text.text = messageText(next.entry);
-        if (next.entry case MediaEntry(:final media)) {
-          _text.text = media.caption ?? '';
+        switch (next.entry) {
+          case MessageEntry(:final body, :final formatted):
+            final (text, pills) = pillsFromMessage(body, formatted);
+            _text.setContent(text, pills);
+          case MediaEntry(:final media):
+            _text.setContent(media.caption ?? '', const []);
+          default:
+            _text.setContent(messageText(next.entry), const []);
         }
       } else if (previous is Editing) {
         _text.clear();
@@ -1695,6 +1815,50 @@ class _ComposerState extends ConsumerState<Composer> {
       if (next != null) _focus.requestFocus();
     });
     final palette = context.oxi;
+    final suggestions = _suggestions = _suggestionsFor(_query);
+    final selected = suggestions.isEmpty
+        ? 0
+        : _selected.clamp(0, suggestions.length - 1);
+    return CompositedTransformTarget(
+      link: _popupLink,
+      child: OverlayPortal(
+        controller: _popup,
+        overlayChildBuilder: (context) => suggestions.isEmpty
+            ? const SizedBox.shrink()
+            : Align(
+                alignment: Alignment.topLeft,
+                child: CompositedTransformFollower(
+                  link: _popupLink,
+                  showWhenUnlinked: false,
+                  targetAnchor: Alignment.topLeft,
+                  followerAnchor: Alignment.bottomLeft,
+                  offset: const Offset(8, -4),
+                  child: SizedBox(
+                    width: math.min(420, MediaQuery.sizeOf(context).width - 16),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 340),
+                      child: MentionSuggestionList(
+                        account: widget.account,
+                        suggestions: suggestions,
+                        selected: selected,
+                        onPick: _pick,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+        child: _composer(context, mode, palette, suggestions, selected),
+      ),
+    );
+  }
+
+  Widget _composer(
+    BuildContext context,
+    ComposerMode? mode,
+    OxiPalette palette,
+    List<MentionSuggestion> suggestions,
+    int selected,
+  ) {
     return Material(
       color: palette.panel,
       shape: Border(top: BorderSide(color: palette.line)),
@@ -1728,8 +1892,27 @@ class _ComposerState extends ConsumerState<Composer> {
                           bindings: {
                             const SingleActivator(
                               LogicalKeyboardKey.enter,
-                            ): () =>
-                                unawaited(_send()),
+                            ): () => suggestions.isEmpty
+                                ? unawaited(_send())
+                                : _pick(suggestions[selected]),
+                            if (suggestions.isNotEmpty) ...{
+                              const SingleActivator(
+                                LogicalKeyboardKey.tab,
+                              ): () =>
+                                  _pick(suggestions[selected]),
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowDown,
+                              ): () =>
+                                  _moveSelection(1),
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowUp,
+                              ): () =>
+                                  _moveSelection(-1),
+                              const SingleActivator(
+                                LogicalKeyboardKey.escape,
+                              ): () =>
+                                  setState(() => _dismissed = true),
+                            },
                             const SingleActivator(
                               LogicalKeyboardKey.keyV,
                               control: true,
@@ -1740,7 +1923,7 @@ class _ComposerState extends ConsumerState<Composer> {
                               meta: true,
                             ): () =>
                                 unawaited(_paste()),
-                            if (mode != null)
+                            if (mode != null && suggestions.isEmpty)
                               const SingleActivator(
                                 LogicalKeyboardKey.escape,
                               ): () =>

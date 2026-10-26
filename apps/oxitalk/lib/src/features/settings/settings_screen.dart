@@ -17,6 +17,7 @@ import '../about/about_screen.dart';
 import '../accounts/account_switcher.dart';
 import 'devices_settings.dart';
 import 'encryption_settings.dart';
+import 'ignored_users_settings.dart';
 import 'notification_settings_screen.dart';
 import 'settings_heading.dart';
 
@@ -435,6 +436,11 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
           divider,
           AccountDevicesSettings(
             key: ValueKey(('devices', account)),
+            account: account,
+          ),
+          divider,
+          IgnoredUsersSettings(
+            key: ValueKey(('ignored', account)),
             account: account,
           ),
           divider,

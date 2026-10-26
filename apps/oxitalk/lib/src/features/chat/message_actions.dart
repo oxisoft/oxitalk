@@ -10,6 +10,7 @@ import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
+import '../people/user_profile.dart';
 import 'emoji.dart';
 import 'media_views.dart';
 import 'pins.dart';
@@ -241,6 +242,49 @@ final class MessageActions {
     );
   }
 
+  /// Reports someone else's message [entry] to the server's admins, with an optional reason,
+  /// and ignores its sender too if the user ticks that.
+  Future<void> report(TimelineEntry entry) async {
+    final fields = eventFields(entry);
+    final eventId = fields?.meta.eventId;
+    if (fields == null || eventId == null) return;
+    final messenger = ScaffoldMessenger.of(_context);
+    final session = _ref.read(accountsProvider).value?.byId(account);
+    if (session == null) return;
+    final name = fields.senderName ?? fields.sender;
+    final choice = await showDialog<ReportChoice>(
+      context: _context,
+      builder: (_) => ReportDialog(
+        title: 'Report this message?',
+        note:
+            'The admins of your server get the report with the message’s ID. In an '
+            'encrypted chat they can’t read the message itself.',
+        ignoreLabel: 'Also ignore $name',
+      ),
+    );
+    if (choice == null) return;
+    try {
+      await session.reportEvent(roomId, eventId, reason: choice.reason);
+      if (choice.ignore) {
+        await session.ignoreUser(fields.sender);
+        afterIgnoreChange(_ref);
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            choice.ignore
+                ? 'Reported, and $name is ignored. Thank you.'
+                : 'Reported. Thank you.',
+          ),
+        ),
+      );
+    } on MatrixFailure catch (failure) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Can’t report: ${failure.kind.name}')),
+      );
+    }
+  }
+
   /// What can be done with [entry], in the order the menus show it.
   List<MessageAction> actions(
     TimelineEntry entry, {
@@ -315,6 +359,14 @@ final class MessageActions {
           'Retry',
           Icons.refresh_rounded,
           () => unawaited(retry(entry)),
+        ),
+      if (sent && !fields.isOwn)
+        MessageAction(
+          'report',
+          'Report…',
+          Icons.flag_outlined,
+          () => unawaited(report(entry)),
+          destructive: true,
         ),
       if (fields.isOwn || canRedactOthers)
         MessageAction(

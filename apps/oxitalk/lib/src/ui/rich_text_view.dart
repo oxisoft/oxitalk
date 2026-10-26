@@ -16,12 +16,20 @@ String _trimLink(String text) =>
 
 /// Formatted message text drawn with the app's own widgets: paragraphs, headings, lists,
 /// quotes, code, rules, and the inline styles. Links (also plain URLs in the text) open
-/// with [onLink]; spoilers show when clicked.
+/// with [onLink]; spoilers show when clicked; a mention (a user's pill) with [onMention].
 class RichTextView extends StatefulWidget {
-  const RichTextView({required this.blocks, required this.onLink, super.key});
+  const RichTextView({
+    required this.blocks,
+    required this.onLink,
+    this.onMention,
+    super.key,
+  });
 
   final List<RichBlock> blocks;
   final void Function(String url) onLink;
+
+  /// A tap on a user's pill: their user ID and the name it shows.
+  final void Function(String userId, String name)? onMention;
 
   @override
   State<RichTextView> createState() => _RichTextViewState();
@@ -140,6 +148,9 @@ class _RichTextViewState extends State<RichTextView> {
                 () => setState(() => _spoilersShown = !_spoilersShown),
               ),
               RichSpan(:final link?) => _onTap(() => widget.onLink(link)),
+              RichSpan(:final mention?) when widget.onMention != null => _onTap(
+                () => widget.onMention!(mention, span.text),
+              ),
               _ => null,
             },
           ),
