@@ -24,6 +24,7 @@ use super::{
     error::{CoreError, parse_id},
     notify::{self, Candidate},
     pins,
+    recovery::RecoveryProgress,
     sync::new_sync_service,
 };
 use crate::frb_generated::StreamSink;
@@ -63,6 +64,8 @@ pub struct Session {
     /// The rooms the sync follows closely (all their state, more of their timeline), as
     /// Element X does for an open room, with how many open chats want each.
     pub(crate) room_subscriptions: Arc<Mutex<HashMap<OwnedRoomId, usize>>>,
+    /// How far setting up recovery is, for whoever follows it.
+    pub(crate) recovery_progress: broadcast::Sender<RecoveryProgress>,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -163,6 +166,7 @@ impl Session {
             notification_settings,
             notification_candidates,
             room_subscriptions: Arc::default(),
+            recovery_progress: broadcast::channel(16).0,
             tasks: Mutex::default(),
             runtime: Handle::current(),
         };

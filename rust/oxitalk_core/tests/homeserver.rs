@@ -9,6 +9,8 @@
 mod devices;
 #[path = "homeserver/pins.rs"]
 mod pins;
+#[path = "homeserver/recovery.rs"]
+mod recovery;
 #[path = "homeserver/search.rs"]
 mod search;
 mod support;

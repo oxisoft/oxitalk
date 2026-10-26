@@ -15,6 +15,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 
 import 'pins.dart';
 import 'profile.dart';
+import 'recovery.dart';
 import 'room_info.dart';
 import 'room_list.dart';
 import 'rooms.dart';
@@ -131,6 +132,17 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`].
   String? dmWith({required String userId});
 
+  /// Sets recovery up: a key backup if there is none, then a new recovery key that the
+  /// account's secrets are stored with; waits until the message keys are backed up.
+  /// Returns the new key, to show the user once. [`Self::subscribe_recovery_progress`]
+  /// tells how far it is.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if the server has a key backup this device isn't connected to
+  /// (verify it first), otherwise as the server answers.
+  Future<String> enableRecovery();
+
   /// Opens the room's timeline around the event `event_id`: the event with some before and
   /// after it, from the server. It pages back with [`Timeline::paginate_back`] and forward,
   /// towards the newest message, with [`Timeline::paginate_forward`]. As in the live
@@ -159,6 +171,14 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`], otherwise as the server
   /// answers (e.g. [`CoreError::Forbidden`] without the right to invite).
   Future<void> invite({required String roomId, required String userId});
+
+  /// Whether this is the account's only device: logging out of it without recovery loses
+  /// the encrypted history.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<bool> isLastDevice();
 
   /// Joins a room, typically one the user was invited to.
   ///
@@ -323,6 +343,14 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::Internal`] if the account has no cross-signing identity yet, or as the
   /// server answers.
   Future<Verification> requestSelfVerification();
+
+  /// Replaces the recovery key with a new one and returns it, to show the user once; the
+  /// old key stops working.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::RecoveryNotSetUp`] if recovery is off, otherwise as the server answers.
+  Future<String> resetRecoveryKey();
 
   /// A room's details for its info screen.
   ///
@@ -506,6 +534,9 @@ abstract class Session implements RustOpaqueInterface {
   /// change tries again.
   Stream<List<DeviceInfo>> subscribeDevices();
 
+  /// Sends the current [`EncryptionStatus`], then every change.
+  Stream<EncryptionStatus> subscribeEncryptionStatus();
+
   /// Sends the account's notification settings, then the settings after every change, made
   /// here or on another device.
   Stream<NotificationSettingsState> subscribeNotificationSettings();
@@ -513,6 +544,9 @@ abstract class Session implements RustOpaqueInterface {
   /// Sends every message that should show as an OS notification from now on: it notifies
   /// by the push rules (decrypted first if it is encrypted), and it isn't the user's own.
   Stream<NotificationItem> subscribeNotifications();
+
+  /// Sends how far a running [`Self::enable_recovery`] is, from now on.
+  Stream<RecoveryProgress> subscribeRecoveryProgress();
 
   /// Sends the room list as batches of diffs. The first batch is a `Reset` with the whole
   /// list.

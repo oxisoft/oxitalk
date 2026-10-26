@@ -14,6 +14,7 @@ pub mod notifications;
 pub mod notify;
 pub mod pins;
 pub mod profile;
+pub mod recovery;
 pub mod rich_text;
 pub mod room_info;
 pub mod room_list;

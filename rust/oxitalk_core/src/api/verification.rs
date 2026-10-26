@@ -464,7 +464,7 @@ fn cancelled(info: &CancelInfo) -> VerificationFlowState {
     }
 }
 
-fn recovery_error(error: &RecoveryError) -> CoreError {
+pub(super) fn recovery_error(error: &RecoveryError) -> CoreError {
     match error {
         RecoveryError::SecretStorage(SecretStorageError::SecretStorageKey(_)) => {
             CoreError::WrongRecoveryKey

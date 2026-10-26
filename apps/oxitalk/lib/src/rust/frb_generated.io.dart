@@ -12,6 +12,7 @@ import 'api/notifications.dart';
 import 'api/notify.dart';
 import 'api/pins.dart';
 import 'api/profile.dart';
+import 'api/recovery.dart';
 import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
@@ -155,6 +156,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<EncryptionStatus> dco_decode_StreamSink_encryption_status_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<List<DeviceInfo>> dco_decode_StreamSink_list_device_info_Sse(
     dynamic raw,
   );
@@ -179,6 +185,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<NotificationSettingsState>
   dco_decode_StreamSink_notification_settings_state_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<RecoveryProgress> dco_decode_StreamSink_recovery_progress_Sse(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<RoomPins> dco_decode_StreamSink_room_pins_Sse(dynamic raw);
@@ -281,6 +292,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceInfo dco_decode_device_info(dynamic raw);
+
+  @protected
+  EncryptionStatus dco_decode_encryption_status(dynamic raw);
 
   @protected
   EventInfo dco_decode_event_info(dynamic raw);
@@ -448,6 +462,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Reaction dco_decode_reaction(dynamic raw);
+
+  @protected
+  RecoveryProgress dco_decode_recovery_progress(dynamic raw);
+
+  @protected
+  RecoveryStatus dco_decode_recovery_status(dynamic raw);
 
   @protected
   ReplyQuote dco_decode_reply_quote(dynamic raw);
@@ -651,6 +671,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<EncryptionStatus> sse_decode_StreamSink_encryption_status_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<List<DeviceInfo>> sse_decode_StreamSink_list_device_info_Sse(
     SseDeserializer deserializer,
   );
@@ -675,6 +700,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<NotificationSettingsState>
   sse_decode_StreamSink_notification_settings_state_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<RecoveryProgress> sse_decode_StreamSink_recovery_progress_Sse(
     SseDeserializer deserializer,
   );
 
@@ -795,6 +825,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceInfo sse_decode_device_info(SseDeserializer deserializer);
+
+  @protected
+  EncryptionStatus sse_decode_encryption_status(SseDeserializer deserializer);
 
   @protected
   EventInfo sse_decode_event_info(SseDeserializer deserializer);
@@ -994,6 +1027,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Reaction sse_decode_reaction(SseDeserializer deserializer);
+
+  @protected
+  RecoveryProgress sse_decode_recovery_progress(SseDeserializer deserializer);
+
+  @protected
+  RecoveryStatus sse_decode_recovery_status(SseDeserializer deserializer);
 
   @protected
   ReplyQuote sse_decode_reply_quote(SseDeserializer deserializer);
@@ -1225,6 +1264,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_encryption_status_Sse(
+    RustStreamSink<EncryptionStatus> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_list_device_info_Sse(
     RustStreamSink<List<DeviceInfo>> self,
     SseSerializer serializer,
@@ -1257,6 +1302,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_notification_settings_state_Sse(
     RustStreamSink<NotificationSettingsState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_recovery_progress_Sse(
+    RustStreamSink<RecoveryProgress> self,
     SseSerializer serializer,
   );
 
@@ -1418,6 +1469,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_device_info(DeviceInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_encryption_status(
+    EncryptionStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_event_info(EventInfo self, SseSerializer serializer);
@@ -1679,6 +1736,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_reaction(Reaction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_recovery_progress(
+    RecoveryProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_recovery_status(
+    RecoveryStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_reply_quote(ReplyQuote self, SseSerializer serializer);
