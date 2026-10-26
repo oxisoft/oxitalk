@@ -112,6 +112,22 @@ final class FakeSession implements MatrixSession {
   /// The verification [requestVerification] or [openVerification] returned last.
   FakeVerification? lastVerification;
 
+  /// The account's devices; tests change them, and so do the actions on them.
+  final deviceList = Latest<List<Device>>(const [
+    Device(
+      id: 'THISDEVICE',
+      name: 'OxiTalk',
+      isThisDevice: true,
+      verified: true,
+    ),
+  ]);
+
+  /// The password [signOutDevices] wants; with `null` the server asks for none.
+  String? accountPassword = 'the password';
+
+  /// The passwords [signOutDevices] was called with, `null` for none.
+  final signOutPasswords = <String?>[];
+
   /// Sends a request from another device, as it would arrive.
   void receiveVerificationRequest(VerificationRequest request) =>
       _requests.add(request);
@@ -159,6 +175,68 @@ final class FakeSession implements MatrixSession {
         this,
         step: const VerificationIncoming(),
       );
+
+  @override
+  Future<List<Device>> devices() async => deviceList.value;
+
+  @override
+  Stream<List<Device>> get deviceChanges => deviceList.stream;
+
+  @override
+  Future<void> renameDevice(String deviceId, String name) async =>
+      _changeDevice(
+        deviceId,
+        (device) => Device(
+          id: device.id,
+          name: name,
+          lastSeen: device.lastSeen,
+          lastSeenIp: device.lastSeenIp,
+          isThisDevice: device.isThisDevice,
+          verified: device.verified,
+        ),
+      );
+
+  @override
+  Future<void> signOutDevices(
+    List<String> deviceIds, {
+    String? password,
+  }) async {
+    signOutPasswords.add(password);
+    if (accountPassword case final wanted?) {
+      if (password == null) {
+        throw const MatrixFailure(FailureKind.passwordNeeded);
+      }
+      if (password != wanted) {
+        throw const MatrixFailure(FailureKind.wrongPassword);
+      }
+    }
+    deviceList.value = [
+      for (final device in deviceList.value)
+        if (!deviceIds.contains(device.id)) device,
+    ];
+  }
+
+  @override
+  Future<DeviceVerification> verifyDevice(String deviceId) async =>
+      lastVerification = FakeVerification(
+        this,
+        onDone: () => _changeDevice(
+          deviceId,
+          (device) => Device(
+            id: device.id,
+            name: device.name,
+            lastSeen: device.lastSeen,
+            lastSeenIp: device.lastSeenIp,
+            verified: true,
+          ),
+        ),
+      );
+
+  void _changeDevice(String deviceId, Device Function(Device) change) =>
+      deviceList.value = [
+        for (final device in deviceList.value)
+          device.id == deviceId ? change(device) : device,
+      ];
 
   @override
   Stream<Profile> get profile => ownProfile.stream;
@@ -940,7 +1018,11 @@ final class FakeVerification implements DeviceVerification {
   FakeVerification(
     this._session, {
     VerificationStep step = const VerificationWaiting(),
+    this.onDone,
   }) : _steps = Latest(step);
+
+  /// What finishing it does; by default this device becomes verified.
+  final void Function()? onDone;
 
   static const emojis = [
     VerificationEmoji('🐶', 'Dog'),
@@ -977,7 +1059,11 @@ final class FakeVerification implements DeviceVerification {
   @override
   Future<void> confirm() async {
     step = const VerificationDone();
-    _session.verification.value = VerificationStatus.verified;
+    if (onDone case final done?) {
+      done();
+    } else {
+      _session.verification.value = VerificationStatus.verified;
+    }
   }
 
   @override

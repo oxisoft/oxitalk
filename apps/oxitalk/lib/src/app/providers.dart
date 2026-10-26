@@ -353,6 +353,34 @@ Stream<VerificationRequest> verificationRequests(Ref ref, String account) =>
 Stream<Profile> profile(Ref ref, String account) =>
     _session(ref, account)?.profile ?? Stream.value(const Profile());
 
+/// The account's devices, this one first; follows every change while it is watched.
+@riverpod
+class AccountDevices extends _$AccountDevices {
+  @override
+  Future<List<Device>> build(String account) async {
+    final session = _session(ref, account);
+    if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+    final changes = session.deviceChanges.listen(
+      (devices) => state = AsyncData(devices),
+    );
+    // Not awaited: a bridge stream's cancel waits for the next item.
+    ref.onDispose(() => unawaited(changes.cancel()));
+    return session.devices();
+  }
+
+  /// Fetches the list again now, e.g. after an action on a device; a failure keeps the
+  /// list shown.
+  Future<void> refresh() async {
+    final session = ref.read(accountsProvider).value?.byId(account);
+    if (session == null) return;
+    try {
+      state = AsyncData(await session.devices());
+    } on MatrixFailure catch (failure) {
+      if (!state.hasValue) state = AsyncError(failure, StackTrace.current);
+    }
+  }
+}
+
 /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
 /// loaded; a failed load is tried again the next time it is shown.
 @riverpod

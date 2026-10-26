@@ -338,6 +338,33 @@ final class RustMatrixSession implements MatrixSession {
       );
 
   @override
+  Future<List<Device>> devices() async => [
+    for (final device in await guarded(_session.devices)) deviceOf(device),
+  ];
+
+  @override
+  Stream<List<Device>> get deviceChanges => _session.subscribeDevices().map(
+    (list) => [for (final device in list) deviceOf(device)],
+  );
+
+  @override
+  Future<void> renameDevice(String deviceId, String name) =>
+      guarded(() => _session.renameDevice(deviceId: deviceId, name: name));
+
+  @override
+  Future<void> signOutDevices(List<String> deviceIds, {String? password}) =>
+      guarded(
+        () => _session.signOutDevices(deviceIds: deviceIds, password: password),
+      );
+
+  @override
+  Future<DeviceVerification> verifyDevice(String deviceId) async =>
+      RustDeviceVerification._(
+        await guarded(() => _session.verifyDevice(deviceId: deviceId)),
+        weAsked: true,
+      );
+
+  @override
   Stream<Profile> get profile => _profile.stream;
 
   Future<void> _refreshProfile() async {

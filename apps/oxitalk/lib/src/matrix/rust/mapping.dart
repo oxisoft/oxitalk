@@ -1,3 +1,4 @@
+import '../../rust/api/devices.dart' as rust;
 import '../../rust/api/error.dart';
 import '../../rust/api/notifications.dart' as rust;
 import '../../rust/api/notify.dart' as rust;
@@ -57,6 +58,18 @@ Future<T> guarded<T>(Future<T> Function() call) async {
     throw failure(error);
   }
 }
+
+Device deviceOf(rust.DeviceInfo device) => Device(
+  id: device.deviceId,
+  name: device.displayName,
+  lastSeen: switch (device.lastSeenTs) {
+    final ms? => DateTime.fromMillisecondsSinceEpoch(ms),
+    null => null,
+  },
+  lastSeenIp: device.lastSeenIp,
+  isThisDevice: device.isThisDevice,
+  verified: device.verified,
+);
 
 Room roomOf(rust.RoomSummary summary) => Room(
   id: summary.roomId,

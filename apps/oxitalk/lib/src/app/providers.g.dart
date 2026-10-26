@@ -1534,6 +1534,105 @@ final class ProfileFamily extends $Family
   String toString() => r'profileProvider';
 }
 
+/// The account's devices, this one first; follows every change while it is watched.
+
+@ProviderFor(AccountDevices)
+final accountDevicesProvider = AccountDevicesFamily._();
+
+/// The account's devices, this one first; follows every change while it is watched.
+final class AccountDevicesProvider
+    extends $AsyncNotifierProvider<AccountDevices, List<Device>> {
+  /// The account's devices, this one first; follows every change while it is watched.
+  AccountDevicesProvider._({
+    required AccountDevicesFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'accountDevicesProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$accountDevicesHash();
+
+  @override
+  String toString() {
+    return r'accountDevicesProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  AccountDevices create() => AccountDevices();
+
+  @override
+  bool operator ==(Object other) {
+    return other is AccountDevicesProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$accountDevicesHash() => r'82c40ae1afd392b5fc9ff906ba4a01fdc65565e8';
+
+/// The account's devices, this one first; follows every change while it is watched.
+
+final class AccountDevicesFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          AccountDevices,
+          AsyncValue<List<Device>>,
+          List<Device>,
+          FutureOr<List<Device>>,
+          String
+        > {
+  AccountDevicesFamily._()
+    : super(
+        retry: null,
+        name: r'accountDevicesProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The account's devices, this one first; follows every change while it is watched.
+
+  AccountDevicesProvider call(String account) =>
+      AccountDevicesProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'accountDevicesProvider';
+}
+
+/// The account's devices, this one first; follows every change while it is watched.
+
+abstract class _$AccountDevices extends $AsyncNotifier<List<Device>> {
+  late final _$args = ref.$arg as String;
+  String get account => _$args;
+
+  FutureOr<List<Device>> build(String account);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<List<Device>>, List<Device>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<Device>>, List<Device>>,
+              AsyncValue<List<Device>>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
 /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
 /// loaded; a failed load is tried again the next time it is shown.
 

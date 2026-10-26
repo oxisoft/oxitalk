@@ -93,6 +93,26 @@ abstract interface class MatrixSession {
   /// Opens a request from [verificationRequests].
   Future<DeviceVerification> openVerification(String flowId);
 
+  /// The account's devices: this one first, then the others, the last seen first.
+  Future<List<Device>> devices();
+
+  /// The account's [devices] now, then again whenever a device signs in or out, is renamed
+  /// or verified, here or elsewhere.
+  Stream<List<Device>> get deviceChanges;
+
+  /// Gives the account's device [deviceId] (this one too) the name [name].
+  Future<void> renameDevice(String deviceId, String name);
+
+  /// Signs the account's other devices [deviceIds] out (this one logs out with [logout]).
+  /// The server may want the account's password: without [password] that throws
+  /// [MatrixFailure] with [FailureKind.passwordNeeded], with a wrong one
+  /// [FailureKind.wrongPassword].
+  Future<void> signOutDevices(List<String> deviceIds, {String? password});
+
+  /// Asks the account's device [deviceId] to verify with this one, by emoji; this side
+  /// starts the emoji once the other accepts.
+  Future<DeviceVerification> verifyDevice(String deviceId);
+
   /// The user's profile (empty until it is fetched), then every change made here.
   Stream<Profile> get profile;
 

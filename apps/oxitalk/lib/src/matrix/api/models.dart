@@ -789,6 +789,38 @@ final class Profile {
   final String? avatarUrl;
 }
 
+/// A device the account is signed in on (a session).
+final class Device {
+  const Device({
+    required this.id,
+    this.name,
+    this.lastSeen,
+    this.lastSeenIp,
+    this.isThisDevice = false,
+    this.verified = false,
+  });
+
+  final String id;
+
+  /// The name the user (or the app at login) gave it, if any.
+  final String? name;
+
+  /// When the server last saw it, in local time, if it tells.
+  final DateTime? lastSeen;
+
+  /// The IP address it was last seen from, if the server tells.
+  final String? lastSeenIp;
+
+  /// The device the app runs on.
+  final bool isThisDevice;
+
+  /// Signed by the account's identity, so the user's other devices and contacts trust it.
+  final bool verified;
+
+  /// Its name, or its ID without one.
+  String get label => name ?? id;
+}
+
 /// The connection as the user sees it.
 enum SyncStatus {
   /// Starting, or restarting after an error.

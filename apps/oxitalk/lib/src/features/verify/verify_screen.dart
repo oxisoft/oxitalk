@@ -235,11 +235,17 @@ class VerificationFlow extends StatelessWidget {
   const VerificationFlow({
     required this.verification,
     required this.onFinished,
+    this.waitingText =
+        'Open OxiTalk or Element where you’re already signed in and '
+        'accept the request.',
     super.key,
   });
 
   final DeviceVerification verification;
   final VoidCallback onFinished;
+
+  /// What to do on the other device while it hasn't accepted yet.
+  final String waitingText;
 
   @override
   Widget build(BuildContext context) => StreamBuilder(
@@ -247,9 +253,7 @@ class VerificationFlow extends StatelessWidget {
     builder: (context, snapshot) => switch (snapshot.data) {
       null || VerificationWaiting() => _Waiting(
         title: 'Waiting for your other device',
-        text:
-            'Open OxiTalk or Element where you’re already signed in and '
-            'accept the request.',
+        text: waitingText,
         onCancel: () => _cancel(verification),
       ),
       VerificationIncoming() => _Message(

@@ -15,6 +15,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../about/about_screen.dart';
 import '../accounts/account_switcher.dart';
+import 'devices_settings.dart';
 import 'notification_settings_screen.dart';
 import 'settings_heading.dart';
 
@@ -363,8 +364,8 @@ String? editedAccount(AccountsState? accounts, String? user) {
 }
 
 /// Everything about one [account], top to bottom: which account (the picker), its
-/// pictures, its notifications (kept on its server), then this device's notification
-/// switches, which are for all accounts, and logging out last.
+/// pictures, its notifications (kept on its server), its devices, then this device's
+/// notification switches, which are for all accounts, and logging out last.
 class _AccountSettings extends ConsumerStatefulWidget {
   const _AccountSettings({
     required this.account,
@@ -424,6 +425,11 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
               key: ValueKey(('notifications', account)),
               account: account,
             ),
+          ),
+          divider,
+          AccountDevicesSettings(
+            key: ValueKey(('devices', account)),
+            account: account,
           ),
           divider,
           const DeviceNotificationSettings(),

@@ -80,3 +80,24 @@ String? typingLabel(List<String>? names, {required bool direct}) {
     _ => '${names.length} people are typing…',
   };
 }
+
+/// When a device was last seen, in local time: `just now`, `5 min ago`, `today at 14:05`,
+/// `yesterday at 09:30`, `Mon at 18:00` this week, else the day (`18 October`).
+String lastSeenLabel(DateTime time, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final ago = current.difference(time);
+  if (ago < const Duration(minutes: 1)) return 'just now';
+  if (ago < const Duration(hours: 1)) return '${ago.inMinutes} min ago';
+  final today = _day(current);
+  final day = _day(time);
+  final at = clockTime(time);
+  if (day == today) return 'today at $at';
+  // By the calendar: a day with a clock change isn't 24 hours.
+  if (day == DateTime(today.year, today.month, today.day - 1)) {
+    return 'yesterday at $at';
+  }
+  if (today.difference(day).inDays < 7 && !day.isAfter(today)) {
+    return '${_weekdays[time.weekday - 1]} at $at';
+  }
+  return dayLabel(time, now: current);
+}
