@@ -275,11 +275,16 @@ class VerificationFlow extends StatelessWidget {
     this.waitingText =
         'Open OxiTalk or Element where you’re already signed in and '
         'accept the request.',
+    this.otherUser,
     super.key,
   });
 
   final DeviceVerification verification;
   final VoidCallback onFinished;
+
+  /// The name of the person verified, when it is another user rather than another device of
+  /// the user's.
+  final String? otherUser;
 
   /// What to do on the other device while it hasn't accepted yet.
   final String waitingText;
@@ -289,7 +294,9 @@ class VerificationFlow extends StatelessWidget {
     stream: verification.steps,
     builder: (context, snapshot) => switch (snapshot.data) {
       null || VerificationWaiting() => _Waiting(
-        title: 'Waiting for your other device',
+        title: otherUser == null
+            ? 'Waiting for your other device'
+            : 'Waiting for $otherUser',
         text: waitingText,
         onCancel: () => _cancel(verification),
       ),
@@ -316,13 +323,17 @@ class VerificationFlow extends StatelessWidget {
       ),
       VerificationConfirmed() => _Waiting(
         title: 'Almost there',
-        text: 'Waiting for the other device to confirm.',
+        text: otherUser == null
+            ? 'Waiting for the other device to confirm.'
+            : 'Waiting for $otherUser to confirm.',
         onCancel: () => _cancel(verification),
       ),
       VerificationDone() => _Message(
         icon: Icons.verified_rounded,
-        title: 'Device verified',
-        text: 'Your encrypted messages will now arrive on both devices.',
+        title: otherUser == null ? 'Device verified' : '$otherUser is verified',
+        text: otherUser == null
+            ? 'Your encrypted messages will now arrive on both devices.'
+            : 'You know their messages really come from them.',
         actions: [
           FilledButton(
             key: const Key('verify.done'),
@@ -334,7 +345,11 @@ class VerificationFlow extends StatelessWidget {
       VerificationCancelled(:final reason, :final byUs) => _Message(
         icon: Icons.cancel_rounded,
         title: 'Verification cancelled',
-        text: byUs ? reason : 'The other device cancelled: $reason',
+        text: byUs
+            ? reason
+            : otherUser == null
+            ? 'The other device cancelled: $reason'
+            : '$otherUser cancelled: $reason',
         actions: [
           FilledButton(onPressed: onFinished, child: const Text('Back')),
         ],

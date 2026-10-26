@@ -9,6 +9,7 @@ import 'api/directory.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/membership.dart';
+import 'api/mentions.dart';
 import 'api/notices.dart';
 import 'api/notifications.dart';
 import 'api/notify.dart';
@@ -27,6 +28,7 @@ import 'api/sync.dart';
 import 'api/threads.dart';
 import 'api/timeline.dart';
 import 'api/typing.dart';
+import 'api/users.dart';
 import 'api/verification.dart';
 import 'api/voice.dart';
 
@@ -160,6 +162,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<EncryptionStatus> dco_decode_StreamSink_encryption_status_Sse(
+    dynamic raw,
+  );
+
+  @protected
+  RustStreamSink<List<String>> dco_decode_StreamSink_list_String_Sse(
     dynamic raw,
   );
 
@@ -347,6 +354,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<InconsistentDefault> dco_decode_list_inconsistent_default(dynamic raw);
 
   @protected
+  List<MentionRoom> dco_decode_list_mention_room(dynamic raw);
+
+  @protected
+  List<MessagePart> dco_decode_list_message_part(dynamic raw);
+
+  @protected
   List<Person> dco_decode_list_person(dynamic raw);
 
   @protected
@@ -426,6 +439,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MembershipKind dco_decode_membership_kind(dynamic raw);
+
+  @protected
+  MentionRoom dco_decode_mention_room(dynamic raw);
+
+  @protected
+  MessagePart dco_decode_message_part(dynamic raw);
 
   @protected
   NewRoom dco_decode_new_room(dynamic raw);
@@ -607,6 +626,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UserProfile dco_decode_user_profile(dynamic raw);
+
+  @protected
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
@@ -719,6 +741,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<EncryptionStatus> sse_decode_StreamSink_encryption_status_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<List<String>> sse_decode_StreamSink_list_String_Sse(
     SseDeserializer deserializer,
   );
 
@@ -932,6 +959,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<MentionRoom> sse_decode_list_mention_room(SseDeserializer deserializer);
+
+  @protected
+  List<MessagePart> sse_decode_list_message_part(SseDeserializer deserializer);
+
+  @protected
   List<Person> sse_decode_list_person(SseDeserializer deserializer);
 
   @protected
@@ -1023,6 +1056,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MembershipKind sse_decode_membership_kind(SseDeserializer deserializer);
+
+  @protected
+  MentionRoom sse_decode_mention_room(SseDeserializer deserializer);
+
+  @protected
+  MessagePart sse_decode_message_part(SseDeserializer deserializer);
 
   @protected
   NewRoom sse_decode_new_room(SseDeserializer deserializer);
@@ -1224,6 +1263,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  UserProfile sse_decode_user_profile(SseDeserializer deserializer);
+
+  @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
@@ -1361,6 +1403,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_encryption_status_Sse(
     RustStreamSink<EncryptionStatus> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_list_String_Sse(
+    RustStreamSink<List<String>> self,
     SseSerializer serializer,
   );
 
@@ -1638,6 +1686,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_mention_room(
+    List<MentionRoom> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_message_part(
+    List<MessagePart> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_person(List<Person> self, SseSerializer serializer);
 
   @protected
@@ -1768,6 +1828,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     MembershipKind self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_mention_room(MentionRoom self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_message_part(MessagePart self, SseSerializer serializer);
 
   @protected
   void sse_encode_new_room(NewRoom self, SseSerializer serializer);
@@ -2008,6 +2074,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_profile(UserProfile self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);

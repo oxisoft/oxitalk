@@ -15,6 +15,7 @@ import '../chat/pins.dart';
 import '../chats/membership_actions.dart';
 import '../chats/new_room.dart';
 import '../chats/notification_actions.dart';
+import '../people/user_profile.dart';
 import 'member_actions.dart';
 import 'room_settings.dart';
 
@@ -361,6 +362,16 @@ class _Members extends ConsumerWidget {
         ].join(' · ');
         return ListTile(
           key: Key('member.${member.userId}'),
+          onTap: () => unawaited(
+            showUserProfile(
+              context,
+              account: account,
+              userId: member.userId,
+              roomId: roomId,
+              name: member.displayName,
+              avatarUrl: member.avatarUrl,
+            ),
+          ),
           leading: MatrixAvatar(
             account: account,
             url: member.avatarUrl,

@@ -1073,7 +1073,7 @@ pub(crate) fn thread_event(
 }
 
 /// An item named by its event ID (`$…`) or, while a local echo, its transaction ID.
-fn item_id(id: &str) -> Result<TimelineEventItemId, CoreError> {
+pub(crate) fn item_id(id: &str) -> Result<TimelineEventItemId, CoreError> {
     if id.starts_with('$') {
         Ok(TimelineEventItemId::EventId(parse_id(id)?))
     } else {

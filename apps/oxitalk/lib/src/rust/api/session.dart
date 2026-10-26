@@ -8,6 +8,7 @@ import 'devices.dart';
 import 'directory.dart';
 import 'error.dart';
 import 'membership.dart';
+import 'mentions.dart';
 import 'notifications.dart';
 import 'notify.dart';
 
@@ -27,6 +28,7 @@ import 'sync.dart';
 import 'threads.dart';
 import 'timeline.dart';
 import 'typing.dart';
+import 'users.dart';
 import 'verification.dart';
 part 'session.freezed.dart';
 
@@ -98,6 +100,10 @@ abstract class Session implements RustOpaqueInterface {
     required String userId,
     String? reason,
   });
+
+  /// Whether the user may notify the whole room with `@room` (the room's
+  /// `notifications.room` power level).
+  Future<bool> canMentionRoom({required String roomId});
 
   /// Empties the media cache; the retention period stays.
   ///
@@ -173,6 +179,22 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers.
   Future<void> fixInconsistentNotificationDefaults();
+
+  /// Ignores `user_id`: their messages and invites are no longer shown, on every device of
+  /// the account. The SDK then drops the cached timelines, which load again without them.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`]; [`CoreError::Internal`] for the user's own ID; otherwise as the
+  /// server answers.
+  Future<void> ignoreUser({required String userId});
+
+  /// The users the account ignores, sorted.
+  ///
+  /// # Errors
+  ///
+  /// Only if the store can't be read.
+  Future<List<String>> ignoredUsers();
 
   /// Invites `user_id` to the room.
   ///
@@ -289,6 +311,9 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<Timeline> mediaTimeline({required String roomId});
 
+  /// The rooms the user is in, to link to with `#`, by name.
+  List<MentionRoom> mentionRooms();
+
   /// The account's notification settings as they are now.
   Future<NotificationSettingsState> notificationSettings();
 
@@ -377,6 +402,26 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers.
   Future<void> renameDevice({required String deviceId, required String name});
+
+  /// Reports the message `event_id` of the room `room_id` to the server's admins, with an
+  /// optional reason.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`]; otherwise as the server answers.
+  Future<void> reportEvent({
+    required String roomId,
+    required String eventId,
+    String? reason,
+  });
+
+  /// Reports `user_id` to their server's admins, with an optional reason.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], or as the server answers (an older server may not know the
+  /// request).
+  Future<void> reportUser({required String userId, String? reason});
 
   /// Asks the user's other devices to verify this one.
   ///
@@ -667,6 +712,10 @@ abstract class Session implements RustOpaqueInterface {
   /// Sends the current [`EncryptionStatus`], then every change.
   Stream<EncryptionStatus> subscribeEncryptionStatus();
 
+  /// Sends [`Session::ignored_users`] now, then again whenever the list changes, here or on
+  /// another device.
+  Stream<List<String>> subscribeIgnoredUsers();
+
   /// Sends the account's notification settings, then the settings after every change, made
   /// here or on another device.
   Stream<NotificationSettingsState> subscribeNotificationSettings();
@@ -755,8 +804,24 @@ abstract class Session implements RustOpaqueInterface {
   /// As [`Session::set_power_level`].
   Future<void> unbanMember({required String roomId, required String userId});
 
+  /// Stops ignoring `user_id`; their messages show again.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::ignore_user`].
+  Future<void> unignoreUser({required String userId});
+
   /// The logged-in user's Matrix ID.
   String userId();
+
+  /// `user_id`'s profile: their name and picture in the room `room_id` if given and they are
+  /// a member, else as their server tells.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`]. A profile the server won't tell (e.g. nobody shares a room
+  /// with them) comes without name and picture, not as an error.
+  Future<UserProfile> userProfile({required String userId, String? roomId});
 
   /// Opens a request that arrived through [`Self::subscribe_verification_requests`].
   ///
@@ -773,6 +838,15 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::Internal`] if this device doesn't have the other's keys (yet), otherwise
   /// as the server answers.
   Future<Verification> verifyDevice({required String deviceId});
+
+  /// Asks `user_id` to verify with the user by emoji, in their direct chat (made if there is
+  /// none); this side starts the emoji once they accept, as with the user's own devices.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`]; [`CoreError::Internal`] if they have no cross-signing identity
+  /// or the chat can't be made; otherwise as the server answers.
+  Future<Verification> verifyUser({required String userId});
 }
 
 @freezed

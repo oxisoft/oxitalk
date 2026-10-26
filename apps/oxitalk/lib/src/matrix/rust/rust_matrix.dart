@@ -883,6 +883,55 @@ final class RustMatrixSession implements MatrixSession {
       guarded(() => _session.searchLoadOlder(roomId: roomId, events: events));
 
   @override
+  Future<bool> canMentionRoom(String roomId) =>
+      _session.canMentionRoom(roomId: roomId);
+
+  @override
+  List<MentionRoom> mentionRooms() => [
+    for (final room in _session.mentionRooms()) mentionRoomOf(room),
+  ];
+
+  @override
+  Future<UserProfile> userProfile(String userId, {String? roomId}) async =>
+      userProfileOf(
+        await guarded(
+          () => _session.userProfile(userId: userId, roomId: roomId),
+        ),
+      );
+
+  @override
+  Future<DeviceVerification> verifyUser(String userId) async =>
+      RustDeviceVerification._(
+        await guarded(() => _session.verifyUser(userId: userId)),
+        weAsked: true,
+      );
+
+  @override
+  Future<void> ignoreUser(String userId) =>
+      guarded(() => _session.ignoreUser(userId: userId));
+
+  @override
+  Future<void> unignoreUser(String userId) =>
+      guarded(() => _session.unignoreUser(userId: userId));
+
+  @override
+  Stream<List<String>> get ignoredUsers => _session.subscribeIgnoredUsers();
+
+  @override
+  Future<void> reportUser(String userId, {String? reason}) =>
+      guarded(() => _session.reportUser(userId: userId, reason: reason));
+
+  @override
+  Future<void> reportEvent(String roomId, String eventId, {String? reason}) =>
+      guarded(
+        () => _session.reportEvent(
+          roomId: roomId,
+          eventId: eventId,
+          reason: reason,
+        ),
+      );
+
+  @override
   Future<void> logout() async {
     try {
       await guarded(_session.logout);
@@ -1027,6 +1076,34 @@ final class RustRoomTimeline implements RoomTimeline {
     bool markdown = false,
   }) => guarded(
     () => _timeline.sendReply(body: text, replyTo: eventId, markdown: markdown),
+  );
+
+  @override
+  Future<void> sendMessage(
+    List<MessagePart> parts, {
+    String? replyTo,
+    bool markdown = false,
+  }) => guarded(
+    () => _timeline.sendMessage(
+      parts: rustParts(parts),
+      replyTo: replyTo,
+      markdown: markdown,
+    ),
+  );
+
+  @override
+  Future<void> editMessage(
+    String ref,
+    List<MessagePart> parts, {
+    bool caption = false,
+    bool markdown = false,
+  }) => guarded(
+    () => _timeline.editMessage(
+      item: ref,
+      parts: rustParts(parts),
+      caption: caption,
+      markdown: markdown,
+    ),
   );
 
   @override
