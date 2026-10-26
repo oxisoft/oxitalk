@@ -830,6 +830,17 @@ class _MessageSettings extends ConsumerWidget {
         onChanged: (on) =>
             ref.read(replaceEmoticonsProvider.notifier).set(on: on),
       ),
+      SwitchListTile(
+        key: const Key('settings.showMembershipEvents'),
+        title: const Text('Show join and leave events'),
+        subtitle: const Text(
+          'Who joined, left, was invited or changed their name or picture, '
+          'as small lines in the chat. Changes to the room itself always show.',
+        ),
+        value: ref.watch(showMembershipEventsProvider),
+        onChanged: (on) =>
+            ref.read(showMembershipEventsProvider.notifier).set(on: on),
+      ),
     ],
   );
 }

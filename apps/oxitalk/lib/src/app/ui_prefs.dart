@@ -22,6 +22,10 @@ abstract interface class UiPrefs {
   /// Whether typed emoticons like `:)` become emoji; on unless turned off.
   bool get replaceEmoticons;
 
+  /// Whether the timeline shows who joined, left or changed their profile; on unless
+  /// turned off.
+  bool get showMembershipEvents;
+
   /// `light` or `dark`; anything else follows the system.
   String get theme;
 
@@ -51,6 +55,7 @@ abstract interface class UiPrefs {
   Future<void> setSendTyping({required bool on});
   Future<void> setReplaceEmoticons({required bool on});
   Future<void> setTheme(String theme);
+  Future<void> setShowMembershipEvents({required bool on});
   Future<void> setNotificationsEnabled({required bool on});
   Future<void> setNotificationText({required bool on});
   Future<void> setNotificationSound({required bool on});
@@ -108,6 +113,9 @@ final class FileUiPrefs implements UiPrefs {
   String get theme => _json['theme'] as String? ?? 'system';
 
   @override
+  bool get showMembershipEvents => _json['showMembershipEvents'] != false;
+
+  @override
   bool get notificationsEnabled => _json['notificationsEnabled'] != false;
 
   @override
@@ -156,6 +164,10 @@ final class FileUiPrefs implements UiPrefs {
   Future<void> setTheme(String theme) => _save(() => _json['theme'] = theme);
 
   @override
+  Future<void> setShowMembershipEvents({required bool on}) =>
+      _save(() => _json['showMembershipEvents'] = on);
+
+  @override
   Future<void> setNotificationsEnabled({required bool on}) =>
       _save(() => _json['notificationsEnabled'] = on);
 
@@ -196,6 +208,7 @@ final class MemoryUiPrefs implements UiPrefs {
     this.sendTyping = true,
     this.replaceEmoticons = true,
     this.theme = 'system',
+    this.showMembershipEvents = true,
     this.notificationsEnabled = true,
     this.notificationText = true,
     this.notificationSound = true,
@@ -225,6 +238,9 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   String theme;
+
+  @override
+  bool showMembershipEvents;
 
   @override
   bool notificationsEnabled;
@@ -266,6 +282,10 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   Future<void> setTheme(String theme) async => this.theme = theme;
+
+  @override
+  Future<void> setShowMembershipEvents({required bool on}) async =>
+      showMembershipEvents = on;
 
   @override
   Future<void> setNotificationsEnabled({required bool on}) async =>

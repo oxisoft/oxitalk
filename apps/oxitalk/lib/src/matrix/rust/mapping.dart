@@ -236,8 +236,15 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     id: item.id,
     day: DateTime.fromMillisecondsSinceEpoch(timestampMs),
   ),
-  // Not shown yet.
-  rust.TimelineItemContent_Notice() ||
+  rust.TimelineItemContent_Notice(:final event, :final notice) => NoticeEntry(
+    id: item.id,
+    sender: event.sender,
+    senderName: event.senderName,
+    time: DateTime.fromMillisecondsSinceEpoch(event.timestampMs),
+    isOwn: event.isOwn,
+    eventId: event.eventId,
+    notice: noticeOf(notice),
+  ),
   rust.TimelineItemContent_OtherEvent() ||
   rust.TimelineItemContent_ReadMarker() ||
   rust.TimelineItemContent_TimelineStart() => null,

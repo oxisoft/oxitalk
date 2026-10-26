@@ -13,6 +13,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import 'jump.dart';
 import 'message_actions.dart';
+import 'notice_line.dart';
 
 part 'pins.g.dart';
 
@@ -148,7 +149,7 @@ String pinPreview(TimelineEntry? entry) => switch (entry) {
   MediaEntry(:final media) => media.caption ?? media.filename,
   UndecryptableEntry() => 'Waiting for this message…',
   RedactedEntry() => 'Message deleted',
-  NoticeEntry() => '',
+  NoticeEntry() => noticeText(entry),
   DayDivider() => '',
 };
 

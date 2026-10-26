@@ -802,6 +802,65 @@ abstract class _$ReplaceEmoticons extends $Notifier<bool> {
   }
 }
 
+/// Whether the timeline shows who joined, left or changed their profile.
+
+@ProviderFor(ShowMembershipEvents)
+final showMembershipEventsProvider = ShowMembershipEventsProvider._();
+
+/// Whether the timeline shows who joined, left or changed their profile.
+final class ShowMembershipEventsProvider
+    extends $NotifierProvider<ShowMembershipEvents, bool> {
+  /// Whether the timeline shows who joined, left or changed their profile.
+  ShowMembershipEventsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'showMembershipEventsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$showMembershipEventsHash();
+
+  @$internal
+  @override
+  ShowMembershipEvents create() => ShowMembershipEvents();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$showMembershipEventsHash() =>
+    r'5d5d55c49b781d741c0ed38c7d2e0d137348d082';
+
+/// Whether the timeline shows who joined, left or changed their profile.
+
+abstract class _$ShowMembershipEvents extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Who is typing in [account]'s rooms: room ID → names.
 
 @ProviderFor(typing)
@@ -1158,7 +1217,7 @@ final class AccountsProvider
   Accounts create() => Accounts();
 }
 
-String _$accountsHash() => r'6e37dea465e35aaddb2757bd394171389e54e6c0';
+String _$accountsHash() => r'e969814f73bb12e7c098a9fcc27c26207b28a762';
 
 /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 

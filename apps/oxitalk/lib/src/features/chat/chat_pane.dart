@@ -27,6 +27,7 @@ import 'jump.dart';
 import 'media_views.dart';
 import 'message_actions.dart';
 import 'message_sheet.dart';
+import 'notice_line.dart';
 import 'pins.dart';
 import 'send_files.dart';
 import 'video/video_message.dart';
@@ -277,6 +278,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   /// Takes a pin's highlight away after a moment.
   Timer? _highlightTimer;
 
+  /// The folded runs of membership notices the user opened, by their first entry's ID.
+  final _openRuns = <String>{};
+
   ChatKey get _chat => (widget.account, widget.roomId);
 
   /// The newest entry when the room was last marked read.
@@ -464,12 +468,20 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         thread: widget.thread,
       ),
     );
-    final entries = switch (jump.around) {
+    final shown = switch (jump.around) {
       final around? => ref.watch(
         timelineAtEntriesProvider(widget.account, widget.roomId, around),
       ),
       null => live,
     };
+    final entries = ref.watch(showMembershipEventsProvider)
+        ? shown
+        : shown.whenData(
+            (entries) => [
+              for (final entry in entries)
+                if (!isMembershipNotice(entry)) entry,
+            ],
+          );
     return switch (entries) {
       AsyncData(value: final entries) when jump.around == null => _list(
         entries,
@@ -631,6 +643,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     List<TimelineEntry> entries, {
     required bool canRedactOthers,
   }) {
+    final runStarts = noticeRunStarts(entries);
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ListView.builder(
@@ -646,6 +659,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
               child: _DayChip(label: dayLabel(day)),
             );
           }
+          if (entry is NoticeEntry) {
+            return SelectionContainer.disabled(
+              child: _notice(entry, position, entries, runStarts),
+            );
+          }
           final previous = position > 0 ? entries[position - 1] : null;
           final next = position < entries.length - 1
               ? entries[position + 1]
@@ -653,6 +671,43 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           return _bubble(entry, previous, next, entries, canRedactOthers);
         },
       ),
+    );
+  }
+
+  /// A notice's line; in a run of membership notices, the first shows the run folded (and
+  /// the rest nothing) until opened.
+  Widget _notice(
+    NoticeEntry entry,
+    int position,
+    List<TimelineEntry> entries,
+    List<int?> runStarts,
+  ) {
+    final line = NoticeLine(
+      key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
+      text: noticeText(entry, ownUserId: widget.account),
+    );
+    final start = runStarts[position];
+    if (start == null) return line;
+    final runId = entries[start].id;
+    final open = _openRuns.contains(runId);
+    if (position != start) return open ? line : const SizedBox.shrink();
+    final run = [
+      for (var p = start; p < entries.length && runStarts[p] == start; p++)
+        entries[p] as NoticeEntry,
+    ];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        NoticeRunLine(
+          key: Key('notice.run.$runId'),
+          summary: noticeRunSummary(run),
+          expanded: open,
+          onToggle: () => setState(
+            () => open ? _openRuns.remove(runId) : _openRuns.add(runId),
+          ),
+        ),
+        if (open) line,
+      ],
     );
   }
 

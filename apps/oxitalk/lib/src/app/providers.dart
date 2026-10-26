@@ -171,6 +171,18 @@ class ReplaceEmoticons extends _$ReplaceEmoticons {
   }
 }
 
+/// Whether the timeline shows who joined, left or changed their profile.
+@Riverpod(keepAlive: true)
+class ShowMembershipEvents extends _$ShowMembershipEvents {
+  @override
+  bool build() => ref.watch(uiPrefsProvider).showMembershipEvents;
+
+  void set({required bool on}) {
+    state = on;
+    unawaited(ref.read(uiPrefsProvider).setShowMembershipEvents(on: on));
+  }
+}
+
 /// Who is typing in [account]'s rooms: room ID → names.
 @riverpod
 Stream<Map<String, List<String>>> typing(Ref ref, String account) =>
