@@ -709,6 +709,43 @@ final class FakeSession implements MatrixSession {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
 
+  /// The rooms [leave] was called for, in order.
+  final left = <String>[];
+
+  /// What [inviteDetails] answers, by room ID; else the room's name only.
+  final inviteDetailsById = <String, InviteDetails>{};
+
+  /// What [leaveInfo] answers, by room ID; else no warnings.
+  final leaveInfos = <String, LeaveInfo>{};
+
+  /// What [leave] throws, if anything.
+  MatrixFailure? leaveFailure;
+
+  @override
+  Future<void> leave(String roomId) async {
+    if (leaveFailure case final failure?) throw failure;
+    left.add(roomId);
+    roomList = [
+      for (final room in roomList)
+        if (room.id != roomId) room,
+    ];
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+
+  @override
+  Future<InviteDetails> inviteDetails(String roomId) async =>
+      inviteDetailsById[roomId] ??
+      InviteDetails(
+        roomId: roomId,
+        name:
+            roomList.where((room) => room.id == roomId).firstOrNull?.name ??
+            roomId,
+      );
+
+  @override
+  Future<LeaveInfo> leaveInfo(String roomId) async =>
+      leaveInfos[roomId] ?? const LeaveInfo();
+
   @override
   Future<RoomTimeline> openTimeline(String roomId) async =>
       timelines.putIfAbsent(roomId, () => FakeTimeline(ownUserId: userId));

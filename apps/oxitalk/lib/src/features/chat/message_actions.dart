@@ -63,7 +63,7 @@ EventFields? eventFields(TimelineEntry entry) => switch (entry) {
     sendState: SendState.sent,
     meta: entry.meta,
   ),
-  DayDivider() => null,
+  NoticeEntry() || DayDivider() => null,
 };
 
 /// What the composer is doing besides writing a new message.

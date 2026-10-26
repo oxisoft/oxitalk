@@ -3,6 +3,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'notices.dart';
+
 enum Membership { joined, invited, knocked, left, banned }
 
 /// What a room notifies for, as Element names the choices. The account's defaults are never
@@ -588,6 +590,27 @@ final class RedactedEntry extends TimelineEntry {
   final DateTime time;
   final bool isOwn;
   final EventMeta meta;
+}
+
+/// A room event shown as a small line: who joined or left, a new name or topic, a poll.
+/// [sender] is who did it.
+final class NoticeEntry extends TimelineEntry {
+  const NoticeEntry({
+    required String id,
+    required this.sender,
+    required this.time,
+    required this.notice,
+    this.senderName,
+    this.isOwn = false,
+    this.eventId,
+  }) : super(id);
+
+  final String sender;
+  final String? senderName;
+  final DateTime time;
+  final bool isOwn;
+  final String? eventId;
+  final RoomNotice notice;
 }
 
 final class DayDivider extends TimelineEntry {

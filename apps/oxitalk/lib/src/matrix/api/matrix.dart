@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
+import 'membership.dart';
 import 'models.dart';
 import 'pins.dart';
 import 'search.dart';
 
+export 'membership.dart';
 export 'models.dart';
+export 'notices.dart';
 export 'pins.dart';
 export 'search.dart';
 
@@ -237,6 +240,15 @@ abstract interface class MatrixSession {
   Future<String> createDm(String userId);
 
   Future<void> join(String roomId);
+
+  /// Leaves the room, or declines the invitation to it; it drops out of [rooms].
+  Future<void> leave(String roomId);
+
+  /// What the invitation to [roomId] shows: the room, and who invited the user.
+  Future<InviteDetails> inviteDetails(String roomId);
+
+  /// What leaving [roomId] would cost, for the confirmation.
+  Future<LeaveInfo> leaveInfo(String roomId);
 
   /// People the user shares chats with, the most recently active chats' first.
   Future<List<Person>> knownPeople();

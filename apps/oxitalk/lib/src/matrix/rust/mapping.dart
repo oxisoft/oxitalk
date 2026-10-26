@@ -1,5 +1,7 @@
 import '../../rust/api/devices.dart' as rust;
 import '../../rust/api/error.dart';
+import '../../rust/api/membership.dart' as membership_api;
+import '../../rust/api/notices.dart' as notice_api;
 import '../../rust/api/recovery.dart' as rust;
 import '../../rust/api/notifications.dart' as rust;
 import '../../rust/api/notify.dart' as rust;
@@ -234,10 +236,125 @@ TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
     id: item.id,
     day: DateTime.fromMillisecondsSinceEpoch(timestampMs),
   ),
+  // Not shown yet.
+  rust.TimelineItemContent_Notice() ||
   rust.TimelineItemContent_OtherEvent() ||
   rust.TimelineItemContent_ReadMarker() ||
   rust.TimelineItemContent_TimelineStart() => null,
 };
+
+RoomNotice noticeOf(notice_api.RoomNotice notice) => switch (notice) {
+  notice_api.RoomNotice_Membership(
+    :final userId,
+    :final userName,
+    :final userIsOwn,
+    :final change,
+    :final reason,
+  ) =>
+    MembershipNotice(
+      userId: userId,
+      userName: userName,
+      userIsOwn: userIsOwn,
+      change: switch (change) {
+        notice_api.MembershipKind.joined => MembershipChange.joined,
+        notice_api.MembershipKind.left => MembershipChange.left,
+        notice_api.MembershipKind.invited => MembershipChange.invited,
+        notice_api.MembershipKind.inviteAccepted =>
+          MembershipChange.inviteAccepted,
+        notice_api.MembershipKind.inviteDeclined =>
+          MembershipChange.inviteDeclined,
+        notice_api.MembershipKind.inviteRevoked =>
+          MembershipChange.inviteRevoked,
+        notice_api.MembershipKind.kicked => MembershipChange.kicked,
+        notice_api.MembershipKind.banned => MembershipChange.banned,
+        notice_api.MembershipKind.kickedAndBanned =>
+          MembershipChange.kickedAndBanned,
+        notice_api.MembershipKind.unbanned => MembershipChange.unbanned,
+        notice_api.MembershipKind.knocked => MembershipChange.knocked,
+        notice_api.MembershipKind.knockAccepted =>
+          MembershipChange.knockAccepted,
+        notice_api.MembershipKind.knockRetracted =>
+          MembershipChange.knockRetracted,
+        notice_api.MembershipKind.knockDenied => MembershipChange.knockDenied,
+      },
+      reason: reason,
+    ),
+  notice_api.RoomNotice_Profile(
+    :final userId,
+    :final oldName,
+    :final newName,
+    :final nameChanged,
+    :final avatarChanged,
+    :final avatarRemoved,
+  ) =>
+    ProfileNotice(
+      userId: userId,
+      oldName: oldName,
+      newName: newName,
+      nameChanged: nameChanged,
+      avatarChanged: avatarChanged,
+      avatarRemoved: avatarRemoved,
+    ),
+  notice_api.RoomNotice_RoomCreated() => const RoomCreatedNotice(),
+  notice_api.RoomNotice_RoomName(:final name) => RoomNameNotice(name),
+  notice_api.RoomNotice_RoomTopic(:final topic) => RoomTopicNotice(topic),
+  notice_api.RoomNotice_RoomAvatar(:final removed) => RoomAvatarNotice(
+    removed: removed,
+  ),
+  notice_api.RoomNotice_RoomAlias(:final alias) => RoomAliasNotice(alias),
+  notice_api.RoomNotice_EncryptionEnabled() => const EncryptionNotice(),
+  notice_api.RoomNotice_HistoryVisibility(:final visibility) =>
+    HistoryVisibilityNotice(switch (visibility) {
+      notice_api.HistoryVisibilityKind.invited => HistoryVisibilityKind.invited,
+      notice_api.HistoryVisibilityKind.joined => HistoryVisibilityKind.joined,
+      notice_api.HistoryVisibilityKind.shared => HistoryVisibilityKind.shared,
+      notice_api.HistoryVisibilityKind.worldReadable =>
+        HistoryVisibilityKind.worldReadable,
+      notice_api.HistoryVisibilityKind.other => HistoryVisibilityKind.other,
+    }),
+  notice_api.RoomNotice_JoinRules(:final rule) => JoinRuleNotice(switch (rule) {
+    notice_api.JoinRuleKind.public => JoinRuleKind.public,
+    notice_api.JoinRuleKind.invite => JoinRuleKind.invite,
+    notice_api.JoinRuleKind.knock => JoinRuleKind.knock,
+    notice_api.JoinRuleKind.restricted => JoinRuleKind.restricted,
+    notice_api.JoinRuleKind.other => JoinRuleKind.other,
+  }),
+  notice_api.RoomNotice_PowerLevels(:final changes) => PowerLevelsNotice([
+    for (final change in changes)
+      PowerLevelChange(change.userId, change.oldLevel, change.newLevel),
+  ]),
+  notice_api.RoomNotice_Pinned(:final added, :final removed) => PinnedNotice(
+    added: added,
+    removed: removed,
+  ),
+  notice_api.RoomNotice_RoomUpgraded() => const RoomUpgradedNotice(),
+  notice_api.RoomNotice_Poll(:final question) => PollNotice(question),
+  notice_api.RoomNotice_Sticker(:final body) => StickerNotice(body),
+  notice_api.RoomNotice_Location(:final body) => LocationNotice(body),
+  notice_api.RoomNotice_LiveLocation() => const LiveLocationNotice(),
+  notice_api.RoomNotice_Call() => const CallNotice(),
+};
+
+InviteDetails inviteDetailsOf(membership_api.InviteDetails details) =>
+    InviteDetails(
+      roomId: details.roomId,
+      name: details.name,
+      avatarUrl: details.avatarUrl,
+      topic: details.topic,
+      alias: details.alias,
+      isDm: details.isDm,
+      joinedMembers: details.joinedMembers,
+      inviterId: details.inviterId,
+      inviterName: details.inviterName,
+      inviterAvatarUrl: details.inviterAvatarUrl,
+    );
+
+LeaveInfo leaveInfoOf(membership_api.LeaveInfo info) => LeaveInfo(
+  isDm: info.isDm,
+  needsInviteToRejoin: info.needsInviteToRejoin,
+  lastAdmin: info.lastAdmin,
+  onlyMember: info.onlyMember,
+);
 
 VerificationStatus verificationStatusOf(rust.VerificationStatus status) =>
     switch (status) {

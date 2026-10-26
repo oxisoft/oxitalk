@@ -5,6 +5,7 @@
 
 import '../frb_generated.dart';
 import 'error.dart';
+import 'notices.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -555,6 +556,13 @@ sealed class TimelineItemContent with _$TimelineItemContent {
   /// A message that was deleted.
   const factory TimelineItemContent.redacted({required EventInfo event}) =
       TimelineItemContent_Redacted;
+
+  /// A room event the timeline shows as a small line: a membership or profile change,
+  /// a change to the room, or content the app shows only as text (a poll, a sticker).
+  const factory TimelineItemContent.notice({
+    required EventInfo event,
+    required RoomNotice notice,
+  }) = TimelineItemContent_Notice;
 
   /// Any other event; M0 doesn't show them.
   const factory TimelineItemContent.otherEvent({required EventInfo event}) =

@@ -36,6 +36,7 @@ use tokio::task::AbortHandle;
 use super::{
     error::{CoreError, parse_id},
     media_prep::{prepare_image, prepare_thumbnail},
+    notices::{RoomNotice, notice},
     rich_text::{RichBlock, plain_line, rich_text},
     session::Session,
     voice::WAVEFORM_MAX,
@@ -76,6 +77,12 @@ pub enum TimelineItemContent {
     UnableToDecrypt { event: EventInfo },
     /// A message that was deleted.
     Redacted { event: EventInfo },
+    /// A room event the timeline shows as a small line: a membership or profile change,
+    /// a change to the room, or content the app shows only as text (a poll, a sticker).
+    Notice {
+        event: EventInfo,
+        notice: RoomNotice,
+    },
     /// Any other event; M0 doesn't show them.
     OtherEvent { event: EventInfo },
     /// The start of a day, in milliseconds since the Unix epoch.
@@ -824,6 +831,11 @@ fn event_content(event: &EventTimelineItem, own: &UserId) -> TimelineItemContent
     };
     if content.is_redacted() {
         TimelineItemContent::Redacted { event: info }
+    } else if let Some(notice) = notice(content, own) {
+        TimelineItemContent::Notice {
+            event: info,
+            notice,
+        }
     } else if let Some(media) = content
         .as_message()
         .and_then(|m| media_message(m.msgtype()))

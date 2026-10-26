@@ -7,6 +7,7 @@ import '../frb_generated.dart';
 import 'devices.dart';
 import 'directory.dart';
 import 'error.dart';
+import 'membership.dart';
 import 'notifications.dart';
 import 'notify.dart';
 
@@ -172,6 +173,14 @@ abstract class Session implements RustOpaqueInterface {
   /// answers (e.g. [`CoreError::Forbidden`] without the right to invite).
   Future<void> invite({required String roomId, required String userId});
 
+  /// What the invitation to `room_id` shows: the room and who invited the user.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or [`CoreError::Internal`] if
+  /// the user isn't invited to it.
+  Future<InviteDetails> inviteDetails({required String roomId});
+
   /// Whether this is the account's only device: logging out of it without recovery loses
   /// the encrypted history.
   ///
@@ -202,6 +211,23 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// Only if the store can't be read.
   Future<List<Person>> knownPeople({required int limit});
+
+  /// Leaves the room, or declines the invitation to it (which forgets it too). It drops
+  /// out of the room list.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], otherwise as the server
+  /// answers.
+  Future<void> leave({required String roomId});
+
+  /// What leaving the room would cost: whether the user could come back, and whether
+  /// they are its last admin.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<LeaveInfo> leaveInfo({required String roomId});
 
   /// Stops syncing and logs this device out on the server. The store stays; the app deletes
   /// it.

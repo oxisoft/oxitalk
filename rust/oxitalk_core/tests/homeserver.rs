@@ -7,6 +7,8 @@
 
 #[path = "homeserver/devices.rs"]
 mod devices;
+#[path = "homeserver/membership.rs"]
+mod membership;
 #[path = "homeserver/pins.rs"]
 mod pins;
 #[path = "homeserver/recovery.rs"]

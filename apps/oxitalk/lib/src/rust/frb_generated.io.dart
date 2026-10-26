@@ -8,6 +8,8 @@ import 'api/devices.dart';
 import 'api/directory.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
+import 'api/membership.dart';
+import 'api/notices.dart';
 import 'api/notifications.dart';
 import 'api/notify.dart';
 import 'api/pins.dart';
@@ -259,6 +261,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomAvatar dco_decode_box_autoadd_room_avatar(dynamic raw);
 
   @protected
+  RoomNotice dco_decode_box_autoadd_room_notice(dynamic raw);
+
+  @protected
   RoomNotificationMode dco_decode_box_autoadd_room_notification_mode(
     dynamic raw,
   );
@@ -300,6 +305,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventInfo dco_decode_event_info(dynamic raw);
 
   @protected
+  HistoryVisibilityKind dco_decode_history_visibility_kind(dynamic raw);
+
+  @protected
   int dco_decode_i_16(dynamic raw);
 
   @protected
@@ -310,6 +318,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   InconsistentDefault dco_decode_inconsistent_default(dynamic raw);
+
+  @protected
+  InviteDetails dco_decode_invite_details(dynamic raw);
+
+  @protected
+  JoinRuleKind dco_decode_join_rule_kind(dynamic raw);
+
+  @protected
+  LeaveInfo dco_decode_leave_info(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -325,6 +342,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<Person> dco_decode_list_person(dynamic raw);
+
+  @protected
+  List<PowerLevelChange> dco_decode_list_power_level_change(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_i_16_loose(dynamic raw);
@@ -399,6 +419,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Membership dco_decode_membership(dynamic raw);
 
   @protected
+  MembershipKind dco_decode_membership_kind(dynamic raw);
+
+  @protected
   NewRoom dco_decode_new_room(dynamic raw);
 
   @protected
@@ -455,6 +478,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Person dco_decode_person(dynamic raw);
 
   @protected
+  PowerLevelChange dco_decode_power_level_change(dynamic raw);
+
+  @protected
   Profile dco_decode_profile(dynamic raw);
 
   @protected
@@ -489,6 +515,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomMember dco_decode_room_member(dynamic raw);
+
+  @protected
+  RoomNotice dco_decode_room_notice(dynamic raw);
 
   @protected
   RoomNotificationMode dco_decode_room_notification_mode(dynamic raw);
@@ -788,6 +817,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomAvatar sse_decode_box_autoadd_room_avatar(SseDeserializer deserializer);
 
   @protected
+  RoomNotice sse_decode_box_autoadd_room_notice(SseDeserializer deserializer);
+
+  @protected
   RoomNotificationMode sse_decode_box_autoadd_room_notification_mode(
     SseDeserializer deserializer,
   );
@@ -833,6 +865,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventInfo sse_decode_event_info(SseDeserializer deserializer);
 
   @protected
+  HistoryVisibilityKind sse_decode_history_visibility_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_i_16(SseDeserializer deserializer);
 
   @protected
@@ -845,6 +882,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InconsistentDefault sse_decode_inconsistent_default(
     SseDeserializer deserializer,
   );
+
+  @protected
+  InviteDetails sse_decode_invite_details(SseDeserializer deserializer);
+
+  @protected
+  JoinRuleKind sse_decode_join_rule_kind(SseDeserializer deserializer);
+
+  @protected
+  LeaveInfo sse_decode_leave_info(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -864,6 +910,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<Person> sse_decode_list_person(SseDeserializer deserializer);
+
+  @protected
+  List<PowerLevelChange> sse_decode_list_power_level_change(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<int> sse_decode_list_prim_i_16_loose(SseDeserializer deserializer);
@@ -948,6 +999,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Membership sse_decode_membership(SseDeserializer deserializer);
 
   @protected
+  MembershipKind sse_decode_membership_kind(SseDeserializer deserializer);
+
+  @protected
   NewRoom sse_decode_new_room(SseDeserializer deserializer);
 
   @protected
@@ -1020,6 +1074,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Person sse_decode_person(SseDeserializer deserializer);
 
   @protected
+  PowerLevelChange sse_decode_power_level_change(SseDeserializer deserializer);
+
+  @protected
   Profile sse_decode_profile(SseDeserializer deserializer);
 
   @protected
@@ -1054,6 +1111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomMember sse_decode_room_member(SseDeserializer deserializer);
+
+  @protected
+  RoomNotice sse_decode_room_notice(SseDeserializer deserializer);
 
   @protected
   RoomNotificationMode sse_decode_room_notification_mode(
@@ -1417,6 +1477,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_room_notice(
+    RoomNotice self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_room_notification_mode(
     RoomNotificationMode self,
     SseSerializer serializer,
@@ -1480,6 +1546,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_event_info(EventInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_history_visibility_kind(
+    HistoryVisibilityKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_i_16(int self, SseSerializer serializer);
 
   @protected
@@ -1493,6 +1565,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     InconsistentDefault self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_invite_details(InviteDetails self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_join_rule_kind(JoinRuleKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_leave_info(LeaveInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -1517,6 +1598,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_person(List<Person> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_power_level_change(
+    List<PowerLevelChange> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_i_16_loose(
@@ -1636,6 +1723,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_membership(Membership self, SseSerializer serializer);
 
   @protected
+  void sse_encode_membership_kind(
+    MembershipKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_new_room(NewRoom self, SseSerializer serializer);
 
   @protected
@@ -1729,6 +1822,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_person(Person self, SseSerializer serializer);
 
   @protected
+  void sse_encode_power_level_change(
+    PowerLevelChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_profile(Profile self, SseSerializer serializer);
 
   @protected
@@ -1769,6 +1868,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_member(RoomMember self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_notice(RoomNotice self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_notification_mode(

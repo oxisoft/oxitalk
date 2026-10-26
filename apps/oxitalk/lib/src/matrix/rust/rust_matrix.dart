@@ -757,6 +757,19 @@ final class RustMatrixSession implements MatrixSession {
       guarded(() => _session.join(roomId: roomId));
 
   @override
+  Future<void> leave(String roomId) =>
+      guarded(() => _session.leave(roomId: roomId));
+
+  @override
+  Future<InviteDetails> inviteDetails(String roomId) async => inviteDetailsOf(
+    await guarded(() => _session.inviteDetails(roomId: roomId)),
+  );
+
+  @override
+  Future<LeaveInfo> leaveInfo(String roomId) async =>
+      leaveInfoOf(await guarded(() => _session.leaveInfo(roomId: roomId)));
+
+  @override
   Future<RoomTimeline> openTimeline(String roomId) async => RustRoomTimeline._(
     await guarded(() => _session.timeline(roomId: roomId)),
   );

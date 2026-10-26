@@ -148,6 +148,7 @@ String pinPreview(TimelineEntry? entry) => switch (entry) {
   MediaEntry(:final media) => media.caption ?? media.filename,
   UndecryptableEntry() => 'Waiting for this message…',
   RedactedEntry() => 'Message deleted',
+  NoticeEntry() => '',
   DayDivider() => '',
 };
 
