@@ -1158,7 +1158,7 @@ final class AccountsProvider
   Accounts create() => Accounts();
 }
 
-String _$accountsHash() => r'6e37dea465e35aaddb2757bd394171389e54e6c0';
+String _$accountsHash() => r'e969814f73bb12e7c098a9fcc27c26207b28a762';
 
 /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 

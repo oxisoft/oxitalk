@@ -9,6 +9,7 @@ pub mod jump;
 pub mod logging;
 pub mod media;
 mod media_prep;
+pub mod mentions;
 pub mod moderation;
 pub mod notifications;
 pub mod notify;
@@ -26,6 +27,7 @@ pub mod sync;
 pub mod threads;
 pub mod timeline;
 pub mod typing;
+pub mod users;
 pub mod verification;
 pub mod voice;
 

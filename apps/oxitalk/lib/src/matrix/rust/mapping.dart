@@ -1,5 +1,6 @@
 import '../../rust/api/devices.dart' as rust;
 import '../../rust/api/error.dart';
+import '../../rust/api/mentions.dart' as mentions_api;
 import '../../rust/api/recovery.dart' as rust;
 import '../../rust/api/notifications.dart' as rust;
 import '../../rust/api/notify.dart' as rust;
@@ -10,6 +11,7 @@ import '../../rust/api/search.dart' as search_api;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
+import '../../rust/api/users.dart' as users_api;
 import '../../rust/api/verification.dart' as rust;
 import '../../util/log.dart';
 import '../api/matrix.dart';
@@ -449,3 +451,34 @@ SearchResults searchResultsOf(search_api.SearchResults results) =>
         null => null,
       },
     );
+
+/// The composer's parts as the core takes them.
+List<mentions_api.MessagePart> rustParts(List<MessagePart> parts) => [
+  for (final part in parts)
+    switch (part) {
+      TextPart(:final text) => mentions_api.MessagePart.text(text: text),
+      UserPill(:final userId, :final name) => mentions_api.MessagePart.user(
+        userId: userId,
+        name: name,
+      ),
+      RoomPill(:final roomId, :final alias, :final name) =>
+        mentions_api.MessagePart.room(roomId: roomId, alias: alias, name: name),
+      AtRoomPill() => const mentions_api.MessagePart.atRoom(),
+    },
+];
+
+MentionRoom mentionRoomOf(mentions_api.MentionRoom room) => MentionRoom(
+  roomId: room.roomId,
+  name: room.name,
+  alias: room.alias,
+  avatarUrl: room.avatarUrl,
+);
+
+UserProfile userProfileOf(users_api.UserProfile profile) => UserProfile(
+  userId: profile.userId,
+  displayName: profile.displayName,
+  avatarUrl: profile.avatarUrl,
+  verified: profile.verified,
+  ignored: profile.ignored,
+  dmRoomId: profile.dmRoomId,
+);

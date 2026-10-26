@@ -948,3 +948,104 @@ final class VerificationCancelled extends VerificationStep {
   final String reason;
   final bool byUs;
 }
+
+/// A piece of a message the composer built: text as typed, or a pill.
+sealed class MessagePart {
+  const MessagePart();
+
+  /// How it reads in the message's plain text.
+  String get plain;
+}
+
+final class TextPart extends MessagePart {
+  const TextPart(this.text);
+
+  final String text;
+
+  @override
+  String get plain => text;
+}
+
+/// A user mentioned: shown and sent by their display name, linked to their ID.
+final class UserPill extends MessagePart {
+  const UserPill(this.userId, this.name);
+
+  final String userId;
+  final String name;
+
+  @override
+  String get plain => name.trim().isEmpty ? userId : name;
+}
+
+/// A room linked to: shown by its address when it has one, else by its name.
+final class RoomPill extends MessagePart {
+  const RoomPill({required this.roomId, required this.name, this.alias});
+
+  final String roomId;
+  final String name;
+
+  /// Its main address, like `#team:example.org`.
+  final String? alias;
+
+  @override
+  String get plain => alias ?? name;
+}
+
+/// `@room`: notifies everyone in the room.
+final class AtRoomPill extends MessagePart {
+  const AtRoomPill();
+
+  @override
+  String get plain => '@room';
+}
+
+/// The plain text of a message made of [parts].
+String plainText(List<MessagePart> parts) =>
+    parts.map((part) => part.plain).join();
+
+/// A room the user is in, to link to with `#`.
+final class MentionRoom {
+  const MentionRoom({
+    required this.roomId,
+    required this.name,
+    this.alias,
+    this.avatarUrl,
+  });
+
+  final String roomId;
+  final String name;
+
+  /// Its main address, like `#team:example.org`.
+  final String? alias;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+}
+
+/// Someone as their profile shows them.
+final class UserProfile {
+  const UserProfile({
+    required this.userId,
+    this.displayName,
+    this.avatarUrl,
+    this.verified,
+    this.ignored = false,
+    this.dmRoomId,
+  });
+
+  final String userId;
+  final String? displayName;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+
+  /// Whether the user verified them; `null` when they have no cross-signing identity, so
+  /// they can't be verified.
+  final bool? verified;
+  final bool ignored;
+
+  /// The user's direct chat with them, if any.
+  final String? dmRoomId;
+
+  String get name => displayName ?? userId;
+}

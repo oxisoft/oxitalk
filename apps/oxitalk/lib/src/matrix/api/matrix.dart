@@ -306,6 +306,32 @@ abstract interface class MatrixSession {
   /// reach further back. Returns `true` once the room's first message is there.
   Future<bool> searchLoadOlder(String roomId, {int events = 500});
 
+  /// Whether the user may mention the whole room [roomId] with `@room`.
+  Future<bool> canMentionRoom(String roomId);
+
+  /// The rooms the user is in, to link to with `#`, by name.
+  List<MentionRoom> mentionRooms();
+
+  /// [userId]'s profile; with [roomId], their name and picture in that room.
+  Future<UserProfile> userProfile(String userId, {String? roomId});
+
+  /// Asks [userId] to verify with the user by emoji, in their direct chat.
+  Future<DeviceVerification> verifyUser(String userId);
+
+  /// Hides [userId]'s messages and invites on every device of the account.
+  Future<void> ignoreUser(String userId);
+
+  Future<void> unignoreUser(String userId);
+
+  /// The users the account ignores, sorted, then the list after every change.
+  Stream<List<String>> get ignoredUsers;
+
+  /// Reports [userId] to their server's admins.
+  Future<void> reportUser(String userId, {String? reason});
+
+  /// Reports the message [eventId] of the room [roomId] to the server's admins.
+  Future<void> reportEvent(String roomId, String eventId, {String? reason});
+
   /// Logs out on the server and deletes everything stored for this account; the other
   /// accounts stay.
   Future<void> logout();
@@ -341,6 +367,24 @@ abstract interface class RoomTimeline {
 
   /// Sends [text] as a reply to the event [eventId].
   Future<void> sendReply(String text, String eventId, {bool markdown = false});
+
+  /// Sends what the composer built, its pills as links, with its mentions (`m.mentions`,
+  /// empty without pills); with [replyTo] (an event ID) as a reply, which also mentions its
+  /// sender.
+  Future<void> sendMessage(
+    List<MessagePart> parts, {
+    String? replyTo,
+    bool markdown = false,
+  });
+
+  /// Replaces the user's message [ref] (or with [caption] their file's caption) with what the
+  /// composer built; the mentions are replaced too.
+  Future<void> editMessage(
+    String ref,
+    List<MessagePart> parts, {
+    bool caption = false,
+    bool markdown = false,
+  });
 
   /// Gives the message [ref] ([EventMeta.ref]) the user's reaction [key], or takes it back.
   Future<void> toggleReaction(String ref, String key);

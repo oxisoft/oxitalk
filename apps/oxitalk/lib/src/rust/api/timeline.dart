@@ -5,6 +5,7 @@
 
 import '../frb_generated.dart';
 import 'error.dart';
+import 'mentions.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -30,6 +31,21 @@ abstract class Timeline implements RustOpaqueInterface {
   Future<void> edit({
     required String item,
     required String body,
+    required bool caption,
+    required bool markdown,
+  });
+
+  /// Replaces the text of the user's message (or with `caption` the caption of their file)
+  /// with what they wrote; the mentions are replaced too, and only the newly mentioned are
+  /// notified.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or isn't
+  /// in the timeline.
+  Future<void> editMessage({
+    required String item,
+    required List<MessagePart> parts,
     required bool caption,
     required bool markdown,
   });
@@ -108,6 +124,21 @@ abstract class Timeline implements RustOpaqueInterface {
     required String mimeType,
     String? caption,
     required bool compress,
+    required bool markdown,
+  });
+
+  /// Sends what the user wrote, with its pills as links and its mentions; with `reply_to` (an
+  /// event ID) as a reply to it, which also mentions its sender. In a thread's timeline it goes
+  /// into the thread. Always carries `m.mentions`, empty without pills, as Element X does: a
+  /// name typed as plain text then notifies no one.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed ID in `reply_to` or a pill, or if the message
+  /// can't be queued.
+  Future<void> sendMessage({
+    required List<MessagePart> parts,
+    String? replyTo,
     required bool markdown,
   });
 

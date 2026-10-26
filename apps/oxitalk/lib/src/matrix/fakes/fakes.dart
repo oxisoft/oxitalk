@@ -798,6 +798,74 @@ final class FakeSession implements MatrixSession {
     return true;
   }
 
+  /// Whether [canMentionRoom] answers yes.
+  var roomMentionAllowed = false;
+
+  /// What [mentionRooms] lists.
+  var mentionRoomList = <MentionRoom>[];
+
+  /// The profiles [userProfile] tells, by user ID; others have only their ID. [ignored] and
+  /// [dms] are added as they are.
+  final profiles = <String, UserProfile>{};
+
+  /// The users ignored; tests change it, and so do [ignoreUser] and [unignoreUser].
+  final ignored = Latest<List<String>>(const []);
+
+  /// Reports sent, like `user @bob:example.org spam` or `event !room $event null`.
+  final reports = <String>[];
+
+  /// The users [verifyUser] was asked for.
+  final verifiedUsers = <String>[];
+
+  @override
+  Future<bool> canMentionRoom(String roomId) async => roomMentionAllowed;
+
+  @override
+  List<MentionRoom> mentionRooms() => mentionRoomList;
+
+  @override
+  Future<UserProfile> userProfile(String userId, {String? roomId}) async {
+    final known = profiles[userId];
+    return UserProfile(
+      userId: userId,
+      displayName: known?.displayName,
+      avatarUrl: known?.avatarUrl,
+      verified: known?.verified,
+      ignored: ignored.value.contains(userId),
+      dmRoomId: dms[userId],
+    );
+  }
+
+  @override
+  Future<DeviceVerification> verifyUser(String userId) async {
+    verifiedUsers.add(userId);
+    return lastVerification = FakeVerification(this, onDone: () {});
+  }
+
+  @override
+  Future<void> ignoreUser(String userId) async =>
+      ignored.value = ({...ignored.value, userId}.toList()..sort());
+
+  @override
+  Future<void> unignoreUser(String userId) async => ignored.value = [
+    for (final user in ignored.value)
+      if (user != userId) user,
+  ];
+
+  @override
+  Stream<List<String>> get ignoredUsers => ignored.stream;
+
+  @override
+  Future<void> reportUser(String userId, {String? reason}) async =>
+      reports.add('user $userId $reason');
+
+  @override
+  Future<void> reportEvent(
+    String roomId,
+    String eventId, {
+    String? reason,
+  }) async => reports.add('event $roomId $eventId $reason');
+
   @override
   Future<void> logout() async => loggedOut = true;
 
@@ -943,6 +1011,38 @@ final class FakeTimeline implements RoomTimeline {
   }) async {
     calls.add('reply $eventId $text');
     await send(text, markdown: markdown);
+  }
+
+  /// What [sendMessage] was given: the parts and the event replied to.
+  final messages = <(List<MessagePart>, String?)>[];
+
+  /// What [editMessage] was given: the message and the parts.
+  final messageEdits = <(String, List<MessagePart>)>[];
+
+  /// Records the parts, then sends their plain text as [send] or [sendReply] do.
+  @override
+  Future<void> sendMessage(
+    List<MessagePart> parts, {
+    String? replyTo,
+    bool markdown = false,
+  }) async {
+    messages.add((parts, replyTo));
+    final text = plainText(parts);
+    replyTo == null
+        ? await send(text, markdown: markdown)
+        : await sendReply(text, replyTo, markdown: markdown);
+  }
+
+  /// Records the parts, then edits with their plain text as [edit] does.
+  @override
+  Future<void> editMessage(
+    String ref,
+    List<MessagePart> parts, {
+    bool caption = false,
+    bool markdown = false,
+  }) async {
+    messageEdits.add((ref, parts));
+    await edit(ref, plainText(parts), caption: caption, markdown: markdown);
   }
 
   /// Gives or takes back the user's reaction on the entry named [ref], as the server would.
