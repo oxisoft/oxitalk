@@ -15,6 +15,7 @@ import '../chat/pins.dart';
 import '../chats/new_room.dart';
 import '../chats/notification_actions.dart';
 import 'member_actions.dart';
+import 'room_settings.dart';
 
 /// A chat's info of the active account as a page of its own (narrow windows).
 class ChatInfoScreen extends ConsumerWidget {
@@ -78,6 +79,14 @@ class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
   @override
   Widget build(BuildContext context) {
     final details = ref.watch(roomDetailsProvider(account, roomId));
+    final settings = ref.watch(roomSettingsProvider(account, roomId)).value;
+    // A change to the room's state, here or elsewhere, shows in the header too.
+    ref.listen(roomSettingsProvider(account, roomId), (previous, next) {
+      final before = previous?.value;
+      if (before != null && next.value != before) {
+        ref.invalidate(roomDetailsProvider(account, roomId));
+      }
+    });
     return DefaultTabController(
       length: 5,
       child: Scaffold(
@@ -85,12 +94,34 @@ class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
           automaticallyImplyLeading: false,
           leading: BackButton(key: const Key('info.back'), onPressed: _back),
           title: const Text('Chat info'),
+          actions: [
+            // Only when the power level allows changing the name, topic or picture.
+            if (settings case final settings?
+                when settings.permissions.details && details.hasValue)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 8),
+                child: OutlinedButton.icon(
+                  key: const Key('info.edit'),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit'),
+                  onPressed: () => unawaited(
+                    editRoomDetails(
+                      context,
+                      account: account,
+                      settings: settings,
+                      shownName: details.requireValue.name,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         body: NestedScrollView(
           headerSliverBuilder: (context, _) => [
             SliverToBoxAdapter(
               child: switch (details) {
-                AsyncData(:final value) => _Header(
+                // Kept while it is fetched again after a change.
+                AsyncValue(:final value?) => _Header(
                   account: account,
                   details: value,
                 ),
@@ -107,6 +138,17 @@ class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
             SliverToBoxAdapter(
               child: _NotificationsRow(account: account, roomId: roomId),
             ),
+            if (settings != null)
+              SliverToBoxAdapter(
+                child: ListTile(
+                  key: const Key('info.security'),
+                  leading: const Icon(Icons.shield_outlined),
+                  title: const Text('Security & privacy'),
+                  subtitle: Text(securitySummary(settings)),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.go(Routes.roomSecurity(roomId)),
+                ),
+              ),
             SliverToBoxAdapter(
               child: PinnedMessagesRow(account: account, roomId: roomId),
             ),

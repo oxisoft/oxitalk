@@ -1158,7 +1158,7 @@ final class AccountsProvider
   Accounts create() => Accounts();
 }
 
-String _$accountsHash() => r'6e37dea465e35aaddb2757bd394171389e54e6c0';
+String _$accountsHash() => r'e969814f73bb12e7c098a9fcc27c26207b28a762';
 
 /// The accounts. Starts by restoring the saved ones; all of them sync all the time.
 
@@ -2469,6 +2469,168 @@ final class RoomMembersFamily extends $Family
 
   @override
   String toString() => r'roomMembersProvider';
+}
+
+/// The room's settings, as they change here or elsewhere.
+
+@ProviderFor(roomSettings)
+final roomSettingsProvider = RoomSettingsFamily._();
+
+/// The room's settings, as they change here or elsewhere.
+
+final class RoomSettingsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<RoomSettings>,
+          RoomSettings,
+          Stream<RoomSettings>
+        >
+    with $FutureModifier<RoomSettings>, $StreamProvider<RoomSettings> {
+  /// The room's settings, as they change here or elsewhere.
+  RoomSettingsProvider._({
+    required RoomSettingsFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'roomSettingsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$roomSettingsHash();
+
+  @override
+  String toString() {
+    return r'roomSettingsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<RoomSettings> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<RoomSettings> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return roomSettings(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomSettingsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$roomSettingsHash() => r'a1631a83041641e5d05b2b1be93743941c75e4be';
+
+/// The room's settings, as they change here or elsewhere.
+
+final class RoomSettingsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<RoomSettings>, (String, String)> {
+  RoomSettingsFamily._()
+    : super(
+        retry: null,
+        name: r'roomSettingsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The room's settings, as they change here or elsewhere.
+
+  RoomSettingsProvider call(String account, String roomId) =>
+      RoomSettingsProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'roomSettingsProvider';
+}
+
+/// Whether the room is in the server's room directory; asked only when shown.
+
+@ProviderFor(roomPublished)
+final roomPublishedProvider = RoomPublishedFamily._();
+
+/// Whether the room is in the server's room directory; asked only when shown.
+
+final class RoomPublishedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether the room is in the server's room directory; asked only when shown.
+  RoomPublishedProvider._({
+    required RoomPublishedFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'roomPublishedProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$roomPublishedHash();
+
+  @override
+  String toString() {
+    return r'roomPublishedProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    final argument = this.argument as (String, String);
+    return roomPublished(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomPublishedProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$roomPublishedHash() => r'd8e5a1203d192481ac6992afcce2881a5f64e2ca';
+
+/// Whether the room is in the server's room directory; asked only when shown.
+
+final class RoomPublishedFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<bool>, (String, String)> {
+  RoomPublishedFamily._()
+    : super(
+        retry: null,
+        name: r'roomPublishedProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether the room is in the server's room directory; asked only when shown.
+
+  RoomPublishedProvider call(String account, String roomId) =>
+      RoomPublishedProvider._(argument: (account, roomId), from: this);
+
+  @override
+  String toString() => r'roomPublishedProvider';
 }
 
 /// The room's files and links, for its info screen; closed when no longer shown.

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../rust/api/error.dart';
 import '../../rust/api/pins.dart' as pins_api;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/rooms.dart' as rust;
@@ -616,6 +617,66 @@ final class RustMatrixSession implements MatrixSession {
   @override
   Future<RoomDetails> roomDetails(String roomId) async =>
       roomDetailsOf(await guarded(() => _session.roomDetails(roomId: roomId)));
+
+  @override
+  Stream<RoomSettings> roomSettings(String roomId) => _session
+      .subscribeRoomSettings(roomId: roomId)
+      .map(roomSettingsOf)
+      .handleError(
+        (Object error) => throw failure(error as CoreError),
+        test: (error) => error is CoreError,
+      );
+
+  @override
+  Future<void> setRoomName(String roomId, String name) =>
+      guarded(() => _session.setRoomName(roomId: roomId, name: name));
+
+  @override
+  Future<void> setRoomTopic(String roomId, String topic) =>
+      guarded(() => _session.setRoomTopic(roomId: roomId, topic: topic));
+
+  @override
+  Future<void> setRoomAvatar(String roomId, Uint8List data, String mimeType) =>
+      guarded(
+        () => _session.setRoomAvatar(
+          roomId: roomId,
+          data: data,
+          mimeType: mimeType,
+        ),
+      );
+
+  @override
+  Future<void> removeRoomAvatar(String roomId) =>
+      guarded(() => _session.removeRoomAvatar(roomId: roomId));
+
+  @override
+  Future<void> setRoomJoinRule(String roomId, RoomJoinRule rule) => guarded(
+    () => _session.setRoomJoinRule(roomId: roomId, rule: rustJoinRule(rule)),
+  );
+
+  @override
+  Future<void> setRoomHistory(String roomId, RoomHistory history) => guarded(
+    () =>
+        _session.setRoomHistory(roomId: roomId, history: rustHistory(history)),
+  );
+
+  @override
+  Future<void> enableRoomEncryption(String roomId) =>
+      guarded(() => _session.enableRoomEncryption(roomId: roomId));
+
+  @override
+  Future<bool> setRoomMainAddress(String roomId, String localpart) => guarded(
+    () => _session.setRoomMainAddress(roomId: roomId, localpart: localpart),
+  );
+
+  @override
+  Future<bool> roomPublished(String roomId) =>
+      guarded(() => _session.roomPublished(roomId: roomId));
+
+  @override
+  Future<void> setRoomPublished(String roomId, bool published) => guarded(
+    () => _session.setRoomPublished(roomId: roomId, published: published),
+  );
 
   @override
   Future<List<RoomMember>> roomMembers(String roomId) async => [
