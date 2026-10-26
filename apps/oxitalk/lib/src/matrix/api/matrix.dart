@@ -113,6 +113,21 @@ abstract interface class MatrixSession {
   /// starts the emoji once the other accepts.
   Future<DeviceVerification> verifyDevice(String deviceId);
 
+  /// Recovery and the key backup now, then every change.
+  Stream<EncryptionStatus> get encryptionStatus;
+
+  /// Sets recovery up and returns the new recovery key, to show the user once: it can't be
+  /// read back later. Waits until the message keys are backed up, telling [onProgress] how
+  /// far it is.
+  Future<String> enableRecovery({void Function(RecoveryProgress)? onProgress});
+
+  /// Replaces the recovery key with a new one and returns it, to show once; the old key
+  /// stops working.
+  Future<String> resetRecoveryKey();
+
+  /// Whether this is the account's only device.
+  Future<bool> isLastDevice();
+
   /// The user's profile (empty until it is fetched), then every change made here.
   Stream<Profile> get profile;
 

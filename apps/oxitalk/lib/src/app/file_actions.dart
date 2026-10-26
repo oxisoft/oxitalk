@@ -63,6 +63,13 @@ abstract interface class FileActions {
   /// Asks the user where to save [filename]; `null` if they cancel.
   Future<String?> askSavePath(String filename);
 
+  /// Whether [askSavePath] works here: the file picker has no save dialog on Android and
+  /// iOS.
+  bool get canAskSavePath;
+
+  /// Writes [text] to the file at [path], which the user picked.
+  Future<void> writeText(String path, String text);
+
   /// Opens a file or a link in the system's app for it. Returns `false` if none could.
   Future<bool> launch(Uri uri);
 }
@@ -112,6 +119,13 @@ final class SystemFileActions implements FileActions {
       (await getSaveLocation(suggestedName: safeFilename(filename)))?.path;
 
   @override
+  bool get canAskSavePath => !(Platform.isAndroid || Platform.isIOS);
+
+  @override
+  Future<void> writeText(String path, String text) =>
+      File(path).writeAsString(text, flush: true);
+
+  @override
   Future<bool> launch(Uri uri) =>
       launchUrl(uri, mode: LaunchMode.externalApplication);
 }
@@ -157,6 +171,19 @@ final class FakeFileActions implements FileActions {
 
   @override
   Future<String?> askSavePath(String filename) async => savePath;
+
+  /// What [canAskSavePath] answers.
+  var canSave = true;
+
+  @override
+  bool get canAskSavePath => canSave;
+
+  /// What [writeText] wrote, by path.
+  final written = <String, String>{};
+
+  @override
+  Future<void> writeText(String path, String text) async =>
+      written[path] = text;
 
   @override
   Future<bool> launch(Uri uri) async {

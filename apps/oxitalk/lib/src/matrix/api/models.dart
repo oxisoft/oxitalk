@@ -821,6 +821,53 @@ final class Device {
   String get label => name ?? id;
 }
 
+/// Whether the account's secrets are kept on the server with a recovery key, so a new
+/// device can verify itself and read the old messages with it.
+enum RecoveryState {
+  /// Not known yet, e.g. right after login.
+  unknown,
+
+  /// Set up, and this device has every secret.
+  enabled,
+
+  /// Set up, but this device lacks some of the secrets; entering the key brings them.
+  incomplete,
+
+  /// Not set up.
+  disabled,
+}
+
+/// What Settings › Account › Encryption shows: recovery and the key backup.
+final class EncryptionStatus {
+  const EncryptionStatus({
+    this.recovery = RecoveryState.unknown,
+    this.backupEnabled = false,
+  });
+
+  final RecoveryState recovery;
+
+  /// Whether this device backs its message keys up to the server.
+  final bool backupEnabled;
+}
+
+/// How far setting recovery up is.
+sealed class RecoveryProgress {
+  const RecoveryProgress();
+}
+
+/// Making the key backup, or the recovery key.
+final class RecoveryPreparing extends RecoveryProgress {
+  const RecoveryPreparing();
+}
+
+/// Backing the message keys up: [backedUp] of [total] so far.
+final class RecoveryBackingUp extends RecoveryProgress {
+  const RecoveryBackingUp(this.backedUp, this.total);
+
+  final int backedUp;
+  final int total;
+}
+
 /// The connection as the user sees it.
 enum SyncStatus {
   /// Starting, or restarting after an error.

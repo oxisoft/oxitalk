@@ -1,5 +1,6 @@
 import '../../rust/api/devices.dart' as rust;
 import '../../rust/api/error.dart';
+import '../../rust/api/recovery.dart' as rust;
 import '../../rust/api/notifications.dart' as rust;
 import '../../rust/api/notify.dart' as rust;
 import '../../rust/api/rich_text.dart' as rust;
@@ -70,6 +71,30 @@ Device deviceOf(rust.DeviceInfo device) => Device(
   isThisDevice: device.isThisDevice,
   verified: device.verified,
 );
+
+EncryptionStatus encryptionStatusOf(rust.EncryptionStatus status) =>
+    EncryptionStatus(
+      recovery: switch (status.recovery) {
+        rust.RecoveryStatus.unknown => RecoveryState.unknown,
+        rust.RecoveryStatus.enabled => RecoveryState.enabled,
+        rust.RecoveryStatus.incomplete => RecoveryState.incomplete,
+        rust.RecoveryStatus.disabled => RecoveryState.disabled,
+      },
+      backupEnabled: status.backupEnabled,
+    );
+
+/// What the app shows of a step; `null` for the end, which the returned key tells.
+RecoveryProgress? recoveryProgressOf(rust.RecoveryProgress progress) =>
+    switch (progress) {
+      rust.RecoveryProgress_Starting() ||
+      rust.RecoveryProgress_CreatingBackup() ||
+      rust.RecoveryProgress_CreatingRecoveryKey() => const RecoveryPreparing(),
+      rust.RecoveryProgress_BackingUp(:final backedUp, :final total) =>
+        RecoveryBackingUp(backedUp, total),
+      // The device backs the rest up later.
+      rust.RecoveryProgress_BackupFailed() ||
+      rust.RecoveryProgress_Done() => null,
+    };
 
 Room roomOf(rust.RoomSummary summary) => Room(
   id: summary.roomId,

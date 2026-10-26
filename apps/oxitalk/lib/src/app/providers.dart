@@ -353,6 +353,12 @@ Stream<VerificationRequest> verificationRequests(Ref ref, String account) =>
 Stream<Profile> profile(Ref ref, String account) =>
     _session(ref, account)?.profile ?? Stream.value(const Profile());
 
+/// The account's recovery and key backup; unknown once it is gone.
+@riverpod
+Stream<EncryptionStatus> encryptionStatus(Ref ref, String account) =>
+    _session(ref, account)?.encryptionStatus ??
+    Stream.value(const EncryptionStatus());
+
 /// The account's devices, this one first; follows every change while it is watched.
 @riverpod
 class AccountDevices extends _$AccountDevices {

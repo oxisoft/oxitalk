@@ -21,14 +21,12 @@ enum _Mode { choose, recoveryKey, otherDevice }
 class _VerifyScreenState extends ConsumerState<VerifyScreen> {
   var _mode = _Mode.choose;
   DeviceVerification? _verification;
-  final _key = TextEditingController();
   var _busy = false;
   String? _error;
 
   @override
   void dispose() {
     _verification?.close();
-    _key.dispose();
     super.dispose();
   }
 
@@ -55,24 +53,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     }
   }
 
-  Future<void> _recover() async {
-    final session = _session;
-    final key = _key.text.trim();
-    if (session == null || key.isEmpty || _busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      // Verified now: the router leaves this screen.
-      await session.recover(key);
-    } on MatrixFailure catch (failure) {
-      if (mounted) setState(() => _error = verifyError(failure));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
   void _back() {
     _verification?.close();
     setState(() {
@@ -91,7 +71,14 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
           constraints: const BoxConstraints(maxWidth: 400),
           child: switch (_mode) {
             _Mode.choose => _choose(context),
-            _Mode.recoveryKey => _recoveryKey(context),
+            _Mode.recoveryKey => switch (_session) {
+              // Verified then: the router leaves this screen.
+              final session? => RecoveryKeyForm(
+                session: session,
+                onBack: _back,
+              ),
+              null => const SizedBox.shrink(),
+            },
             _Mode.otherDevice => VerificationFlow(
               verification: _verification!,
               onFinished: _back,
@@ -168,8 +155,58 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       ),
     ],
   );
+}
 
-  Widget _recoveryKey(BuildContext context) => Column(
+/// Entering the recovery key (or security phrase) of [session]'s account, which verifies
+/// this device and brings the account's secrets to it. [onRecovered] runs after it worked,
+/// [onBack] when the user goes back.
+class RecoveryKeyForm extends StatefulWidget {
+  const RecoveryKeyForm({
+    required this.session,
+    required this.onBack,
+    this.onRecovered,
+    super.key,
+  });
+
+  final MatrixSession session;
+  final VoidCallback onBack;
+  final VoidCallback? onRecovered;
+
+  @override
+  State<RecoveryKeyForm> createState() => _RecoveryKeyFormState();
+}
+
+class _RecoveryKeyFormState extends State<RecoveryKeyForm> {
+  final _key = TextEditingController();
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _key.dispose();
+    super.dispose();
+  }
+
+  Future<void> _recover() async {
+    final key = _key.text.trim();
+    if (key.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.session.recover(key);
+      if (mounted) widget.onRecovered?.call();
+    } on MatrixFailure catch (failure) {
+      if (mounted) setState(() => _error = verifyError(failure));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
@@ -213,7 +250,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       ),
       const SizedBox(height: 12),
       OutlinedButton(
-        onPressed: _busy ? null : _back,
+        onPressed: _busy ? null : widget.onBack,
         child: const Text('Back'),
       ),
     ],

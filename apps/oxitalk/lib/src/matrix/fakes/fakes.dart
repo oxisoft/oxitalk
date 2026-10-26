@@ -112,6 +112,26 @@ final class FakeSession implements MatrixSession {
   /// The verification [requestVerification] or [openVerification] returned last.
   FakeVerification? lastVerification;
 
+  /// Recovery and the key backup; tests change them, and so does setting recovery up.
+  final encryption = Latest(
+    const EncryptionStatus(
+      recovery: RecoveryState.disabled,
+      backupEnabled: true,
+    ),
+  );
+
+  /// The keys [enableRecovery] and [resetRecoveryKey] return, one after another.
+  final newRecoveryKeys = <String>[
+    'EsTj 3yST y93F SLpB jJsz eAXc 2XzA ygD3 w69H fGaN TKBj jXEd',
+    'EsUA nz8p Zg5k pT3c 9iHv Ab2Q rDxW m4Lq Ve7Y sKa1 Nf6B uP2G',
+  ];
+
+  /// Completes [enableRecovery]; a test may hold it to see the progress.
+  Completer<void>? recoveryGate;
+
+  /// What [isLastDevice] answers.
+  var lastDevice = false;
+
   /// The account's devices; tests change them, and so do the actions on them.
   final deviceList = Latest<List<Device>>(const [
     Device(
@@ -163,6 +183,12 @@ final class FakeSession implements MatrixSession {
       throw const MatrixFailure(FailureKind.wrongRecoveryKey);
     }
     verification.value = VerificationStatus.verified;
+    if (encryption.value.recovery == RecoveryState.incomplete) {
+      encryption.value = EncryptionStatus(
+        recovery: RecoveryState.enabled,
+        backupEnabled: encryption.value.backupEnabled,
+      );
+    }
   }
 
   @override
@@ -175,6 +201,40 @@ final class FakeSession implements MatrixSession {
         this,
         step: const VerificationIncoming(),
       );
+
+  @override
+  Stream<EncryptionStatus> get encryptionStatus => encryption.stream;
+
+  @override
+  Future<String> enableRecovery({
+    void Function(RecoveryProgress)? onProgress,
+  }) async {
+    onProgress?.call(const RecoveryPreparing());
+    onProgress?.call(const RecoveryBackingUp(3, 10));
+    await recoveryGate?.future;
+    return _newRecoveryKey();
+  }
+
+  @override
+  Future<String> resetRecoveryKey() async {
+    if (encryption.value.recovery == RecoveryState.disabled) {
+      throw const MatrixFailure(FailureKind.recoveryNotSetUp);
+    }
+    return _newRecoveryKey();
+  }
+
+  String _newRecoveryKey() {
+    final key = newRecoveryKeys.removeAt(0);
+    recoveryKey = key;
+    encryption.value = const EncryptionStatus(
+      recovery: RecoveryState.enabled,
+      backupEnabled: true,
+    );
+    return key;
+  }
+
+  @override
+  Future<bool> isLastDevice() async => lastDevice;
 
   @override
   Future<List<Device>> devices() async => deviceList.value;

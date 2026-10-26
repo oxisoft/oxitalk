@@ -1534,6 +1534,90 @@ final class ProfileFamily extends $Family
   String toString() => r'profileProvider';
 }
 
+/// The account's recovery and key backup; unknown once it is gone.
+
+@ProviderFor(encryptionStatus)
+final encryptionStatusProvider = EncryptionStatusFamily._();
+
+/// The account's recovery and key backup; unknown once it is gone.
+
+final class EncryptionStatusProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<EncryptionStatus>,
+          EncryptionStatus,
+          Stream<EncryptionStatus>
+        >
+    with $FutureModifier<EncryptionStatus>, $StreamProvider<EncryptionStatus> {
+  /// The account's recovery and key backup; unknown once it is gone.
+  EncryptionStatusProvider._({
+    required EncryptionStatusFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'encryptionStatusProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$encryptionStatusHash();
+
+  @override
+  String toString() {
+    return r'encryptionStatusProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<EncryptionStatus> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<EncryptionStatus> create(Ref ref) {
+    final argument = this.argument as String;
+    return encryptionStatus(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is EncryptionStatusProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$encryptionStatusHash() => r'd24c1351fca19a8059af5d204eaa4cd44430c63a';
+
+/// The account's recovery and key backup; unknown once it is gone.
+
+final class EncryptionStatusFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<EncryptionStatus>, String> {
+  EncryptionStatusFamily._()
+    : super(
+        retry: null,
+        name: r'encryptionStatusProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The account's recovery and key backup; unknown once it is gone.
+
+  EncryptionStatusProvider call(String account) =>
+      EncryptionStatusProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'encryptionStatusProvider';
+}
+
 /// The account's devices, this one first; follows every change while it is watched.
 
 @ProviderFor(AccountDevices)

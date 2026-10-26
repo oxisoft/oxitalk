@@ -16,6 +16,7 @@ import '../../ui/format.dart';
 import '../about/about_screen.dart';
 import '../accounts/account_switcher.dart';
 import 'devices_settings.dart';
+import 'encryption_settings.dart';
 import 'notification_settings_screen.dart';
 import 'settings_heading.dart';
 
@@ -364,8 +365,8 @@ String? editedAccount(AccountsState? accounts, String? user) {
 }
 
 /// Everything about one [account], top to bottom: which account (the picker), its
-/// pictures, its notifications (kept on its server), its devices, then this device's
-/// notification switches, which are for all accounts, and logging out last.
+/// pictures, its notifications (kept on its server), its encryption and devices, then this
+/// device's notification switches, which are for all accounts, and logging out last.
 class _AccountSettings extends ConsumerStatefulWidget {
   const _AccountSettings({
     required this.account,
@@ -425,6 +426,11 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
               key: ValueKey(('notifications', account)),
               account: account,
             ),
+          ),
+          divider,
+          AccountEncryptionSettings(
+            key: ValueKey(('encryption', account)),
+            account: account,
           ),
           divider,
           AccountDevicesSettings(
@@ -1020,10 +1026,12 @@ class _LogOut extends ConsumerWidget {
       style: OxiButtons.destructive(context),
       // Another account's settings then show the active one's; the active one's, as
       // anywhere, leave for the next account's chats (or the login).
-      onPressed: () {
+      onPressed: () async {
+        // Warns first when that would lose the encrypted history.
+        if (!await confirmLogout(context, ref, account)) return;
         final wasActive = ref.read(activeAccountProvider) == account;
         unawaited(ref.read(accountsProvider.notifier).logout(account));
-        if (!wasActive) {
+        if (!wasActive && context.mounted) {
           context.go(Routes.settingsSection(SettingsSection.account));
         }
       },

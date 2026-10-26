@@ -252,6 +252,11 @@ final class RustMatrixSession implements MatrixSession {
         ),
       )
       ..add(
+        _session.subscribeEncryptionStatus().listen(
+          (status) => _encryptionStatus.value = encryptionStatusOf(status),
+        ),
+      )
+      ..add(
         _session.subscribeVerificationRequests().listen(
           (request) => _verificationRequests.add(
             VerificationRequest(
@@ -294,6 +299,7 @@ final class RustMatrixSession implements MatrixSession {
   final _notifications = StreamController<MessageNotification>.broadcast();
   final _typing = Latest(const <String, List<String>>{});
   final _verificationStatus = Latest(VerificationStatus.unknown);
+  final _encryptionStatus = Latest(const EncryptionStatus());
   final _verificationRequests =
       StreamController<VerificationRequest>.broadcast();
   final _expired = Completer<void>();
@@ -336,6 +342,30 @@ final class RustMatrixSession implements MatrixSession {
         await guarded(() => _session.verification(flowId: flowId)),
         weAsked: false,
       );
+
+  @override
+  Stream<EncryptionStatus> get encryptionStatus => _encryptionStatus.stream;
+
+  @override
+  Future<String> enableRecovery({
+    void Function(RecoveryProgress)? onProgress,
+  }) async {
+    final progress = _session.subscribeRecoveryProgress().listen((step) {
+      if (recoveryProgressOf(step) case final step?) onProgress?.call(step);
+    });
+    try {
+      return await guarded(_session.enableRecovery);
+    } finally {
+      // Not awaited: see close.
+      unawaited(progress.cancel());
+    }
+  }
+
+  @override
+  Future<String> resetRecoveryKey() => guarded(_session.resetRecoveryKey);
+
+  @override
+  Future<bool> isLastDevice() => guarded(_session.isLastDevice);
 
   @override
   Future<List<Device>> devices() async => [
@@ -741,6 +771,7 @@ final class RustMatrixSession implements MatrixSession {
     unawaited(_notifications.close());
     unawaited(_typing.close());
     unawaited(_verificationStatus.close());
+    unawaited(_encryptionStatus.close());
     unawaited(_verificationRequests.close());
     _session.dispose();
   }
