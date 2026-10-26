@@ -68,7 +68,10 @@ Finder _inInfo(Finder finder) =>
     find.descendant(of: find.byType(ChatInfoPane), matching: finder);
 
 Future<void> _menu(WidgetTester tester, String userId, String item) async {
-  await tester.tap(_inInfo(find.byKey(Key('member.menu.$userId'))));
+  final menu = _inInfo(find.byKey(Key('member.menu.$userId')));
+  await tester.ensureVisible(menu);
+  await tester.pumpAndSettle();
+  await tester.tap(menu);
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(Key('member.$item')));
   await tester.pumpAndSettle();
@@ -76,7 +79,10 @@ Future<void> _menu(WidgetTester tester, String userId, String item) async {
 
 /// The labels the menu of [userId] offers.
 Future<List<String>> _items(WidgetTester tester, String userId) async {
-  await tester.tap(_inInfo(find.byKey(Key('member.menu.$userId'))));
+  final menu = _inInfo(find.byKey(Key('member.menu.$userId')));
+  await tester.ensureVisible(menu);
+  await tester.pumpAndSettle();
+  await tester.tap(menu);
   await tester.pumpAndSettle();
   final items = [
     for (final item in tester.widgetList<PopupMenuItem<Object>>(
