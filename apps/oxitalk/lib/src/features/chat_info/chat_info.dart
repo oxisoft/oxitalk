@@ -12,6 +12,7 @@ import '../../ui/avatar.dart';
 import '../../ui/format.dart';
 import '../chat/media_views.dart';
 import '../chat/pins.dart';
+import '../chats/membership_actions.dart';
 import '../chats/new_room.dart';
 import '../chats/notification_actions.dart';
 import 'member_actions.dart';
@@ -109,6 +110,9 @@ class _ChatInfoPaneState extends ConsumerState<ChatInfoPane> {
             ),
             SliverToBoxAdapter(
               child: PinnedMessagesRow(account: account, roomId: roomId),
+            ),
+            SliverToBoxAdapter(
+              child: LeaveRoomRow(account: account, roomId: roomId),
             ),
             const SliverToBoxAdapter(
               child: TabBar(

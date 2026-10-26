@@ -261,7 +261,7 @@ void main() {
     expect(find.text('Move to section…'), findsNothing);
   });
 
-  testWidgets('joining an invite opens the chat, though it changes section', (
+  testWidgets('accepting an invite opens the chat, though it changes section', (
     tester,
   ) async {
     await pumpApp(
@@ -284,7 +284,9 @@ void main() {
       ),
       size: _wide,
     );
-    await tester.tap(find.text('Invitation — tap to join'));
+    await tester.tap(find.text('Invitation — tap to see it'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('invite.accept')));
     await tester.pumpAndSettle();
     expect(_headers(tester), [SectionTags.people, SectionTags.rooms]);
     expect(find.byKey(const Key('composer.text')), findsOneWidget);

@@ -22,6 +22,7 @@ import '../chats/badges.dart';
 import 'chat_search.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
+import 'invite_pane.dart';
 import 'jump.dart';
 import 'media_views.dart';
 import 'message_actions.dart';
@@ -71,6 +72,10 @@ class ChatPane extends ConsumerWidget {
         .value
         ?.where((room) => room.id == roomId)
         .firstOrNull;
+    // An invitation shows what it is about, to accept or decline, instead of the chat.
+    if (room != null && room.membership == Membership.invited) {
+      return InvitePane(account: account, room: room, showBack: showBack);
+    }
     final name = room?.name ?? roomId;
     final typing = typingLabel(
       ref.watch(typingProvider(account)).value?[roomId],

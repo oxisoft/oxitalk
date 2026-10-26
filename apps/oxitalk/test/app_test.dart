@@ -108,7 +108,7 @@ void main() {
       expect(find.text('Team'), findsOneWidget);
       expect(find.text('Standup at 10'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('Invitation — tap to join'), findsOneWidget);
+      expect(find.text('Invitation — tap to see it'), findsOneWidget);
     });
 
     testWidgets('the title shows the connection', (tester) async {
@@ -129,13 +129,24 @@ void main() {
       expect(find.text('Updating…'), findsOneWidget);
     });
 
-    testWidgets('tapping an invite joins and opens the chat', (tester) async {
+    testWidgets('tapping an invite shows it; Accept joins and opens the chat', (
+      tester,
+    ) async {
       final session = _session();
       await pumpApp(tester, FakeMatrixClientFactory(saved: [session]));
 
       await tester.tap(find.text('Carol'));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('invite.preview')), findsOneWidget);
+      expect(
+        session.roomList
+            .firstWhere((room) => room.id == '!new:example.org')
+            .membership,
+        Membership.invited,
+      );
 
+      await tester.tap(find.byKey(const Key('invite.accept')));
+      await tester.pumpAndSettle();
       expect(
         session.roomList
             .firstWhere((room) => room.id == '!new:example.org')

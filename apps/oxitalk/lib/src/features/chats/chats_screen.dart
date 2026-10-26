@@ -19,6 +19,7 @@ import '../chat_info/chat_info.dart';
 import '../chat_info/room_notifications.dart';
 import 'badges.dart';
 import 'finders.dart';
+import 'membership_actions.dart';
 import 'new_room.dart';
 import 'notification_actions.dart';
 import 'pane_layout.dart';
@@ -662,15 +663,55 @@ class RoomTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final invited = room.membership == Membership.invited;
     return GestureDetector(
-      // Right-click on desktop, long-press on a phone; an invite has no sections yet.
-      onSecondaryTapUp: invited
-          ? null
-          : (details) => unawaited(_menu(context, ref, details.globalPosition)),
-      onLongPressStart: invited
-          ? null
-          : (details) => unawaited(_menu(context, ref, details.globalPosition)),
+      // Right-click on desktop, long-press on a phone; an invite has no sections yet, only
+      // Accept and Decline.
+      onSecondaryTapUp: (details) => unawaited(
+        invited
+            ? _inviteMenu(context, ref, details.globalPosition)
+            : _menu(context, ref, details.globalPosition),
+      ),
+      onLongPressStart: (details) => unawaited(
+        invited
+            ? _inviteMenu(context, ref, details.globalPosition)
+            : _menu(context, ref, details.globalPosition),
+      ),
       child: _tile(context, ref, theme, invited),
     );
+  }
+
+  Future<void> _inviteMenu(
+    BuildContext context,
+    WidgetRef ref,
+    Offset at,
+  ) async {
+    final membership = MembershipActions(context, ref, account);
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final action = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(
+        at & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          key: const Key('roomMenu.accept'),
+          value: () => unawaited(membership.accept(room.id)),
+          child: const Text('Accept'),
+        ),
+        PopupMenuItem(
+          key: const Key('roomMenu.decline'),
+          value: () => unawaited(membership.decline(room.id, name: room.name)),
+          child: Text(
+            'Decline',
+            style: TextStyle(
+              color: OxiButtons.danger(Theme.of(context).brightness),
+            ),
+          ),
+        ),
+      ],
+    );
+    action?.call();
   }
 
   Future<void> _menu(BuildContext context, WidgetRef ref, Offset at) async {
@@ -679,6 +720,8 @@ class RoomTile extends ConsumerWidget {
     final current = sectionOf(room, sections);
     final actions = SectionActions(context, ref, account);
     final notifications = RoomNotificationActions(context, ref, account);
+    final membership = MembershipActions(context, ref, account);
+    final danger = OxiButtons.danger(Theme.of(context).brightness);
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final action = await showMenu<VoidCallback>(
@@ -743,6 +786,17 @@ class RoomTile extends ConsumerWidget {
           value: () => unawaited(actions.create(room: room)),
           child: const Text('New section…'),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const Key('roomMenu.leave'),
+          value: () => unawaited(
+            membership.leave(room.id, name: room.name, isDm: room.isDm),
+          ),
+          child: Text(
+            room.isDm ? 'Leave chat' : 'Leave room',
+            style: TextStyle(color: danger),
+          ),
+        ),
       ],
     );
     action?.call();
@@ -796,7 +850,7 @@ class RoomTile extends ConsumerWidget {
           Expanded(
             child: Text(
               invited
-                  ? 'Invitation — tap to join'
+                  ? 'Invitation — tap to see it'
                   : typing ?? room.lastMessage ?? '',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -870,21 +924,9 @@ class RoomTile extends ConsumerWidget {
     ),
   );
 
-  Future<void> _open(BuildContext context, WidgetRef ref) async {
-    // Joining moves the room from Invites to its section, which replaces this tile; so the
-    // router and the messenger are taken before.
-    final router = GoRouter.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    if (room.membership == Membership.invited) {
-      try {
-        await ref.read(accountsProvider).value?.byId(account)?.join(room.id);
-      } on MatrixFailure catch (failure) {
-        messenger.showSnackBar(failureSnackBar('Can’t join', failure));
-        return;
-      }
-    }
-    router.go(Routes.room(room.id));
-  }
+  /// Opens the chat; an invitation opens its preview, which accepts or declines it.
+  Future<void> _open(BuildContext context, WidgetRef ref) async =>
+      GoRouter.of(context).go(Routes.room(room.id));
 }
 
 void showFailure(BuildContext context, String what, MatrixFailure failure) =>
