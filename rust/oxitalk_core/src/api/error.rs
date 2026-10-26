@@ -30,6 +30,11 @@ pub enum CoreError {
     WrongRecoveryKey,
     /// The account has no recovery set up, so there is no key to enter.
     RecoveryNotSetUp,
+    /// The server wants the account's password for this, e.g. to sign other devices out;
+    /// call again with it.
+    PasswordNeeded,
+    /// The password given for this is not the account's.
+    WrongPassword,
     /// Anything else. The message is for logs, not for the user.
     Internal { message: String },
 }
@@ -46,6 +51,8 @@ impl fmt::Display for CoreError {
             Self::RoomNotFound { room_id } => write!(f, "room not found: {room_id}"),
             Self::WrongRecoveryKey => f.write_str("wrong recovery key"),
             Self::RecoveryNotSetUp => f.write_str("recovery is not set up"),
+            Self::PasswordNeeded => f.write_str("the password is needed"),
+            Self::WrongPassword => f.write_str("wrong password"),
             Self::Internal { message } => write!(f, "internal error: {message}"),
         }
     }

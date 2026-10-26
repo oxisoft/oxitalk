@@ -5,6 +5,8 @@
 // The futures of matrix-sdk-ui (the timeline in particular) are deeply nested.
 #![recursion_limit = "256"]
 
+#[path = "homeserver/devices.rs"]
+mod devices;
 #[path = "homeserver/pins.rs"]
 mod pins;
 #[path = "homeserver/search.rs"]
@@ -86,6 +88,8 @@ impl TestUser {
         request.username = Some(name.clone());
         request.password = Some(password.clone());
         request.auth = Some(uiaa::AuthData::Dummy(uiaa::Dummy::new()));
+        // No device for the registration: the tests count the account's devices.
+        request.inhibit_login = true;
         let client = Client::builder()
             .homeserver_url(homeserver_url())
             .build()

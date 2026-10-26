@@ -40,6 +40,8 @@ MatrixFailure failure(CoreError error) => switch (error) {
   CoreError_RecoveryNotSetUp() => const MatrixFailure(
     FailureKind.recoveryNotSetUp,
   ),
+  CoreError_PasswordNeeded() => const MatrixFailure(FailureKind.passwordNeeded),
+  CoreError_WrongPassword() => const MatrixFailure(FailureKind.wrongPassword),
   CoreError_Internal(:final message) => MatrixFailure(
     FailureKind.internal,
     message,

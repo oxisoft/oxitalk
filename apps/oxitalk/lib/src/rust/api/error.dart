@@ -49,6 +49,13 @@ sealed class CoreError with _$CoreError implements FrbException {
   /// The account has no recovery set up, so there is no key to enter.
   const factory CoreError.recoveryNotSetUp() = CoreError_RecoveryNotSetUp;
 
+  /// The server wants the account's password for this, e.g. to sign other devices out;
+  /// call again with it.
+  const factory CoreError.passwordNeeded() = CoreError_PasswordNeeded;
+
+  /// The password given for this is not the account's.
+  const factory CoreError.wrongPassword() = CoreError_WrongPassword;
+
   /// Anything else. The message is for logs, not for the user.
   const factory CoreError.internal({required String message}) =
       CoreError_Internal;

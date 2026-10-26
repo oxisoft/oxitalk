@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/devices.dart';
 import 'api/directory.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
@@ -154,6 +155,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<List<DeviceInfo>> dco_decode_StreamSink_list_device_info_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<List<RoomListDiff>>
   dco_decode_StreamSink_list_room_list_diff_Sse(dynamic raw);
 
@@ -274,6 +280,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CustomSection dco_decode_custom_section(dynamic raw);
 
   @protected
+  DeviceInfo dco_decode_device_info(dynamic raw);
+
+  @protected
   EventInfo dco_decode_event_info(dynamic raw);
 
   @protected
@@ -293,6 +302,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<CustomSection> dco_decode_list_custom_section(dynamic raw);
+
+  @protected
+  List<DeviceInfo> dco_decode_list_device_info(dynamic raw);
 
   @protected
   List<InconsistentDefault> dco_decode_list_inconsistent_default(dynamic raw);
@@ -639,6 +651,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<List<DeviceInfo>> sse_decode_StreamSink_list_device_info_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<List<RoomListDiff>>
   sse_decode_StreamSink_list_room_list_diff_Sse(SseDeserializer deserializer);
 
@@ -777,6 +794,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CustomSection sse_decode_custom_section(SseDeserializer deserializer);
 
   @protected
+  DeviceInfo sse_decode_device_info(SseDeserializer deserializer);
+
+  @protected
   EventInfo sse_decode_event_info(SseDeserializer deserializer);
 
   @protected
@@ -800,6 +820,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<CustomSection> sse_decode_list_custom_section(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<DeviceInfo> sse_decode_list_device_info(SseDeserializer deserializer);
 
   @protected
   List<InconsistentDefault> sse_decode_list_inconsistent_default(
@@ -1202,6 +1225,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_list_device_info_Sse(
+    RustStreamSink<List<DeviceInfo>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_list_room_list_diff_Sse(
     RustStreamSink<List<RoomListDiff>> self,
     SseSerializer serializer,
@@ -1388,6 +1417,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_custom_section(CustomSection self, SseSerializer serializer);
 
   @protected
+  void sse_encode_device_info(DeviceInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_event_info(EventInfo self, SseSerializer serializer);
 
   @protected
@@ -1411,6 +1443,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_custom_section(
     List<CustomSection> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_device_info(
+    List<DeviceInfo> self,
     SseSerializer serializer,
   );
 

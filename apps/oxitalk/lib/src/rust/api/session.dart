@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'devices.dart';
 import 'directory.dart';
 import 'error.dart';
 import 'notifications.dart';
@@ -115,6 +116,13 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers: [`CoreError::Internal`] if the address is taken or malformed.
   Future<String> createRoom({required NewRoom room});
+
+  /// The account's devices: this one first, then the others, the last seen first.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<List<DeviceInfo>> devices();
 
   /// The user's direct chat with `user_id`, if they have one.
   ///
@@ -301,6 +309,13 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> removeNotificationKeyword({required String keyword});
 
+  /// Gives the account's device `device_id` (this one too) the name `name`.
+  ///
+  /// # Errors
+  ///
+  /// As the server answers.
+  Future<void> renameDevice({required String deviceId, required String name});
+
   /// Asks the user's other devices to verify this one.
   ///
   /// # Errors
@@ -466,11 +481,30 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::RoomNotFound`], otherwise as the server answers.
   Future<void> setRoomSection({required String roomId, String? tag});
 
+  /// Signs the account's devices `device_ids` out; this one logs out with
+  /// [`Self::logout`] instead. The server asks for the account's password: without
+  /// `password` this fails with [`CoreError::PasswordNeeded`], so the app can ask for it
+  /// and call again.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::PasswordNeeded`], [`CoreError::WrongPassword`], [`CoreError::Internal`]
+  /// if `device_ids` holds this device, otherwise as the server answers.
+  Future<void> signOutDevices({
+    required List<String> deviceIds,
+    String? password,
+  });
+
   /// Starts syncing. Calling it while syncing is harmless; while offline it retries at once.
   Future<void> startSync();
 
   /// Stops syncing, e.g. when the app goes to the background.
   Future<void> stopSync();
+
+  /// Sends the account's [`Self::devices`] now, then whenever they may have changed: a
+  /// device signed in or out, renamed, or verified. A failed fetch sends nothing; the next
+  /// change tries again.
+  Stream<List<DeviceInfo>> subscribeDevices();
 
   /// Sends the account's notification settings, then the settings after every change, made
   /// here or on another device.
@@ -558,6 +592,15 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::Internal`] if the request is unknown, e.g. already cancelled.
   Future<Verification> verification({required String flowId});
+
+  /// Asks the account's device `device_id` to verify with this one, by emoji. The other
+  /// device shows the request; the [`Verification`] follows it as for this device's own.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] if this device doesn't have the other's keys (yet), otherwise
+  /// as the server answers.
+  Future<Verification> verifyDevice({required String deviceId});
 }
 
 @freezed

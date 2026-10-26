@@ -212,7 +212,7 @@ pub struct Verification {
 }
 
 impl Verification {
-    fn new(request: VerificationRequest) -> Self {
+    pub(crate) fn new(request: VerificationRequest) -> Self {
         let sas = match request.state() {
             VerificationRequestState::Transitioned { verification } => verification.sas(),
             _ => None,

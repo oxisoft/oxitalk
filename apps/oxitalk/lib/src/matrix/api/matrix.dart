@@ -21,6 +21,12 @@ enum FailureKind {
   /// Logging in to an account that is already in the app.
   alreadyLoggedIn,
   recoveryNotSetUp,
+
+  /// The server wants the account's password for this; ask it and try again with it.
+  passwordNeeded,
+
+  /// The password given is not the account's.
+  wrongPassword,
   internal,
 }
 
