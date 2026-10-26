@@ -218,6 +218,40 @@ abstract interface class MatrixSession {
 
   Future<RoomDetails> roomDetails(String roomId);
 
+  /// The room's settings now, then after every change, made here or elsewhere.
+  Stream<RoomSettings> roomSettings(String roomId);
+
+  /// Gives the room the name [name]; an empty one takes it away.
+  Future<void> setRoomName(String roomId, String name);
+
+  /// Gives the room the topic [topic]; an empty one takes it away.
+  Future<void> setRoomTopic(String roomId, String topic);
+
+  /// Makes [data], an image of type [mimeType], the room's picture.
+  Future<void> setRoomAvatar(String roomId, Uint8List data, String mimeType);
+
+  Future<void> removeRoomAvatar(String roomId);
+
+  /// Sets who may join ([RoomJoinRule.invite], [RoomJoinRule.knock] or
+  /// [RoomJoinRule.public]). Leaving public, a history anyone could read becomes the
+  /// members'.
+  Future<void> setRoomJoinRule(String roomId, RoomJoinRule rule);
+
+  Future<void> setRoomHistory(String roomId, RoomHistory history);
+
+  /// Turns end-to-end encryption on, for good.
+  Future<void> enableRoomEncryption(String roomId);
+
+  /// Makes `#localpart:server` (the user's server) the room's main address. Returns
+  /// `false` if another room has it; throws [MatrixFailure] with [FailureKind.invalidId]
+  /// for a [localpart] that can't be an address.
+  Future<bool> setRoomMainAddress(String roomId, String localpart);
+
+  /// Whether the room is listed in the server's room directory; asks the server.
+  Future<bool> roomPublished(String roomId);
+
+  Future<void> setRoomPublished(String roomId, bool published);
+
   /// Joined and invited members, admins first.
   Future<List<RoomMember>> roomMembers(String roomId);
 

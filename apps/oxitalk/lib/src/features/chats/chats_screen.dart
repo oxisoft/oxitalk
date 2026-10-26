@@ -17,6 +17,7 @@ import '../chat/chat_pane.dart';
 import '../chat/threads.dart';
 import '../chat_info/chat_info.dart';
 import '../chat_info/room_notifications.dart';
+import '../chat_info/room_settings.dart';
 import 'badges.dart';
 import 'finders.dart';
 import 'membership_actions.dart';
@@ -35,6 +36,7 @@ class ChatsScreen extends ConsumerWidget {
     this.roomId,
     this.showInfo = false,
     this.showNotifications = false,
+    this.showSecurity = false,
     this.thread,
     this.showThreads = false,
     super.key,
@@ -48,6 +50,9 @@ class ChatsScreen extends ConsumerWidget {
 
   /// The open chat's notification settings, in the chat's place.
   final bool showNotifications;
+
+  /// The open chat's security and privacy settings, in the chat's place.
+  final bool showSecurity;
 
   /// The thread open beside the chat: the event ID of its first message.
   final String? thread;
@@ -82,6 +87,7 @@ class ChatsScreen extends ConsumerWidget {
             roomId != null &&
             !showInfo &&
             !showNotifications &&
+            !showSecurity &&
             (thread != null || showThreads);
         final panes = PaneLayout.fit(
           window: window,
@@ -116,6 +122,11 @@ class ChatsScreen extends ConsumerWidget {
                     child: switch (roomId) {
                       final id? when showNotifications => RoomNotificationsPane(
                         key: ValueKey((account, id, 'notifications')),
+                        account: account,
+                        roomId: id,
+                      ),
+                      final id? when showSecurity => RoomSecurityPane(
+                        key: ValueKey((account, id, 'security')),
                         account: account,
                         roomId: id,
                       ),

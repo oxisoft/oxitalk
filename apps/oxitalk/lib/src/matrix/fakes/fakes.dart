@@ -366,18 +366,181 @@ final class FakeSession implements MatrixSession {
   Future<void> clearMediaCache() async => cacheSize = 0;
 
   @override
-  Future<RoomDetails> roomDetails(String roomId) async =>
-      details[roomId] ??
-      RoomDetails(
-        roomId: roomId,
-        name:
-            roomList.where((room) => room.id == roomId).firstOrNull?.name ??
-            roomId,
-      );
+  Future<RoomDetails> roomDetails(String roomId) async {
+    final base =
+        details[roomId] ??
+        RoomDetails(
+          roomId: roomId,
+          name:
+              roomList.where((room) => room.id == roomId).firstOrNull?.name ??
+              roomId,
+        );
+    // Changed settings show in the details, as the room's state does.
+    final changed = settings[roomId]?.value;
+    if (changed == null) return base;
+    return RoomDetails(
+      roomId: roomId,
+      name: changed.name ?? base.name,
+      avatarUrl: changed.avatarUrl,
+      topic: changed.topic,
+      alias: changed.mainAddress,
+      joinedMembers: base.joinedMembers,
+      isEncrypted: changed.isEncrypted,
+      dmUserId: base.dmUserId,
+      dmUserVerified: base.dmUserVerified,
+      ownPowerLevel: base.ownPowerLevel,
+    );
+  }
 
   @override
   Future<List<RoomMember>> roomMembers(String roomId) async =>
       members[roomId] ?? [RoomMember(userId: userId)];
+
+  /// Each room's settings; a room without them gets defaults the user may change.
+  final settings = <String, Latest<RoomSettings>>{};
+
+  /// The settings of [roomId], for tests to read and change as another client would.
+  Latest<RoomSettings> settingsOf(String roomId) => settings.putIfAbsent(
+    roomId,
+    () => Latest(
+      RoomSettings(
+        roomId: roomId,
+        name:
+            details[roomId]?.name ??
+            roomList.where((room) => room.id == roomId).firstOrNull?.name,
+        topic: details[roomId]?.topic,
+        avatarUrl: details[roomId]?.avatarUrl,
+        isEncrypted:
+            details[roomId]?.isEncrypted ??
+            roomList
+                .where((room) => room.id == roomId)
+                .firstOrNull
+                ?.isEncrypted ??
+            false,
+        mainAddress: details[roomId]?.alias,
+        serverName: userId.split(':').last,
+        permissions: RoomPermissions.all,
+      ),
+    ),
+  );
+
+  /// What the room settings setters were asked, like `name !a:b Team`, in order.
+  final settingsCalls = <String>[];
+
+  /// Room addresses another room has; [setRoomMainAddress] refuses them.
+  final takenAddresses = <String>{};
+
+  /// Rooms listed in the room directory.
+  final published = <String>{};
+
+  /// The failure the next settings change throws, if any.
+  MatrixFailure? settingsFailure;
+
+  void _changeSettings(
+    String roomId,
+    String call,
+    RoomSettings Function(RoomSettings) change,
+  ) {
+    if (settingsFailure case final failure?) {
+      settingsFailure = null;
+      throw failure;
+    }
+    settingsCalls.add(call);
+    final latest = settingsOf(roomId);
+    latest.value = change(latest.value);
+  }
+
+  @override
+  Stream<RoomSettings> roomSettings(String roomId) => settingsOf(roomId).stream;
+
+  @override
+  Future<void> setRoomName(String roomId, String name) async => _changeSettings(
+    roomId,
+    'name $roomId $name',
+    (s) => s.copyWith(name: () => name.trim().isEmpty ? null : name.trim()),
+  );
+
+  @override
+  Future<void> setRoomTopic(String roomId, String topic) async =>
+      _changeSettings(
+        roomId,
+        'topic $roomId $topic',
+        (s) =>
+            s.copyWith(topic: () => topic.trim().isEmpty ? null : topic.trim()),
+      );
+
+  @override
+  Future<void> setRoomAvatar(
+    String roomId,
+    Uint8List data,
+    String mimeType,
+  ) async => _changeSettings(
+    roomId,
+    'avatar $roomId $mimeType',
+    (s) => s.copyWith(avatarUrl: () => 'mxc://example.org/room$roomId'),
+  );
+
+  @override
+  Future<void> removeRoomAvatar(String roomId) async => _changeSettings(
+    roomId,
+    'removeAvatar $roomId',
+    (s) => s.copyWith(avatarUrl: () => null),
+  );
+
+  @override
+  Future<void> setRoomJoinRule(String roomId, RoomJoinRule rule) async =>
+      _changeSettings(
+        roomId,
+        'joinRule $roomId ${rule.name}',
+        (s) => s.copyWith(
+          joinRule: rule,
+          history:
+              rule != RoomJoinRule.public &&
+                  s.history == RoomHistory.worldReadable
+              ? RoomHistory.shared
+              : null,
+        ),
+      );
+
+  @override
+  Future<void> setRoomHistory(String roomId, RoomHistory history) async =>
+      _changeSettings(
+        roomId,
+        'history $roomId ${history.name}',
+        (s) => s.copyWith(history: history),
+      );
+
+  @override
+  Future<void> enableRoomEncryption(String roomId) async => _changeSettings(
+    roomId,
+    'encryption $roomId',
+    (s) => s.copyWith(isEncrypted: true),
+  );
+
+  @override
+  Future<bool> setRoomMainAddress(String roomId, String localpart) async {
+    final part = localpart.trim();
+    if (part.isEmpty || part.contains(RegExp(r'[:#\s]'))) {
+      throw MatrixFailure(FailureKind.invalidId, localpart);
+    }
+    final address = '#$part:${settingsOf(roomId).value.serverName}';
+    if (takenAddresses.contains(address)) return false;
+    _changeSettings(
+      roomId,
+      'address $roomId $address',
+      (s) => s.copyWith(mainAddress: () => address),
+    );
+    return true;
+  }
+
+  @override
+  Future<bool> roomPublished(String roomId) async => published.contains(roomId);
+
+  @override
+  Future<void> setRoomPublished(String roomId, bool published) async {
+    _changeSettings(roomId, 'published $roomId $published', (s) => s);
+    published ? this.published.add(roomId) : this.published.remove(roomId);
+  }
 
   @override
   Future<RoomTimeline> openMediaTimeline(String roomId) async =>

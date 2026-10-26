@@ -20,6 +20,7 @@ pub mod recovery;
 pub mod rich_text;
 pub mod room_info;
 pub mod room_list;
+pub mod room_settings;
 pub mod rooms;
 pub mod search;
 pub mod sections;

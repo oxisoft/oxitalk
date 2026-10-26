@@ -494,6 +494,22 @@ Future<List<RoomMember>> roomMembers(Ref ref, String account, String roomId) {
   return session.roomMembers(roomId);
 }
 
+/// The room's settings, as they change here or elsewhere.
+@riverpod
+Stream<RoomSettings> roomSettings(Ref ref, String account, String roomId) {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.roomSettings(roomId);
+}
+
+/// Whether the room is in the server's room directory; asked only when shown.
+@riverpod
+Future<bool> roomPublished(Ref ref, String account, String roomId) {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.roomPublished(roomId);
+}
+
 /// The room's files and links, for its info screen; closed when no longer shown.
 @riverpod
 Future<RoomTimeline> mediaTimeline(

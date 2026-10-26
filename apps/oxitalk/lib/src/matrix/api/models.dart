@@ -700,6 +700,186 @@ final class RoomDetails {
   final int? ownPowerLevel;
 }
 
+/// Who may join a room.
+enum RoomJoinRule {
+  /// Only people who are invited.
+  invite,
+
+  /// Anyone may ask; a member lets them in.
+  knock,
+
+  /// Anyone who finds the room.
+  public,
+
+  /// Members of some other rooms (spaces); not chosen in this app.
+  restricted,
+
+  /// Members of some other rooms join, others may ask; not chosen in this app.
+  knockRestricted,
+
+  /// Anything else.
+  other,
+}
+
+/// Who may read a room's messages.
+enum RoomHistory {
+  /// Members, all of the history from when this option was chosen.
+  shared,
+
+  /// Members, from when they were invited.
+  invited,
+
+  /// Members, from when they joined.
+  joined,
+
+  /// Anyone, members or not; only offered for public rooms.
+  worldReadable,
+}
+
+/// What the user's power level lets them change in a room.
+final class RoomPermissions {
+  const RoomPermissions({
+    this.name = false,
+    this.topic = false,
+    this.avatar = false,
+    this.joinRule = false,
+    this.history = false,
+    this.encryption = false,
+    this.address = false,
+  });
+
+  /// Everything, as for the room's creator.
+  static const all = RoomPermissions(
+    name: true,
+    topic: true,
+    avatar: true,
+    joinRule: true,
+    history: true,
+    encryption: true,
+    address: true,
+  );
+
+  final bool name;
+  final bool topic;
+  final bool avatar;
+  final bool joinRule;
+  final bool history;
+  final bool encryption;
+
+  /// The main address, and the listing in the room directory.
+  final bool address;
+
+  /// Whether any of the room's details (name, topic, picture) may be changed.
+  bool get details => name || topic || avatar;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RoomPermissions &&
+      other.name == name &&
+      other.topic == topic &&
+      other.avatar == avatar &&
+      other.joinRule == joinRule &&
+      other.history == history &&
+      other.encryption == encryption &&
+      other.address == address;
+
+  @override
+  int get hashCode =>
+      Object.hash(name, topic, avatar, joinRule, history, encryption, address);
+}
+
+/// A room's settings as its state has them, with what the user may change.
+final class RoomSettings {
+  const RoomSettings({
+    required this.roomId,
+    this.name,
+    this.topic,
+    this.avatarUrl,
+    this.joinRule = RoomJoinRule.invite,
+    this.history = RoomHistory.shared,
+    this.isEncrypted = false,
+    this.mainAddress,
+    this.serverName = '',
+    this.knockSupported = true,
+    this.permissions = const RoomPermissions(),
+  });
+
+  final String roomId;
+
+  /// The name the room was given; `null` when it has none.
+  final String? name;
+  final String? topic;
+
+  /// The room's own picture, an `mxc://` URI.
+  final String? avatarUrl;
+  final RoomJoinRule joinRule;
+  final RoomHistory history;
+  final bool isEncrypted;
+
+  /// The main address, like `#team:example.org`.
+  final String? mainAddress;
+
+  /// The user's server, where a new address is made.
+  final String serverName;
+
+  /// Whether the room's version allows "ask to join".
+  final bool knockSupported;
+  final RoomPermissions permissions;
+
+  RoomSettings copyWith({
+    String? Function()? name,
+    String? Function()? topic,
+    String? Function()? avatarUrl,
+    RoomJoinRule? joinRule,
+    RoomHistory? history,
+    bool? isEncrypted,
+    String? Function()? mainAddress,
+    RoomPermissions? permissions,
+  }) => RoomSettings(
+    roomId: roomId,
+    name: name == null ? this.name : name(),
+    topic: topic == null ? this.topic : topic(),
+    avatarUrl: avatarUrl == null ? this.avatarUrl : avatarUrl(),
+    joinRule: joinRule ?? this.joinRule,
+    history: history ?? this.history,
+    isEncrypted: isEncrypted ?? this.isEncrypted,
+    mainAddress: mainAddress == null ? this.mainAddress : mainAddress(),
+    serverName: serverName,
+    knockSupported: knockSupported,
+    permissions: permissions ?? this.permissions,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is RoomSettings &&
+      other.roomId == roomId &&
+      other.name == name &&
+      other.topic == topic &&
+      other.avatarUrl == avatarUrl &&
+      other.joinRule == joinRule &&
+      other.history == history &&
+      other.isEncrypted == isEncrypted &&
+      other.mainAddress == mainAddress &&
+      other.serverName == serverName &&
+      other.knockSupported == knockSupported &&
+      other.permissions == permissions;
+
+  @override
+  int get hashCode => Object.hash(
+    roomId,
+    name,
+    topic,
+    avatarUrl,
+    joinRule,
+    history,
+    isEncrypted,
+    mainAddress,
+    serverName,
+    knockSupported,
+    permissions,
+  );
+}
+
 enum MemberRole { admin, moderator, member }
 
 final class RoomMember {

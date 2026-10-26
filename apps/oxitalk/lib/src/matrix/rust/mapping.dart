@@ -8,6 +8,7 @@ import '../../rust/api/notify.dart' as rust;
 import '../../rust/api/rich_text.dart' as rust;
 import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
+import '../../rust/api/room_settings.dart' as rust;
 import '../../rust/api/search.dart' as search_api;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/threads.dart' as thread_api;
@@ -420,6 +421,56 @@ RoomDetails roomDetailsOf(rust.RoomDetails details) => RoomDetails(
   dmUserVerified: details.dmUserVerified,
   ownPowerLevel: details.ownPowerLevel,
 );
+
+RoomSettings roomSettingsOf(rust.RoomSettings settings) => RoomSettings(
+  roomId: settings.roomId,
+  name: settings.name,
+  topic: settings.topic,
+  avatarUrl: settings.avatarUrl,
+  joinRule: switch (settings.joinRule) {
+    rust.RoomJoinRule.invite => RoomJoinRule.invite,
+    rust.RoomJoinRule.knock => RoomJoinRule.knock,
+    rust.RoomJoinRule.public => RoomJoinRule.public,
+    rust.RoomJoinRule.restricted => RoomJoinRule.restricted,
+    rust.RoomJoinRule.knockRestricted => RoomJoinRule.knockRestricted,
+    rust.RoomJoinRule.other => RoomJoinRule.other,
+  },
+  history: switch (settings.history) {
+    rust.RoomHistory.shared => RoomHistory.shared,
+    rust.RoomHistory.invited => RoomHistory.invited,
+    rust.RoomHistory.joined => RoomHistory.joined,
+    rust.RoomHistory.worldReadable => RoomHistory.worldReadable,
+  },
+  isEncrypted: settings.isEncrypted,
+  mainAddress: settings.mainAddress,
+  serverName: settings.serverName,
+  knockSupported: settings.knockSupported,
+  permissions: RoomPermissions(
+    name: settings.permissions.name,
+    topic: settings.permissions.topic,
+    avatar: settings.permissions.avatar,
+    joinRule: settings.permissions.joinRule,
+    history: settings.permissions.history,
+    encryption: settings.permissions.encryption,
+    address: settings.permissions.address,
+  ),
+);
+
+rust.RoomJoinRule rustJoinRule(RoomJoinRule rule) => switch (rule) {
+  RoomJoinRule.invite => rust.RoomJoinRule.invite,
+  RoomJoinRule.knock => rust.RoomJoinRule.knock,
+  RoomJoinRule.public => rust.RoomJoinRule.public,
+  RoomJoinRule.restricted => rust.RoomJoinRule.restricted,
+  RoomJoinRule.knockRestricted => rust.RoomJoinRule.knockRestricted,
+  RoomJoinRule.other => rust.RoomJoinRule.other,
+};
+
+rust.RoomHistory rustHistory(RoomHistory history) => switch (history) {
+  RoomHistory.shared => rust.RoomHistory.shared,
+  RoomHistory.invited => rust.RoomHistory.invited,
+  RoomHistory.joined => rust.RoomHistory.joined,
+  RoomHistory.worldReadable => rust.RoomHistory.worldReadable,
+};
 
 RoomMember roomMemberOf(rust.RoomMember member) => RoomMember(
   userId: member.userId,

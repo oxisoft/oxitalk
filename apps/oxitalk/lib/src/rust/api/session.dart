@@ -19,6 +19,7 @@ import 'profile.dart';
 import 'recovery.dart';
 import 'room_info.dart';
 import 'room_list.dart';
+import 'room_settings.dart';
 import 'rooms.dart';
 import 'search.dart';
 import 'sections.dart';
@@ -143,6 +144,14 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::Internal`] if the server has a key backup this device isn't connected to
   /// (verify it first), otherwise as the server answers.
   Future<String> enableRecovery();
+
+  /// Turns end-to-end encryption on. It can't be turned off again. Waits until the sync
+  /// brings it back.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::set_room_name`].
+  Future<void> enableRoomEncryption({required String roomId});
 
   /// Opens the room's timeline around the event `event_id`: the event with some before and
   /// after it, from the server. It pages back with [`Timeline::paginate_back`] and forward,
@@ -355,6 +364,13 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<void> removeNotificationKeyword({required String keyword});
 
+  /// Takes the room's picture away.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::set_room_name`].
+  Future<void> removeRoomAvatar({required String roomId});
+
   /// Gives the account's device `device_id` (this one too) the name `name`.
   ///
   /// # Errors
@@ -393,6 +409,20 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<List<RoomMember>> roomMembers({required String roomId});
+
+  /// Whether the room is listed in the server's room directory. Asks the server.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::set_room_name`].
+  Future<bool> roomPublished({required String roomId});
+
+  /// The room's settings now.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<RoomSettings> roomSettings({required String roomId});
 
   /// Writes a message's whole file to `path`, to open it in another app or keep it.
   ///
@@ -507,6 +537,55 @@ abstract class Session implements RustOpaqueInterface {
     required PlatformInt64 level,
   });
 
+  /// Uploads `data` and makes it the room's picture; `mime_type` is its type, like
+  /// `image/png`.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] for a malformed `mime_type`, otherwise as
+  /// [`Self::set_room_name`].
+  Future<void> setRoomAvatar({
+    required String roomId,
+    required List<int> data,
+    required String mimeType,
+  });
+
+  /// Sets who may read the room's messages.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::set_room_name`].
+  Future<void> setRoomHistory({
+    required String roomId,
+    required RoomHistory history,
+  });
+
+  /// Sets who may join. Leaving "anyone", a history anyone could read becomes the
+  /// members' (all of it), as Element X does: only a public room is readable by anyone.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Internal`] for [`RoomJoinRule::Restricted`],
+  /// [`RoomJoinRule::KnockRestricted`] and [`RoomJoinRule::Other`], which need more than a
+  /// choice; otherwise as [`Self::set_room_name`].
+  Future<void> setRoomJoinRule({
+    required String roomId,
+    required RoomJoinRule rule,
+  });
+
+  /// Makes `#localpart:server` (the user's server) the room's main address, creating it
+  /// in the server's directory first. Returns `false`, changing nothing, if another room
+  /// has that address. The earlier main address keeps pointing to the room.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a localpart that can't be an address, otherwise as
+  /// [`Self::set_room_name`].
+  Future<bool> setRoomMainAddress({
+    required String roomId,
+    required String localpart,
+  });
+
   /// Whether @room notifies. Sets the legacy rule too where the server has it, as Element
   /// Web keeps both.
   ///
@@ -514,6 +593,14 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers.
   Future<void> setRoomMentionsEnabled({required bool enabled});
+
+  /// Gives the room the name `name`; an empty one takes the name away.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or as the server answers
+  /// ([`CoreError::Forbidden`] without the power level).
+  Future<void> setRoomName({required String roomId, required String name});
 
   /// Gives a room its own mode, or with `None` lets it follow the account's default again.
   ///
@@ -525,6 +612,16 @@ abstract class Session implements RustOpaqueInterface {
     RoomNotificationMode? mode,
   });
 
+  /// Lists the room in the server's room directory, or takes it out.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::set_room_name`]; a server that lets only its admins publish refuses.
+  Future<void> setRoomPublished({
+    required String roomId,
+    required bool published,
+  });
+
   /// Puts a room in the section with `tag` (`m.favourite`, `m.lowpriority` or a section the
   /// user made), or with `None` in its default section (People or Rooms). A room is in one
   /// section at a time; the one it was in is left.
@@ -534,6 +631,13 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::InvalidId`] for a malformed room ID or a tag that isn't a section's,
   /// [`CoreError::RoomNotFound`], otherwise as the server answers.
   Future<void> setRoomSection({required String roomId, String? tag});
+
+  /// Gives the room the topic `topic`; an empty one takes the topic away.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::set_room_name`].
+  Future<void> setRoomTopic({required String roomId, required String topic});
 
   /// Signs the account's devices `device_ids` out; this one logs out with
   /// [`Self::logout`] instead. The server asks for the account's password: without
@@ -573,6 +677,14 @@ abstract class Session implements RustOpaqueInterface {
 
   /// Sends how far a running [`Self::enable_recovery`] is, from now on.
   Stream<RecoveryProgress> subscribeRecoveryProgress();
+
+  /// Sends the room's [`Self::room_settings`] now, then after every change, made here or
+  /// elsewhere (they arrive with the sync), power levels included.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Stream<RoomSettings> subscribeRoomSettings({required String roomId});
 
   /// Sends the room list as batches of diffs. The first batch is a `Reset` with the whole
   /// list.
