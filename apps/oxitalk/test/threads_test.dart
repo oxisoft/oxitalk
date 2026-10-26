@@ -157,7 +157,7 @@ void main() {
     await _hover(tester, mouse, 'sushi');
     expect(find.byKey(const Key('hover.reply')).hitTestable(), findsOneWidget);
     expect(find.byKey(const Key('hover.thread')).hitTestable(), findsNothing);
-  });
+  }, variant: desktop);
 
   testWidgets('the thread list shows the room’s threads and opens one', (
     tester,

@@ -16,6 +16,7 @@ import '../../ui/avatar.dart';
 import '../../ui/bubble_footer.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
+import '../../ui/touch.dart';
 import '../../app/file_actions.dart';
 import '../chats/badges.dart';
 import 'chat_search.dart';
@@ -24,6 +25,7 @@ import 'emoticons.dart';
 import 'jump.dart';
 import 'media_views.dart';
 import 'message_actions.dart';
+import 'message_sheet.dart';
 import 'pins.dart';
 import 'send_files.dart';
 import 'video/video_message.dart';
@@ -683,6 +685,8 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       ),
     };
     final canAct = meta.eventId != null && entry is! RedactedEntry;
+    final hasActions = canAct && entry is! UndecryptableEntry;
+    final touch = isTouchPlatform(context);
     // In the chat, a thread shows under its first message; in the thread, it is all around.
     final thread = widget.thread == null ? meta.thread : null;
     final bubble = MessageBubble(
@@ -727,7 +731,12 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
               compact: entry is MessageEntry && isEmojiOnly(entry.body),
               onTap: () => _actions.openThread(entry),
             ),
-      hoverActions: canAct && entry is! UndecryptableEntry
+      // On a touch screen a tap opens the action sheet instead, and the message keeps the
+      // whole width: there is no mouse to hover with.
+      onTap: hasActions && touch
+          ? () => _openSheet(entry, canRedactOthers: canRedactOthers)
+          : null,
+      hoverActions: hasActions && !touch
           ? _HoverActions(
               tooltipsLeft: fields.isOwn,
               onReact: () => unawaited(_actions.react(entry)),
@@ -747,6 +756,20 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     return meta.eventId != null && meta.eventId == _jump.highlight
         ? JumpHighlight(child: bubble)
         : bubble;
+  }
+
+  /// The touch screen's sheet of what can be done with [entry].
+  void _openSheet(TimelineEntry entry, {required bool canRedactOthers}) {
+    final actions = _actions;
+    unawaited(
+      showMessageSheet(
+        context,
+        account: widget.account,
+        entry: entry,
+        actions: actions.actions(entry, canRedactOthers: canRedactOthers),
+        onReact: (emoji) => unawaited(actions.toggleReaction(entry, emoji)),
+      ),
+    );
   }
 
   void _openLink(String url) {
@@ -979,6 +1002,7 @@ class MessageBubble extends StatefulWidget {
     this.reactions,
     this.thread,
     this.hoverActions,
+    this.onTap,
     super.key,
   });
 
@@ -1009,6 +1033,10 @@ class MessageBubble extends StatefulWidget {
 
   /// Shown beside the bubble while the mouse is over the message.
   final Widget? hoverActions;
+
+  /// A tap on the message, or its reactions, where nothing in it takes the tap itself
+  /// (links, media, reactions, the quote and the thread keep theirs).
+  final VoidCallback? onTap;
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -1089,13 +1117,22 @@ class _MessageBubbleState extends State<MessageBubble> {
       ),
     );
     final reactions = widget.reactions;
-    final content = Column(
+    final column = Column(
       crossAxisAlignment: isOwn
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [bubble, ?reactions],
     );
+    final onTap = widget.onTap;
+    final content = onTap == null
+        ? column
+        : GestureDetector(
+            key: const Key('message.tap'),
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: column,
+          );
     final hoverActions = widget.hoverActions;
     // A narrow room kept beside the message, so it doesn't move when the toolbar shows.
     // The toolbar floats above the chat from there, so a short message doesn't grow to

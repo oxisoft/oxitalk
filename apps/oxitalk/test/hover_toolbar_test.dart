@@ -108,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
     final own = _toolbar(tester);
     expect(own.right, lessThanOrEqualTo(_bubble(tester, 'Mine').left + 0.01));
-  });
+  }, variant: desktop);
 
   testWidgets('a long message keeps nearly all the width: only one button’s '
       'room is kept beside it', (tester) async {
@@ -125,7 +125,7 @@ void main() {
     final chat = tester.getRect(find.byType(TimelineView));
     // The room kept for the toolbar plus the list's padding, about one button.
     expect(chat.right - bubble.right, lessThan(60));
-  });
+  }, variant: desktop);
 
   testWidgets('moving onto the toolbar keeps it; its buttons work; leaving '
       'both hides it', (tester) async {
@@ -144,7 +144,7 @@ void main() {
     await mouse.moveTo(const Offset(5, 450));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('hover.reply')).hitTestable(), findsNothing);
-  });
+  }, variant: desktop);
 
   testWidgets('tooltips show beside the buttons, not over them', (
     tester,
@@ -175,7 +175,7 @@ void main() {
       await mouse.moveTo(const Offset(5, 450));
       await tester.pumpAndSettle();
     }
-  });
+  }, variant: desktop);
 
   testWidgets('near the top of the chat the toolbar moves down to stay '
       'inside it, never under the header', (tester) async {
@@ -216,5 +216,5 @@ void main() {
     await tester.pumpAndSettle();
     final composer = tester.getRect(find.byKey(const Key('composer.text')));
     expect(_toolbar(tester).bottom, lessThanOrEqualTo(composer.top));
-  });
+  }, variant: desktop);
 }

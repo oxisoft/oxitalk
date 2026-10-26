@@ -204,7 +204,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(chat.timeline.voices.single.$2, r'$hello');
       expect(_key('composer.mode'), findsNothing);
-    });
+    }, variant: desktop);
 
     testWidgets('sliding left cancels; sliding up keeps recording', (
       tester,

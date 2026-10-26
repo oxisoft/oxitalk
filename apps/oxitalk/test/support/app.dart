@@ -19,6 +19,11 @@ import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 
 import 'voice_fakes.dart';
 
+/// For tests of what the mouse does on desktop (the hover toolbar and its menu): they run
+/// as Linux, as `flutter test` otherwise runs as Android, a touch screen, where a tap on a
+/// message opens its action sheet instead.
+final desktop = TargetPlatformVariant.only(TargetPlatform.linux);
+
 /// Phone-sized by default; pass a wider [size] for the desktop layout.
 Future<void> pumpApp(
   WidgetTester tester,

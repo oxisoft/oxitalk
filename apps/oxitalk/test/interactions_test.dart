@@ -194,7 +194,7 @@ void main() {
       expect(session.recent, ['❤️']);
       expect(find.byKey(const Key('reactionChip.❤️')), findsOneWidget);
       expect(find.byKey(const Key('reactionChip.❤️.count')), findsNothing);
-    });
+    }, variant: desktop);
   });
 
   group('composer emoji picker', () {
@@ -266,7 +266,7 @@ void main() {
       await tester.tap(find.byKey(const Key('reaction.more')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('emoji.recent')), findsNothing);
-    });
+    }, variant: desktop);
   });
 
   group('reply', () {
@@ -288,7 +288,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'reply $hello Hi Bob']);
       expect(find.byKey(const Key('composer.mode')), findsNothing);
-    });
+    }, variant: desktop);
 
     testWidgets('Esc stops replying', (tester) async {
       final (_, timeline, _) = await _open(tester);
@@ -304,7 +304,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(timeline.calls, isEmpty);
       expect(find.text('New'), findsOneWidget);
-    });
+    }, variant: desktop);
 
     testWidgets('a reply shows the message it answers', (tester) async {
       await _open(
@@ -352,7 +352,7 @@ void main() {
       await tester.tap(find.byKey(const Key('composer.send')));
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'edit $mine My better message']);
-    });
+    }, variant: desktop);
 
     testWidgets('someone else’s message has no Edit and, for a member, no '
         'Delete', (tester) async {
@@ -363,7 +363,7 @@ void main() {
       expect(find.text('Reply'), findsOneWidget);
       expect(find.text('Edit'), findsNothing);
       expect(find.text('Delete'), findsNothing);
-    });
+    }, variant: desktop);
 
     testWidgets('Delete asks first, then deletes', (tester) async {
       final (_, timeline, _) = await _open(tester);
@@ -372,7 +372,7 @@ void main() {
       await tester.tap(find.byKey(const Key('message.deleteConfirm')));
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'redact $mine']);
-    });
+    }, variant: desktop);
 
     testWidgets('Forward sends it to the picked chat', (tester) async {
       final (_, timeline, _) = await _open(tester);
@@ -384,7 +384,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(timeline.calls, [r'forward $hello !other:acme.com']);
       expect(find.text('Forwarded to Other team'), findsOneWidget);
-    });
+    }, variant: desktop);
 
     testWidgets('deleted and edited messages say so', (tester) async {
       await _open(
