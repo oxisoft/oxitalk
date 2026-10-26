@@ -53,9 +53,13 @@ abstract interface class MatrixClientFactory {
     required String password,
   });
 
-  /// Every saved account, in the order they were added. One that can't be opened any more is
-  /// dropped.
+  /// Every saved account that can be opened, in the order they were added. One that can't is
+  /// kept saved and listed in [unopened]; the next call tries it again.
   Future<List<MatrixSession>> restoreAll();
+
+  /// The user IDs of the saved accounts the last [restoreAll] couldn't open. Logging in to
+  /// one of them replaces it.
+  List<String> get unopened;
 
   /// The user ID of the account that was in front last time, if any.
   Future<String?> readActive();

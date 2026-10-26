@@ -23,6 +23,9 @@ import 'sync_supervisor.dart';
 
 /// The Matrix layer on the Rust core. The accounts' session data and store passphrases are
 /// kept in [secrets], each account's store under `<dataDir>/accounts/<random id>/`.
+///
+/// Only the store's path inside [_dataDir] is saved: iOS moves the app's data to a new
+/// container folder on every update, so a saved full path stops pointing at the store.
 final class RustMatrixClientFactory implements MatrixClientFactory {
   RustMatrixClientFactory({required this._secrets, required this._dataDir});
 
@@ -39,14 +42,17 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
   Future<void> _lock = Future.value();
 
   @override
+  List<String> get unopened => List.unmodifiable(_unopened);
+  final _unopened = <String>[];
+
+  @override
   Future<MatrixSession> login({
     required String server,
     required String username,
     required String password,
   }) async {
-    final storeDir = Directory(
-      '${(await _dataDir()).path}/accounts/${_randomId()}',
-    );
+    final store = 'accounts/${_randomId()}';
+    final storeDir = Directory(await _path(store));
     final passphrase = _randomSecret();
     try {
       final session = await guarded(
@@ -58,15 +64,22 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
           storePassphrase: passphrase,
         ),
       );
-      final saved = _SavedSession(
-        session.sessionData(),
-        storeDir.path,
-        passphrase,
-      );
+      final saved = _SavedSession(session.sessionData(), store, passphrase);
+      final userId = saved.data.userId;
+      // An account saved before but not opened at the start is replaced by the new login.
+      final replaced = <_SavedSession>[];
       var duplicate = false;
       await _update((accounts) {
-        duplicate = accounts.any((a) => a.data.userId == saved.data.userId);
-        return duplicate ? accounts : [...accounts, saved];
+        duplicate = accounts.any(
+          (a) => a.data.userId == userId && !_unopened.contains(userId),
+        );
+        if (duplicate) return accounts;
+        replaced.addAll(accounts.where((a) => a.data.userId == userId));
+        return [
+          for (final account in accounts)
+            if (account.data.userId != userId) account,
+          saved,
+        ];
       });
       if (duplicate) {
         // The login made a new device on the server; take it away again.
@@ -74,7 +87,11 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
         session.dispose();
         throw MatrixFailure(FailureKind.alreadyLoggedIn, saved.data.userId);
       }
-      return RustMatrixSession._(session, () => _forget(saved.storeDir));
+      _unopened.remove(userId);
+      for (final old in replaced) {
+        await _deleteDir(await _path(old.store));
+      }
+      return RustMatrixSession._(session, () => _forget(saved.store));
     } catch (_) {
       await _deleteDir(storeDir.path);
       rethrow;
@@ -84,20 +101,31 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
   @override
   Future<List<MatrixSession>> restoreAll() async {
     await _migrateLegacy();
+    await _relocate();
+    _unopened.clear();
     final sessions = <MatrixSession>[];
     for (final saved in await _read()) {
+      final storeDir = await _path(saved.store);
       try {
+        if (!Directory(storeDir).existsSync()) {
+          throw FileSystemException('store missing', storeDir);
+        }
         final session = await rust.restore(
           data: saved.data,
-          storeDir: saved.storeDir,
+          storeDir: storeDir,
           storePassphrase: saved.passphrase,
         );
-        sessions.add(
-          RustMatrixSession._(session, () => _forget(saved.storeDir)),
+        sessions.add(RustMatrixSession._(session, () => _forget(saved.store)));
+      } on Object catch (error) {
+        // Kept, never deleted here: the store holds the account's encryption keys, and the
+        // cause can pass (a locked keychain, a moved folder). The next start tries again;
+        // logging in to the account again replaces it.
+        appLog(
+          LogLevel.error,
+          'accounts',
+          'could not open ${saved.data.userId}: $error',
         );
-      } on Object {
-        // Restoring works offline, so a failure means the store can't be used any more.
-        await _forget(saved.storeDir);
+        _unopened.add(saved.data.userId);
       }
     }
     return sessions;
@@ -109,14 +137,53 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
   @override
   Future<void> writeActive(String userId) => _secrets.write(_activeKey, userId);
 
-  Future<void> _forget(String storeDir) async {
+  Future<void> _forget(String store) async {
     await _update(
       (accounts) => [
         for (final account in accounts)
-          if (account.storeDir != storeDir) account,
+          if (account.store != store) account,
       ],
     );
-    await _deleteDir(storeDir);
+    await _deleteDir(await _path(store));
+  }
+
+  /// The full path of a [store] saved inside the data folder; a full path (from a version
+  /// that saved those, not found where it pointed) as it is.
+  Future<String> _path(String store) async =>
+      store.startsWith('/') || store.contains(':')
+      ? store
+      : '${(await _dataDir()).path}/$store';
+
+  /// Versions up to 0.1.27 saved each store's full path. Turns those into paths inside the
+  /// data folder: the same folder name under the current data folder's `accounts`, which
+  /// finds the store again after iOS moved the app's data on an update.
+  Future<void> _relocate() async {
+    final accounts = await _read();
+    if (!accounts.any((account) => _isFull(account.store))) return;
+    final dataDir = (await _dataDir()).path;
+    await _update(
+      (accounts) => [
+        for (final account in accounts)
+          _isFull(account.store)
+              ? account.withStore(_inside(dataDir, account.store))
+              : account,
+      ],
+    );
+  }
+
+  static bool _isFull(String store) =>
+      store.startsWith('/') || store.contains(':');
+
+  /// [full] inside [dataDir]; else `accounts/<its folder name>` when that exists, which is
+  /// where every version kept the stores; else [full] unchanged.
+  static String _inside(String dataDir, String full) {
+    final normal = full.replaceAll(r'\', '/');
+    final root = '${dataDir.replaceAll(r'\', '/')}/';
+    if (normal.startsWith(root)) return normal.substring(root.length);
+    final name = normal.split('/').lastWhere((part) => part.isNotEmpty);
+    return Directory('$dataDir/accounts/$name').existsSync()
+        ? 'accounts/$name'
+        : full;
   }
 
   Future<List<_SavedSession>> _read() async {
@@ -177,7 +244,7 @@ final class RustMatrixClientFactory implements MatrixClientFactory {
 }
 
 final class _SavedSession {
-  _SavedSession(this.data, this.storeDir, this.passphrase);
+  _SavedSession(this.data, this.store, this.passphrase);
 
   factory _SavedSession.fromJson(Map<String, Object?> json) => _SavedSession(
     rust.SessionData(
@@ -186,20 +253,27 @@ final class _SavedSession {
       deviceId: json['deviceId']! as String,
       accessToken: json['accessToken']! as String,
     ),
-    json['storeDir']! as String,
+    // `storeDir`: the full path, as versions up to 0.1.27 saved it.
+    (json['store'] ?? json['storeDir'])! as String,
     json['passphrase']! as String,
   );
 
   final rust.SessionData data;
-  final String storeDir;
+
+  /// The store's path inside the data folder (`accounts/<id>`), or a full path kept from an
+  /// earlier version when the store wasn't found inside the data folder.
+  final String store;
   final String passphrase;
+
+  _SavedSession withStore(String store) =>
+      _SavedSession(data, store, passphrase);
 
   Map<String, Object?> toJson() => {
     'homeserverUrl': data.homeserverUrl,
     'userId': data.userId,
     'deviceId': data.deviceId,
     'accessToken': data.accessToken,
-    'storeDir': storeDir,
+    'store': store,
     'passphrase': passphrase,
   };
 }

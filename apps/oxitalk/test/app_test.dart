@@ -57,6 +57,48 @@ void main() {
       expect(find.text('Team'), findsOneWidget);
       expect(find.byKey(const Key('account.dropdown')), findsOneWidget);
     });
+
+    testWidgets('an account that could not be opened is named, can be tried again, and signing '
+        'in to it again replaces it', (tester) async {
+      final factory = FakeMatrixClientFactory(rooms: _rooms)
+        ..unopened.add('@alice:matrix.org');
+      await pumpApp(tester, factory);
+      expect(
+        find.byKey(const Key('login.unopened.@alice:matrix.org')),
+        findsOneWidget,
+      );
+
+      // Opens this time.
+      factory
+        ..unopened.clear()
+        ..saved.add(FakeSession(userId: '@alice:matrix.org', rooms: _rooms));
+      await tester.tap(find.byKey(const Key('login.unopened.retry')));
+      await tester.pumpAndSettle();
+      expect(find.text('Team'), findsOneWidget);
+    });
+
+    testWidgets(
+      'signing in to an account that could not be opened clears the notice',
+      (tester) async {
+        final factory = FakeMatrixClientFactory(rooms: _rooms)
+          ..unopened.add('@alice:matrix.org');
+        await pumpApp(tester, factory);
+
+        await tester.enterText(
+          find.byKey(const Key('login.username')),
+          'alice',
+        );
+        await tester.enterText(
+          find.byKey(const Key('login.password')),
+          'secret',
+        );
+        await tester.tap(find.byKey(const Key('login.submit')));
+        await tester.pumpAndSettle();
+
+        expect(factory.unopened, isEmpty);
+        expect(find.text('Team'), findsOneWidget);
+      },
+    );
   });
 
   group('chat list', () {

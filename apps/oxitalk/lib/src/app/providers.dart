@@ -219,9 +219,13 @@ String defaultServer(Ref ref) => 'matrix.org';
 
 /// The logged-in accounts, in the order they were added, and which one is in front.
 final class AccountsState {
-  const AccountsState(this.sessions, this.activeId);
+  const AccountsState(this.sessions, this.activeId, [this.unopened = const []]);
 
   final List<MatrixSession> sessions;
+
+  /// Saved accounts that couldn't be opened at the start (see
+  /// [MatrixClientFactory.unopened]).
+  final List<String> unopened;
 
   /// The user ID of the account in front; `null` only when there are no accounts.
   final String? activeId;
@@ -249,7 +253,7 @@ class Accounts extends _$Accounts {
     final active = sessions.any((session) => session.userId == saved)
         ? saved
         : sessions.firstOrNull?.userId;
-    return AccountsState(sessions, active);
+    return AccountsState(sessions, active, factory.unopened);
   }
 
   AccountsState get _current => state.value ?? const AccountsState([], null);
@@ -276,7 +280,14 @@ class Accounts extends _$Accounts {
         );
     appLog(LogLevel.info, 'accounts', 'logged in ${session.userId}');
     state = AsyncData(
-      AccountsState([..._current.sessions, session], session.userId),
+      AccountsState(
+        [..._current.sessions, session],
+        session.userId,
+        [
+          for (final id in _current.unopened)
+            if (id != session.userId) id,
+        ],
+      ),
     );
     _saveActive(session.userId);
   }
@@ -285,7 +296,9 @@ class Accounts extends _$Accounts {
   void activate(String userId) {
     final current = _current;
     if (current.activeId == userId || current.byId(userId) == null) return;
-    state = AsyncData(AccountsState(current.sessions, userId));
+    state = AsyncData(
+      AccountsState(current.sessions, userId, current.unopened),
+    );
     _saveActive(userId);
   }
 
@@ -311,7 +324,7 @@ class Accounts extends _$Accounts {
         : sessions.isEmpty
         ? null
         : sessions[index.clamp(0, sessions.length - 1)].userId;
-    state = AsyncData(AccountsState(sessions, active));
+    state = AsyncData(AccountsState(sessions, active, current.unopened));
     if (active != null) _saveActive(active);
   }
 

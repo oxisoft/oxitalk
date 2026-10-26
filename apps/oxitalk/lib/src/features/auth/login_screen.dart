@@ -99,6 +99,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 32),
+                if (!widget.adding)
+                  for (final userId
+                      in ref.watch(accountsProvider).value?.unopened ??
+                          const <String>[])
+                    _UnopenedNotice(
+                      userId: userId,
+                      onRetry: () => ref.invalidate(accountsProvider),
+                    ),
                 TextField(
                   key: const Key('login.server'),
                   controller: _server,
@@ -159,6 +167,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     ),
   );
+}
+
+/// A saved account that couldn't be opened at the start. It is still on this device, with its
+/// encryption keys: the next start or [onRetry] tries again; signing in again replaces it.
+class _UnopenedNotice extends StatelessWidget {
+  const _UnopenedNotice({required this.userId, required this.onRetry});
+
+  final String userId;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: DecoratedBox(
+        key: Key('login.unopened.$userId'),
+        decoration: BoxDecoration(
+          border: Border.all(color: scheme.error),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Couldn’t open $userId on this device. Try again, or sign in '
+                'again below.',
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  key: const Key('login.unopened.retry'),
+                  onPressed: onRetry,
+                  child: const Text('Try again'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 String loginError(MatrixFailure failure) => switch (failure.kind) {

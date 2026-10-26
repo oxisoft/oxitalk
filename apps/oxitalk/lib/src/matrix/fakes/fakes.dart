@@ -47,6 +47,9 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
   FakeSession? lastLogin;
 
   @override
+  final List<String> unopened = [];
+
+  @override
   Future<MatrixSession> login({
     required String server,
     required String username,
@@ -59,6 +62,7 @@ final class FakeMatrixClientFactory implements MatrixClientFactory {
     if (saved.any((session) => session.userId == userId)) {
       throw MatrixFailure(FailureKind.alreadyLoggedIn, userId);
     }
+    unopened.remove(userId);
     final session = FakeSession(userId: userId, rooms: rooms)
       ..verification.value = loginVerification;
     saved.add(session);
