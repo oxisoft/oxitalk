@@ -11,6 +11,8 @@ mod devices;
 mod pins;
 #[path = "homeserver/recovery.rs"]
 mod recovery;
+#[path = "homeserver/room_settings.rs"]
+mod room_settings;
 #[path = "homeserver/search.rs"]
 mod search;
 mod support;

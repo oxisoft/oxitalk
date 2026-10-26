@@ -16,6 +16,7 @@ import 'api/recovery.dart';
 import 'api/rich_text.dart';
 import 'api/room_info.dart';
 import 'api/room_list.dart';
+import 'api/room_settings.dart';
 import 'api/rooms.dart';
 import 'api/search.dart';
 import 'api/sections.dart';
@@ -193,6 +194,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<RoomPins> dco_decode_StreamSink_room_pins_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<RoomSettings> dco_decode_StreamSink_room_settings_Sse(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<RoomTyping> dco_decode_StreamSink_room_typing_Sse(dynamic raw);
@@ -485,6 +491,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomDetails dco_decode_room_details(dynamic raw);
 
   @protected
+  RoomHistory dco_decode_room_history(dynamic raw);
+
+  @protected
+  RoomJoinRule dco_decode_room_join_rule(dynamic raw);
+
+  @protected
   RoomListDiff dco_decode_room_list_diff(dynamic raw);
 
   @protected
@@ -494,7 +506,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomNotificationMode dco_decode_room_notification_mode(dynamic raw);
 
   @protected
+  RoomPermissions dco_decode_room_permissions(dynamic raw);
+
+  @protected
   RoomPins dco_decode_room_pins(dynamic raw);
+
+  @protected
+  RoomSettings dco_decode_room_settings(dynamic raw);
 
   @protected
   RoomSummary dco_decode_room_summary(dynamic raw);
@@ -710,6 +728,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<RoomPins> sse_decode_StreamSink_room_pins_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<RoomSettings> sse_decode_StreamSink_room_settings_Sse(
     SseDeserializer deserializer,
   );
 
@@ -1050,6 +1073,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomDetails sse_decode_room_details(SseDeserializer deserializer);
 
   @protected
+  RoomHistory sse_decode_room_history(SseDeserializer deserializer);
+
+  @protected
+  RoomJoinRule sse_decode_room_join_rule(SseDeserializer deserializer);
+
+  @protected
   RoomListDiff sse_decode_room_list_diff(SseDeserializer deserializer);
 
   @protected
@@ -1061,7 +1090,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RoomPermissions sse_decode_room_permissions(SseDeserializer deserializer);
+
+  @protected
   RoomPins sse_decode_room_pins(SseDeserializer deserializer);
+
+  @protected
+  RoomSettings sse_decode_room_settings(SseDeserializer deserializer);
 
   @protected
   RoomSummary sse_decode_room_summary(SseDeserializer deserializer);
@@ -1314,6 +1349,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_room_pins_Sse(
     RustStreamSink<RoomPins> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_room_settings_Sse(
+    RustStreamSink<RoomSettings> self,
     SseSerializer serializer,
   );
 
@@ -1765,6 +1806,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_room_details(RoomDetails self, SseSerializer serializer);
 
   @protected
+  void sse_encode_room_history(RoomHistory self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_join_rule(RoomJoinRule self, SseSerializer serializer);
+
+  @protected
   void sse_encode_room_list_diff(RoomListDiff self, SseSerializer serializer);
 
   @protected
@@ -1777,7 +1824,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_room_permissions(
+    RoomPermissions self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_room_pins(RoomPins self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_settings(RoomSettings self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_summary(RoomSummary self, SseSerializer serializer);
