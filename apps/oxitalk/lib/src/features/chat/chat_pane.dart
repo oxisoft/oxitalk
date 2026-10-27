@@ -20,6 +20,7 @@ import '../../ui/touch.dart';
 import '../../app/file_actions.dart';
 import '../chats/badges.dart';
 import 'chat_search.dart';
+import 'drafts.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
 import 'invite_pane.dart';
@@ -1587,13 +1588,122 @@ class _ComposerState extends ConsumerState<Composer> {
   final _popupLink = LayerLink();
   final _popup = OverlayPortalController();
 
+  /// This account's drafts; kept, as `ref` can't be used once the composer is gone.
+  late final Drafts _drafts;
+
+  /// Saves the draft a moment after the last change.
+  Timer? _draftSave;
+
+  /// The mode as last built, for the draft.
+  ComposerMode? _mode;
+
+  /// A reply or edit given back by a draft: its text is the draft's, not the message's.
+  ComposerMode? _restoredMode;
+
+  /// Whether the text or mode changed since the composer opened, so leaving saves.
+  var _changed = false;
+
+  /// While a draft's text is put back: not the user typing.
+  var _restoring = false;
+
+  /// What was last saved, to skip saves when only the cursor moved.
+  (String, ComposerMode?)? _saved;
+
+  late final AppLifecycleListener _lifecycle;
+
+  static const _draftDelay = Duration(milliseconds: 500);
+
   @override
   void initState() {
     super.initState();
+    _drafts = ref.read(draftsProvider(widget.account).notifier);
+    final live = _drafts.live(widget.roomId, widget.thread);
+    if (live != null) {
+      _text.setContent(live.text, live.pills);
+      _saved = (live.text, live.mode);
+      if (live.mode case final mode?) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _restoreMode(mode));
+      }
+    } else {
+      unawaited(_restoreStored());
+    }
     _text
       ..addListener(_onText)
-      ..addListener(_onQuery);
+      ..addListener(_onQuery)
+      ..addListener(_onDraftChange);
+    // Leaving the app saves at once: a phone may stop it in the background.
+    _lifecycle = AppLifecycleListener(
+      onHide: () => _saveDraft(leaving: false),
+      onPause: () => _saveDraft(leaving: false),
+    );
     _popup.show();
+  }
+
+  /// Puts back the draft kept in the account's store, unless the user typed already.
+  Future<void> _restoreStored() async {
+    final draft = await _drafts.stored(widget.roomId, widget.thread);
+    if (draft == null || !mounted || _text.text.isNotEmpty) return;
+    final (text, pills) = composerContent(draft.parts);
+    _restoring = true;
+    _text.setContent(text, pills);
+    _restoring = false;
+    _saved = (text, null);
+    final mode = await _draftMode(draft);
+    if (mode != null && mounted) _restoreMode(mode);
+  }
+
+  /// The reply or edit of [draft], if its message can still be loaded.
+  Future<ComposerMode?> _draftMode(ComposerDraft draft) async {
+    final eventId = draft.eventId;
+    if (eventId == null || draft.type == DraftType.newMessage) return null;
+    try {
+      final timeline = await ref.read(
+        roomTimelineProvider(
+          widget.account,
+          widget.roomId,
+          thread: widget.thread,
+        ).future,
+      );
+      if (!mounted) return null;
+      final reply = draft.type == DraftType.reply;
+      final entry = await timeline.draftTarget(eventId, reply: reply);
+      if (entry == null) return null;
+      return reply ? Replying(entry) : Editing(entry);
+    } on MatrixFailure {
+      return null;
+    }
+  }
+
+  void _restoreMode(ComposerMode mode) {
+    if (!mounted || ref.read(composerModeProvider(_chat)) != null) return;
+    _restoredMode = mode;
+    _setMode(mode);
+  }
+
+  /// Saves the draft [_draftDelay] after the text or mode last changed.
+  void _onDraftChange() {
+    if (_restoring) return;
+    final now = (_text.text, _mode);
+    if (_saved case (final text, final mode)
+        when text == now.$1 && identical(mode, now.$2)) {
+      return;
+    }
+    _changed = true;
+    _draftSave?.cancel();
+    _draftSave = Timer(_draftDelay, () => _saveDraft(leaving: false));
+  }
+
+  /// Keeps the draft now; [leaving] also updates the chat list's line.
+  void _saveDraft({required bool leaving}) {
+    _draftSave?.cancel();
+    if (!_changed) return;
+    _saved = (_text.text, _mode);
+    _drafts.keep(
+      widget.roomId,
+      widget.thread,
+      LiveDraft(text: _text.text, pills: _text.pills, mode: _mode),
+      leaving: leaving,
+    );
   }
 
   /// Follows what is typed before the cursor for the suggestions.
@@ -1647,6 +1757,8 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   void dispose() {
+    _saveDraft(leaving: true);
+    _lifecycle.dispose();
     _typingPause?.cancel();
     if (_typing) {
       unawaited(_typingIn?.setTyping(false).catchError((Object _) {}));
@@ -1660,7 +1772,7 @@ class _ComposerState extends ConsumerState<Composer> {
   /// Tells the room the user types while there is text and keys are pressed, and stops
   /// after [_typingTimeout] without a change, or when the text is gone.
   void _onText() {
-    if (!ref.read(sendTypingProvider)) return;
+    if (_restoring || !ref.read(sendTypingProvider)) return;
     _typingPause?.cancel();
     if (_text.text.trim().isEmpty) {
       if (_typing) _sendTyping(false);
@@ -1700,6 +1812,9 @@ class _ComposerState extends ConsumerState<Composer> {
     if ((parts.isEmpty && !editingCaption) || timeline == null) return;
     _text.clear();
     _setMode(null);
+    _draftSave?.cancel();
+    _saved = ('', null);
+    _drafts.clear(widget.roomId, widget.thread);
     _focus.requestFocus();
     final markdown = ref.read(useMarkdownProvider);
     try {
@@ -1857,9 +1972,14 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   Widget build(BuildContext context) {
-    final mode = ref.watch(composerModeProvider(_chat));
+    final mode = _mode = ref.watch(composerModeProvider(_chat));
     ref.listen(composerModeProvider(_chat), (previous, next) {
-      if (next is Editing) {
+      _mode = next;
+      final restored = identical(next, _restoredMode);
+      _restoredMode = null;
+      if (restored) {
+        // The draft's text stays.
+      } else if (next is Editing) {
         switch (next.entry) {
           case MessageEntry(:final body, :final formatted):
             final (text, pills) = pillsFromMessage(body, formatted);
@@ -1873,6 +1993,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _text.clear();
       }
       if (next != null) _focus.requestFocus();
+      _onDraftChange();
     });
     final palette = context.oxi;
     final suggestions = _suggestions = _suggestionsFor(_query);
