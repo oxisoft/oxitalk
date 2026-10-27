@@ -1,17 +1,22 @@
 //! Creating, joining and inviting to rooms.
 
-use matrix_sdk::ruma::{
-    MatrixToUri, MatrixUri, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId,
-    api::client::room::{
-        Visibility,
-        create_room::{
-            RoomPowerLevelsContentOverride,
-            v3::{Request as CreateRoomRequest, RoomPreset},
+use std::time::Duration;
+
+use matrix_sdk::{
+    EncryptionState, Room,
+    ruma::{
+        MatrixToUri, MatrixUri, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId,
+        api::client::room::{
+            Visibility,
+            create_room::{
+                RoomPowerLevelsContentOverride,
+                v3::{Request as CreateRoomRequest, RoomPreset},
+            },
         },
+        events::{InitialStateEvent, room::encryption::RoomEncryptionEventContent},
+        matrix_uri::MatrixId,
+        serde::Raw,
     },
-    events::{InitialStateEvent, room::encryption::RoomEncryptionEventContent},
-    matrix_uri::MatrixId,
-    serde::Raw,
 };
 use mime::Mime;
 
@@ -20,6 +25,37 @@ use super::{
     error::{CoreError, parse_id},
     session::Session,
 };
+
+/// How long a new encrypted room may take to show as encrypted in the sync.
+const ENCRYPTION_SYNC_DEADLINE: Duration = Duration::from_secs(10);
+
+/// Waits until the sync shows a room just made encrypted as encrypted, at most
+/// [`ENCRYPTION_SYNC_DEADLINE`].
+///
+/// The server creates a room event by event. A sync that comes in between brings the room
+/// without its encryption event, and the SDK then takes it as unencrypted until a later sync
+/// brings the event: a message or file sent until then goes unencrypted (seen on Synapse
+/// under load). Such a sync can still arrive after the room is created, so this waits for the
+/// encryption to show rather than only while the room shows unencrypted. Without a running
+/// sync the state stays unknown until the deadline, which is safe: the SDK then asks the
+/// server before sending.
+async fn encryption_synced(room: &Room) {
+    let mut infos = room.subscribe_info();
+    let encrypted = async {
+        while !room.encryption_state().is_encrypted() {
+            if infos.next().await.is_none() {
+                break;
+            }
+        }
+    };
+    if tokio::time::timeout(ENCRYPTION_SYNC_DEADLINE, encrypted)
+        .await
+        .is_err()
+        && matches!(room.encryption_state(), EncryptionState::NotEncrypted)
+    {
+        tracing::warn!(room_id = %room.room_id(), "a new encrypted room still shows unencrypted");
+    }
+}
 
 /// A room to create.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,6 +89,7 @@ impl Session {
     pub async fn create_dm(&self, user_id: String) -> Result<String, CoreError> {
         let user_id: OwnedUserId = parse_id(&user_id)?;
         let room = self.client.create_dm(&user_id).await?;
+        encryption_synced(&room).await;
         Ok(room.room_id().to_string())
     }
 
@@ -96,7 +133,11 @@ impl Session {
         // Members may join calls, as in the rooms Element creates: the call membership event
         // at level 0 (by default only moderators could send it).
         request.power_level_content_override = Some(call_power_levels()?);
+        let encrypted = !request.initial_state.is_empty();
         let created = self.client.create_room(request).await?;
+        if encrypted {
+            encryption_synced(&created).await;
+        }
         if let Some(avatar) = room.avatar {
             let mime: Mime = avatar
                 .mime_type

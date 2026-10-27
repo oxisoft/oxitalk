@@ -17,6 +17,9 @@ use tokio::sync::broadcast;
 use super::{error::CoreError, session::Session, verification::recovery_error};
 use crate::frb_generated::StreamSink;
 
+/// How long [`Session::enable_recovery`] waits for its last progress steps to be passed on.
+const PROGRESS_RELAY_DEADLINE: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// [`RecoveryState`], one to one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecoveryStatus {
@@ -116,7 +119,16 @@ impl Session {
             }
         });
         let result = enable.await;
-        forward.abort();
+        // Every step is passed on before returning, the last (Done) too: aborting the relay
+        // here lost the steps it hadn't passed on yet (seen under load). With the enabling
+        // finished its sender is gone, so the relay ends once it has caught up.
+        let mut forward = forward;
+        if tokio::time::timeout(PROGRESS_RELAY_DEADLINE, &mut forward)
+            .await
+            .is_err()
+        {
+            forward.abort();
+        }
         result.map_err(|error| enable_error(&error))
     }
 
