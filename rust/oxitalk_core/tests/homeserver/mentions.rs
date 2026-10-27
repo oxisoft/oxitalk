@@ -333,7 +333,7 @@ async fn edits_and_thread_replies_keep_their_mentions() -> TestResult {
     );
     assert_eq!(content["m.mentions"], json!({}));
     items
-        .wait_until(|items| event_of(items, "hello Bob").is_some())
+        .wait_paging(&timeline, |items| event_of(items, "hello Bob").is_some())
         .await?;
 
     // A pill in a thread reply.

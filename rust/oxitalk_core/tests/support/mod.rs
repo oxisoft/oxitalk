@@ -51,6 +51,31 @@ pub(crate) struct Watched<T, D> {
     pub(crate) items: Vec<T>,
 }
 
+impl Watched<TimelineItem, TimelineDiff> {
+    /// Like [`Self::wait_until`], paging back while waiting, as the app does when the user
+    /// scrolls up: for an item older than what came since. A sync that resets the room's
+    /// timeline (a limited sync leaves only the newest events; seen on Tuwunel under load)
+    /// takes the older items out of it until they are loaded again.
+    #[track_caller]
+    pub(crate) fn wait_paging<'a>(
+        &'a mut self,
+        timeline: &'a Timeline,
+        done: impl Fn(&[TimelineItem]) -> bool + 'a,
+    ) -> impl Future<Output = TestResult> + 'a {
+        let at = std::panic::Location::caller();
+        async move {
+            tokio::time::timeout(TIMEOUT, async {
+                while !self.holds_within(Duration::from_secs(1), &done).await? {
+                    timeline.paginate_back(20).await?;
+                }
+                Ok::<_, Box<dyn Error>>(())
+            })
+            .await
+            .map_err(|_| format!("timed out waiting for the timeline at {at}"))?
+        }
+    }
+}
+
 impl<T, D> Watched<T, D> {
     /// Applies batches until `done` holds for the list or `within` passed: `false` then.
     pub(crate) async fn holds_within(

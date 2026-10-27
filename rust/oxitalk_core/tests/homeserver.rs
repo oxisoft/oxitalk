@@ -699,7 +699,7 @@ async fn replies_in_a_thread_stay_in_it() -> TestResult {
 
     // Alice: the first message carries the thread; the reply isn't in the main timeline.
     alice_items
-        .wait_until(|items| {
+        .wait_paging(&alice_timeline, |items| {
             event_of(items, "lunch?").is_some_and(|e| {
                 e.thread.as_ref().is_some_and(|thread| {
                     thread.reply_count == 1
@@ -724,7 +724,7 @@ async fn replies_in_a_thread_stay_in_it() -> TestResult {
         .await?;
     alice_thread.send_text("deal".to_owned(), false).await?;
     alice_items
-        .wait_until(|items| {
+        .wait_paging(&alice_timeline, |items| {
             event_of(items, "lunch?")
                 .is_some_and(|e| e.thread.as_ref().is_some_and(|t| t.reply_count == 2))
         })
@@ -779,7 +779,7 @@ async fn the_chat_list_shows_no_thread_replies() -> TestResult {
     timeline.send_text("main after".to_owned(), false).await?;
     thread.send_text("late in thread".to_owned(), false).await?;
     items
-        .wait_until(|items| {
+        .wait_paging(&timeline, |items| {
             event_of(items, "lunch?")
                 .is_some_and(|e| e.thread.as_ref().is_some_and(|t| t.reply_count == 1))
         })
@@ -817,7 +817,7 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
         .await?;
     let bob_id = bob.user_id();
     alice_items
-        .wait_until(|items| {
+        .wait_paging(&alice_timeline, |items| {
             event_of(items, "hello").is_some_and(|e| {
                 e.reactions.len() == 1
                     && e.reactions[0].key == "👍"
@@ -827,7 +827,7 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
         })
         .await?;
     bob_items
-        .wait_until(|items| {
+        .wait_paging(&bob_timeline, |items| {
             event_of(items, "hello").is_some_and(|e| e.reactions.first().is_some_and(|r| r.mine))
         })
         .await?;
@@ -849,11 +849,13 @@ async fn reactions_replies_edits_and_deletions_reach_the_other_side() -> TestRes
         .edit(id.clone(), "hello there".to_owned(), false, false)
         .await?;
     bob_items
-        .wait_until(|items| event_of(items, "hello there").is_some_and(|e| e.is_edited))
+        .wait_paging(&bob_timeline, |items| {
+            event_of(items, "hello there").is_some_and(|e| e.is_edited)
+        })
         .await?;
     alice_timeline.redact(id.clone(), None).await?;
     bob_items
-        .wait_until(|items| {
+        .wait_paging(&bob_timeline, |items| {
             items.iter().any(|item| {
                 matches!(&item.content, TimelineItemContent::Redacted { event }
                     if event.event_id.as_deref() == Some(id.as_str()))
@@ -1008,7 +1010,7 @@ async fn voice_messages_and_videos_arrive_as_such() -> TestResult {
         .send_voice(clip.data, clip.duration_ms, clip.waveform, None)
         .await?;
     alice_items
-        .wait_until(|items| {
+        .wait_paging(&alice_timeline, |items| {
             event_of(items, "how was it?")
                 .is_some_and(|e| e.thread.as_ref().is_some_and(|t| t.reply_count == 1))
         })
