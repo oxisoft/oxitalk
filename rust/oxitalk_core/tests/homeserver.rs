@@ -19,6 +19,8 @@ mod recovery;
 mod room_settings;
 #[path = "homeserver/search.rs"]
 mod search;
+#[path = "homeserver/server_info.rs"]
+mod server_info;
 mod support;
 
 use std::{

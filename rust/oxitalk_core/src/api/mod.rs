@@ -25,6 +25,7 @@ pub mod room_settings;
 pub mod rooms;
 pub mod search;
 pub mod sections;
+pub mod server_info;
 pub mod session;
 pub mod sync;
 pub mod threads;

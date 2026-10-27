@@ -23,6 +23,7 @@ import 'api/room_settings.dart';
 import 'api/rooms.dart';
 import 'api/search.dart';
 import 'api/sections.dart';
+import 'api/server_info.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
 import 'api/threads.dart';
@@ -241,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  Availability dco_decode_availability(dynamic raw);
+
+  @protected
   BlockKind dco_decode_block_kind(dynamic raw);
 
   @protected
@@ -257,6 +261,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  LoginInfo dco_decode_box_autoadd_login_info(dynamic raw);
 
   @protected
   MediaKind dco_decode_box_autoadd_media_kind(dynamic raw);
@@ -288,7 +295,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SectionSettings dco_decode_box_autoadd_section_settings(dynamic raw);
 
   @protected
+  ServerCapabilities dco_decode_box_autoadd_server_capabilities(dynamic raw);
+
+  @protected
+  ServerSoftware dco_decode_box_autoadd_server_software(dynamic raw);
+
+  @protected
   SessionData dco_decode_box_autoadd_session_data(dynamic raw);
+
+  @protected
+  SupportInfo dco_decode_box_autoadd_support_info(dynamic raw);
 
   @protected
   ThreadEvent dco_decode_box_autoadd_thread_event(dynamic raw);
@@ -300,7 +316,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TimelineItem dco_decode_box_autoadd_timeline_item(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_16(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  ConnectionInfo dco_decode_connection_info(dynamic raw);
 
   @protected
   CoreError dco_decode_core_error(dynamic raw);
@@ -316,6 +341,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EventInfo dco_decode_event_info(dynamic raw);
+
+  @protected
+  Federation dco_decode_federation(dynamic raw);
 
   @protected
   HistoryVisibilityKind dco_decode_history_visibility_kind(dynamic raw);
@@ -408,7 +436,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomTags> dco_decode_list_room_tags(dynamic raw);
 
   @protected
+  List<RoomVersion> dco_decode_list_room_version(dynamic raw);
+
+  @protected
   List<SearchHit> dco_decode_list_search_hit(dynamic raw);
+
+  @protected
+  List<SupportContact> dco_decode_list_support_contact(dynamic raw);
 
   @protected
   List<ThreadSummary> dco_decode_list_thread_summary(dynamic raw);
@@ -420,10 +454,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TimelineItem> dco_decode_list_timeline_item(dynamic raw);
 
   @protected
+  List<UnstableFeature> dco_decode_list_unstable_feature(dynamic raw);
+
+  @protected
   List<VerificationEmoji> dco_decode_list_verification_emoji(dynamic raw);
 
   @protected
   LogLevel dco_decode_log_level(dynamic raw);
+
+  @protected
+  LoginInfo dco_decode_login_info(dynamic raw);
 
   @protected
   MediaKind dco_decode_media_kind(dynamic raw);
@@ -465,6 +505,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  LoginInfo? dco_decode_opt_box_autoadd_login_info(dynamic raw);
+
+  @protected
   MediaKind? dco_decode_opt_box_autoadd_media_kind(dynamic raw);
 
   @protected
@@ -479,13 +522,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ServerCapabilities? dco_decode_opt_box_autoadd_server_capabilities(
+    dynamic raw,
+  );
+
+  @protected
+  ServerSoftware? dco_decode_opt_box_autoadd_server_software(dynamic raw);
+
+  @protected
+  SupportInfo? dco_decode_opt_box_autoadd_support_info(dynamic raw);
+
+  @protected
   ThreadEvent? dco_decode_opt_box_autoadd_thread_event(dynamic raw);
 
   @protected
   ThreadInfo? dco_decode_opt_box_autoadd_thread_info(dynamic raw);
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
   @protected
   Uint16List? dco_decode_opt_list_prim_u_16_strict(dynamic raw);
@@ -504,6 +564,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PowerLevelChange dco_decode_power_level_change(dynamic raw);
+
+  @protected
+  Probe dco_decode_probe(dynamic raw);
 
   @protected
   Profile dco_decode_profile(dynamic raw);
@@ -572,6 +635,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomTyping dco_decode_room_typing(dynamic raw);
 
   @protected
+  RoomVersion dco_decode_room_version(dynamic raw);
+
+  @protected
   SearchHit dco_decode_search_hit(dynamic raw);
 
   @protected
@@ -587,10 +653,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SendState dco_decode_send_state(dynamic raw);
 
   @protected
+  ServerCapabilities dco_decode_server_capabilities(dynamic raw);
+
+  @protected
+  ServerInfo dco_decode_server_info(dynamic raw);
+
+  @protected
+  ServerSoftware dco_decode_server_software(dynamic raw);
+
+  @protected
   SessionChange dco_decode_session_change(dynamic raw);
 
   @protected
   SessionData dco_decode_session_data(dynamic raw);
+
+  @protected
+  SupportContact dco_decode_support_contact(dynamic raw);
+
+  @protected
+  SupportInfo dco_decode_support_info(dynamic raw);
 
   @protected
   SyncState dco_decode_sync_state(dynamic raw);
@@ -620,10 +701,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_u_32(dynamic raw);
 
   @protected
+  BigInt dco_decode_u_64(dynamic raw);
+
+  @protected
   int dco_decode_u_8(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  UnstableFeature dco_decode_unstable_feature(dynamic raw);
 
   @protected
   UserProfile dco_decode_user_profile(dynamic raw);
@@ -832,6 +919,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  Availability sse_decode_availability(SseDeserializer deserializer);
+
+  @protected
   BlockKind sse_decode_block_kind(SseDeserializer deserializer);
 
   @protected
@@ -848,6 +938,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  LoginInfo sse_decode_box_autoadd_login_info(SseDeserializer deserializer);
 
   @protected
   MediaKind sse_decode_box_autoadd_media_kind(SseDeserializer deserializer);
@@ -883,7 +976,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ServerCapabilities sse_decode_box_autoadd_server_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ServerSoftware sse_decode_box_autoadd_server_software(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SessionData sse_decode_box_autoadd_session_data(SseDeserializer deserializer);
+
+  @protected
+  SupportInfo sse_decode_box_autoadd_support_info(SseDeserializer deserializer);
 
   @protected
   ThreadEvent sse_decode_box_autoadd_thread_event(SseDeserializer deserializer);
@@ -897,7 +1003,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  ConnectionInfo sse_decode_connection_info(SseDeserializer deserializer);
 
   @protected
   CoreError sse_decode_core_error(SseDeserializer deserializer);
@@ -913,6 +1028,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EventInfo sse_decode_event_info(SseDeserializer deserializer);
+
+  @protected
+  Federation sse_decode_federation(SseDeserializer deserializer);
 
   @protected
   HistoryVisibilityKind sse_decode_history_visibility_kind(
@@ -1017,7 +1135,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RoomTags> sse_decode_list_room_tags(SseDeserializer deserializer);
 
   @protected
+  List<RoomVersion> sse_decode_list_room_version(SseDeserializer deserializer);
+
+  @protected
   List<SearchHit> sse_decode_list_search_hit(SseDeserializer deserializer);
+
+  @protected
+  List<SupportContact> sse_decode_list_support_contact(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ThreadSummary> sse_decode_list_thread_summary(
@@ -1035,12 +1161,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnstableFeature> sse_decode_list_unstable_feature(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<VerificationEmoji> sse_decode_list_verification_emoji(
     SseDeserializer deserializer,
   );
 
   @protected
   LogLevel sse_decode_log_level(SseDeserializer deserializer);
+
+  @protected
+  LoginInfo sse_decode_login_info(SseDeserializer deserializer);
 
   @protected
   MediaKind sse_decode_media_kind(SseDeserializer deserializer);
@@ -1084,6 +1218,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  LoginInfo? sse_decode_opt_box_autoadd_login_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   MediaKind? sse_decode_opt_box_autoadd_media_kind(
     SseDeserializer deserializer,
   );
@@ -1104,6 +1243,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ServerCapabilities? sse_decode_opt_box_autoadd_server_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ServerSoftware? sse_decode_opt_box_autoadd_server_software(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SupportInfo? sse_decode_opt_box_autoadd_support_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ThreadEvent? sse_decode_opt_box_autoadd_thread_event(
     SseDeserializer deserializer,
   );
@@ -1114,7 +1268,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
   Uint16List? sse_decode_opt_list_prim_u_16_strict(
@@ -1137,6 +1297,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PowerLevelChange sse_decode_power_level_change(SseDeserializer deserializer);
+
+  @protected
+  Probe sse_decode_probe(SseDeserializer deserializer);
 
   @protected
   Profile sse_decode_profile(SseDeserializer deserializer);
@@ -1207,6 +1370,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoomTyping sse_decode_room_typing(SseDeserializer deserializer);
 
   @protected
+  RoomVersion sse_decode_room_version(SseDeserializer deserializer);
+
+  @protected
   SearchHit sse_decode_search_hit(SseDeserializer deserializer);
 
   @protected
@@ -1222,10 +1388,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SendState sse_decode_send_state(SseDeserializer deserializer);
 
   @protected
+  ServerCapabilities sse_decode_server_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ServerInfo sse_decode_server_info(SseDeserializer deserializer);
+
+  @protected
+  ServerSoftware sse_decode_server_software(SseDeserializer deserializer);
+
+  @protected
   SessionChange sse_decode_session_change(SseDeserializer deserializer);
 
   @protected
   SessionData sse_decode_session_data(SseDeserializer deserializer);
+
+  @protected
+  SupportContact sse_decode_support_contact(SseDeserializer deserializer);
+
+  @protected
+  SupportInfo sse_decode_support_info(SseDeserializer deserializer);
 
   @protected
   SyncState sse_decode_sync_state(SseDeserializer deserializer);
@@ -1257,10 +1440,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UnstableFeature sse_decode_unstable_feature(SseDeserializer deserializer);
 
   @protected
   UserProfile sse_decode_user_profile(SseDeserializer deserializer);
@@ -1512,6 +1701,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_availability(Availability self, SseSerializer serializer);
+
+  @protected
   void sse_encode_block_kind(BlockKind self, SseSerializer serializer);
 
   @protected
@@ -1535,6 +1727,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_login_info(
+    LoginInfo self,
     SseSerializer serializer,
   );
 
@@ -1590,8 +1788,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_server_capabilities(
+    ServerCapabilities self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_server_software(
+    ServerSoftware self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_session_data(
     SessionData self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_support_info(
+    SupportInfo self,
     SseSerializer serializer,
   );
 
@@ -1614,7 +1830,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_connection_info(
+    ConnectionInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_core_error(CoreError self, SseSerializer serializer);
@@ -1633,6 +1861,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_event_info(EventInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_federation(Federation self, SseSerializer serializer);
 
   @protected
   void sse_encode_history_visibility_kind(
@@ -1779,8 +2010,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_room_tags(List<RoomTags> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_room_version(
+    List<RoomVersion> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_search_hit(
     List<SearchHit> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_support_contact(
+    List<SupportContact> self,
     SseSerializer serializer,
   );
 
@@ -1803,6 +2046,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_unstable_feature(
+    List<UnstableFeature> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_verification_emoji(
     List<VerificationEmoji> self,
     SseSerializer serializer,
@@ -1810,6 +2059,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_log_level(LogLevel self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_login_info(LoginInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_media_kind(MediaKind self, SseSerializer serializer);
@@ -1863,6 +2115,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_login_info(
+    LoginInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_media_kind(
     MediaKind? self,
     SseSerializer serializer,
@@ -1887,6 +2145,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_server_capabilities(
+    ServerCapabilities? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_server_software(
+    ServerSoftware? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_support_info(
+    SupportInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_thread_event(
     ThreadEvent? self,
     SseSerializer serializer,
@@ -1899,7 +2175,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_list_prim_u_16_strict(
@@ -1933,6 +2215,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     PowerLevelChange self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_probe(Probe self, SseSerializer serializer);
 
   @protected
   void sse_encode_profile(Profile self, SseSerializer serializer);
@@ -2013,6 +2298,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_room_typing(RoomTyping self, SseSerializer serializer);
 
   @protected
+  void sse_encode_room_version(RoomVersion self, SseSerializer serializer);
+
+  @protected
   void sse_encode_search_hit(SearchHit self, SseSerializer serializer);
 
   @protected
@@ -2034,10 +2322,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_send_state(SendState self, SseSerializer serializer);
 
   @protected
+  void sse_encode_server_capabilities(
+    ServerCapabilities self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_server_info(ServerInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_server_software(
+    ServerSoftware self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_session_change(SessionChange self, SseSerializer serializer);
 
   @protected
   void sse_encode_session_data(SessionData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_support_contact(
+    SupportContact self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_support_info(SupportInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_sync_state(SyncState self, SseSerializer serializer);
@@ -2070,10 +2382,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_unstable_feature(
+    UnstableFeature self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_user_profile(UserProfile self, SseSerializer serializer);

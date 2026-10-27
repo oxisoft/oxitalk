@@ -24,6 +24,7 @@ import 'room_settings.dart';
 import 'rooms.dart';
 import 'search.dart';
 import 'sections.dart';
+import 'server_info.dart';
 import 'sync.dart';
 import 'threads.dart';
 import 'timeline.dart';
@@ -516,6 +517,15 @@ abstract class Session implements RustOpaqueInterface {
     required String query,
     required int limit,
   });
+
+  /// What can be found out about this account's homeserver; see [`ServerInfo`]. Each
+  /// session is one account, so the app asks the picked account's session.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::SessionExpired`] if the session has been logged out. A part the server
+  /// doesn't answer is left unknown instead.
+  Future<ServerInfo> serverInfo();
 
   /// What the app stores to [`restore`] this session later.
   ///

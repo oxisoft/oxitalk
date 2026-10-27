@@ -13,6 +13,7 @@ use matrix_sdk::test_utils::mocks::MatrixMockServer;
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
+    server_info::{Availability, Federation, Probe},
     session::{Session, SessionChange, SessionData, restore},
     sync::SyncState,
 };
@@ -227,5 +228,221 @@ async fn a_session_can_be_dropped_outside_the_runtime() -> TestResult {
     assert!(dropped.is_ok(), "dropping the session panicked");
     // Time for the stores to close on the runtime.
     tokio::time::sleep(Duration::from_secs(2)).await;
+    Ok(())
+}
+
+/// A session of `@alice:localhost` on `server`: its `.well-known` documents are asked of
+/// `https://localhost/`, which isn't there, so nothing leaves the machine.
+async fn server_info_session(
+    server: &MatrixMockServer,
+    store_dir: &str,
+) -> Result<Session, CoreError> {
+    init_app();
+    restore(
+        SessionData {
+            user_id: "@alice:localhost".to_owned(),
+            ..session_data(server)
+        },
+        store_dir.to_owned(),
+        PASSPHRASE.to_owned(),
+    )
+    .await
+}
+
+async fn mount_get(server: &MatrixMockServer, at: &str, response: ResponseTemplate) {
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path(at))
+        .respond_with(response)
+        .mount(server.server())
+        .await;
+}
+
+/// The paths of the GET requests the server got, in order.
+async fn asked(server: &MatrixMockServer) -> Vec<String> {
+    server
+        .server()
+        .received_requests()
+        .await
+        .unwrap_or_default()
+        .iter()
+        .map(|r| r.url.path().to_owned())
+        .collect()
+}
+
+/// As chat.oxisoft.net: federation refused, the software told by Tuwunel's own endpoint, so
+/// the endpoints after it (whose Synapse shim would say "Synapse") aren't asked.
+#[tokio::test(flavor = "multi_thread")]
+async fn server_info_finds_tuwunel_with_federation_disabled() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    server.mock_versions().ok().mount().await;
+    mount_get(
+        &server,
+        "/_matrix/federation/v1/version",
+        ResponseTemplate::new(403).set_body_json(json!({
+            "errcode": "M_FORBIDDEN", "error": "Federation is disabled."
+        })),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_tuwunel/server_version",
+        ResponseTemplate::new(200).set_body_json(json!({"name": "Tuwunel", "version": "1.9.4"})),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_synapse/admin/v1/server_version",
+        ResponseTemplate::new(200).set_body_json(json!({"server_version": "1.9.4"})),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_matrix/client/v3/login",
+        ResponseTemplate::new(200).set_body_json(json!({"flows": [
+            {"type": "m.login.application_service"},
+            {"type": "m.login.token", "get_login_token": true},
+            {"type": "m.login.password"}
+        ]})),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_matrix/client/v1/auth_metadata",
+        ResponseTemplate::new(404).set_body_json(json!({
+            "errcode": "M_UNRECOGNIZED", "error": "OIDC server not configured"
+        })),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_matrix/client/v3/capabilities",
+        ResponseTemplate::new(200).set_body_json(json!({"capabilities": {
+            "m.room_versions": {"default": "11", "available": {"10": "stable", "11": "stable"}}
+        }})),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_matrix/client/v1/media/config",
+        ResponseTemplate::new(200).set_body_json(json!({"m.upload.size": 104_857_600})),
+    )
+    .await;
+    let store = tempfile::tempdir()?;
+    let session = server_info_session(&server, &store.path().to_string_lossy()).await?;
+
+    let info = session.server_info().await?;
+
+    let software = info.software.ok_or("no software")?;
+    assert_eq!(software.name.as_deref(), Some("Tuwunel"));
+    assert_eq!(software.version.as_deref(), Some("1.9.4"));
+    assert_eq!(software.source, "/_tuwunel/server_version");
+    assert_eq!(info.federation, Federation::Disabled);
+    let paths = asked(&server).await;
+    assert!(
+        !paths
+            .iter()
+            .any(|p| p.starts_with("/_synapse") || p.starts_with("/_conduwuit")),
+        "{paths:?}"
+    );
+    assert_eq!(info.server_name, "localhost");
+    assert_eq!(info.user_id, "@alice:localhost");
+    assert!(info.versions_known);
+    assert!(info.newest_spec_version.is_some());
+    let login = info.login.ok_or("no login")?;
+    assert_eq!(login.flows.len(), 3);
+    assert!(login.get_login_token);
+    assert_eq!(info.oauth, Availability::No);
+    let capabilities = info.capabilities.ok_or("no capabilities")?;
+    assert_eq!(capabilities.default_room_version.as_deref(), Some("11"));
+    assert_eq!(info.upload_limit_bytes, Some(104_857_600));
+    assert!(!info.connection.tls);
+    assert!(info.connection.round_trip_ms.is_some());
+    assert!(info.connection.addresses.contains(&"127.0.0.1".to_owned()));
+    // https://localhost/ isn't served: the documents are unknown, the call still succeeds.
+    assert_eq!(info.well_known_client, Probe::NoAnswer);
+    assert_eq!(info.well_known_support, Probe::NoAnswer);
+    Ok(())
+}
+
+/// A server that answers none of the optional endpoints: every part is unknown, the
+/// software endpoints are asked in order down to Synapse's, the legacy media config and the
+/// unstable OAuth issuer are tried.
+#[tokio::test(flavor = "multi_thread")]
+async fn server_info_falls_back_when_endpoints_are_missing() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    server.mock_versions().ok().mount().await;
+    mount_get(
+        &server,
+        "/_matrix/media/v3/config",
+        ResponseTemplate::new(200).set_body_json(json!({"m.upload.size": 1024})),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_matrix/client/unstable/org.matrix.msc2965/auth_issuer",
+        ResponseTemplate::new(200).set_body_json(json!({"issuer": "https://auth.localhost/"})),
+    )
+    .await;
+    let store = tempfile::tempdir()?;
+    let session = server_info_session(&server, &store.path().to_string_lossy()).await?;
+
+    let info = session.server_info().await?;
+
+    assert_eq!(info.software, None);
+    assert_eq!(info.federation, Federation::Unknown);
+    assert_eq!(info.login, None);
+    assert_eq!(info.capabilities, None);
+    assert_eq!(info.upload_limit_bytes, Some(1024));
+    assert_eq!(info.oauth, Availability::Yes);
+    assert_eq!(
+        info.oauth_issuer.as_deref(),
+        Some("https://auth.localhost/")
+    );
+    let paths = asked(&server).await;
+    let order: Vec<_> = paths
+        .iter()
+        .filter(|p| SOFTWARE_PATHS.contains(&p.as_str()))
+        .cloned()
+        .collect();
+    assert_eq!(order, SOFTWARE_PATHS);
+    Ok(())
+}
+
+const SOFTWARE_PATHS: [&str; 4] = [
+    "/_matrix/federation/v1/version",
+    "/_tuwunel/server_version",
+    "/_conduwuit/server_version",
+    "/_synapse/admin/v1/server_version",
+];
+
+/// Synapse with federation on: the federation answer tells the software, and nothing else
+/// is asked.
+#[tokio::test(flavor = "multi_thread")]
+async fn server_info_reads_the_software_from_federation() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    server.mock_versions().ok().mount().await;
+    mount_get(
+        &server,
+        "/_matrix/federation/v1/version",
+        ResponseTemplate::new(200)
+            .set_body_json(json!({"server": {"name": "Synapse", "version": "1.162.0"}})),
+    )
+    .await;
+    let store = tempfile::tempdir()?;
+    let session = server_info_session(&server, &store.path().to_string_lossy()).await?;
+
+    let info = session.server_info().await?;
+
+    assert_eq!(info.federation, Federation::Enabled);
+    let software = info.software.ok_or("no software")?;
+    assert_eq!(
+        (software.name.as_deref(), software.version.as_deref()),
+        (Some("Synapse"), Some("1.162.0"))
+    );
+    let paths = asked(&server).await;
+    assert!(
+        !paths.iter().any(|p| p.starts_with("/_tuwunel")),
+        "{paths:?}"
+    );
     Ok(())
 }
