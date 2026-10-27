@@ -25,7 +25,7 @@ use super::{
     TestResult, TestUser, event_of, homeserver_url, joined_dm, poll_until, watch_rooms,
     watch_timeline,
 };
-use crate::support::TIMEOUT;
+use crate::support::{TIMEOUT, next_matching};
 
 fn text(text: &str) -> MessagePart {
     MessagePart::Text {
@@ -392,21 +392,13 @@ async fn users_and_messages_are_reported_and_verification_asked() -> TestResult 
     // Verify: the request goes to Bob in the direct chat.
     let verification = alice.verify_user(bob_id.clone()).await?;
     let (sender, mut states) = tokio::sync::mpsc::unbounded_channel();
-    let follow = async {
-        verification
-            .state_updates(move |state| sender.send(state).is_ok())
-            .await;
+    let follow = verification.state_updates(move |state| sender.send(state).is_ok());
+    // Followed until the first state comes, however long that takes.
+    let state = tokio::select! {
+        biased;
+        state = tokio::time::timeout(TIMEOUT, states.recv()) => state.ok().flatten(),
+        () = follow => states.try_recv().ok(),
     };
-    let first_state = async {
-        tokio::time::timeout(TIMEOUT, states.recv())
-            .await
-            .ok()
-            .flatten()
-    };
-    let (_, state) = tokio::join!(
-        tokio::time::timeout(Duration::from_secs(3), follow),
-        first_state
-    );
     assert_eq!(state, Some(VerificationFlowState::Created));
     let mut bob_items = watch_timeline(&bob_timeline).await;
     bob_timeline.paginate_back(20).await?;
@@ -440,9 +432,7 @@ async fn ignored_users_are_hidden_until_unignored() -> TestResult {
         .ok_or("no list")?;
     assert_eq!(first, Vec::<String>::new());
     alice.ignore_user(bob_id.clone()).await?;
-    let list = tokio::time::timeout(TIMEOUT, lists.next())
-        .await?
-        .ok_or("no list")?;
+    let list = next_matching(&mut lists, "Bob is on the list", |list| !list.is_empty()).await?;
     assert_eq!(list, std::slice::from_ref(&bob_id));
     assert_eq!(alice.ignored_users().await?, std::slice::from_ref(&bob_id));
     assert!(alice.user_profile(bob_id.clone(), None).await?.ignored);
@@ -469,9 +459,7 @@ async fn ignored_users_are_hidden_until_unignored() -> TestResult {
     );
 
     alice.unignore_user(bob_id.clone()).await?;
-    let list = tokio::time::timeout(TIMEOUT, lists.next())
-        .await?
-        .ok_or("no list")?;
+    let list = next_matching(&mut lists, "the list is empty again", Vec::is_empty).await?;
     assert_eq!(list, Vec::<String>::new());
     let timeline = alice.timeline(room_id.clone()).await?;
     let mut items = watch_timeline(&timeline).await;

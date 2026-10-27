@@ -147,7 +147,12 @@ async fn leaving_warns_first_and_drops_the_room() -> TestResult {
     .await?;
     assert!(info.last_admin, "{info:?}");
     assert!(info.needs_invite_to_rejoin);
-    let bob_info = bob.leave_info(room.clone()).await?;
+    // Bob's store gets the room's members and power levels with his next syncs.
+    let bob_info = poll_until("Bob sees Alice in the room", || async {
+        let info = bob.leave_info(room.clone()).await?;
+        Ok((!info.only_member).then_some(info))
+    })
+    .await?;
     assert!(!bob_info.last_admin && !bob_info.only_member);
 
     // Bob as a second admin: Alice is no longer the last one.

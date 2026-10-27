@@ -90,7 +90,10 @@ async fn room_details_are_edited_and_power_levels_gate_them() -> TestResult {
         Err(CoreError::Forbidden { .. })
     ));
 
-    let alice_settings = alice.room_settings(room.clone()).await?;
+    // Alice's own settings: the room's power levels reach her store with a sync.
+    let mut alice_states = watch_settings(&alice, &room)?;
+    let alice_settings =
+        wait_for_settings(&mut alice_states, "Alice may edit", |s| s.permissions.name).await?;
     assert!(alice_settings.permissions.name && alice_settings.permissions.encryption);
     assert_eq!(alice_settings.server_name, "localhost");
 
@@ -114,8 +117,13 @@ async fn room_details_are_edited_and_power_levels_gate_them() -> TestResult {
             .avatar_url
             .is_some_and(|url| url.starts_with("mxc://"))
     );
-    // The info header follows too.
-    let details = bob.room_details(room.clone()).await?;
+    // The info header follows too. The SDK works the display name out after it has announced
+    // the room's new state, so it can lag the settings by a moment.
+    let details = poll_until("Bob's info header has the new name", || async {
+        let details = bob.room_details(room.clone()).await?;
+        Ok((details.name == "After").then_some(details))
+    })
+    .await?;
     assert_eq!(details.name, "After");
 
     alice.remove_room_avatar(room.clone()).await?;
@@ -139,7 +147,6 @@ async fn room_details_are_edited_and_power_levels_gate_them() -> TestResult {
     assert!(moderator.permissions.address && moderator.permissions.join_rule);
     assert!(!moderator.permissions.history && !moderator.permissions.encryption);
     bob.set_room_name(room.clone(), "Bob's".to_owned()).await?;
-    let mut alice_states = watch_settings(&alice, &room)?;
     wait_for_settings(&mut alice_states, "Alice sees Bob's name", |s| {
         s.name.as_deref() == Some("Bob's")
     })

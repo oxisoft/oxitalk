@@ -29,7 +29,10 @@ mod support;
 
 use std::{
     error::Error,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -71,7 +74,9 @@ use oxitalk_core::api::{
     voice::{encode_voice, playable_wav},
 };
 use serde_json::json;
-use support::{TIMEOUT, TestResult, messages, poll_until, watch_rooms, watch_timeline};
+use support::{
+    TIMEOUT, TestResult, messages, next_matching, poll_until, watch_rooms, watch_timeline,
+};
 use tokio::sync::mpsc;
 
 const PASSPHRASE: &str = "store passphrase";
@@ -92,10 +97,16 @@ struct TestUser {
 
 impl TestUser {
     async fn register() -> Result<Self, Box<dyn Error>> {
+        // Tells apart users registered in the same nanosecond, on other threads or processes.
+        static REGISTERED: AtomicU32 = AtomicU32::new(0);
         init_app();
         // A name no earlier run has taken: the server keeps its data until `compose down -v`.
         let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-        let name = format!("user{nanos}");
+        let name = format!(
+            "user{nanos}p{}n{}",
+            std::process::id(),
+            REGISTERED.fetch_add(1, Ordering::Relaxed)
+        );
         let password = format!("{name}-password");
 
         let mut request = RegistrationRequest::new();
@@ -112,16 +123,65 @@ impl TestUser {
         Ok(Self { name, password })
     }
 
+    /// Logs in on a new device and waits until its keys and the account's identity are on the
+    /// server, as for any device someone writes to. Until then another user's client may find
+    /// no device to encrypt for, or one that changes under it, and what it sends then can't be
+    /// decrypted here.
     async fn login(&self, store_dir: &str) -> Result<Session, CoreError> {
-        login(
+        let session = login(
             homeserver_url(),
             self.name.clone(),
             self.password.clone(),
             store_dir.to_owned(),
             PASSPHRASE.to_owned(),
         )
+        .await?;
+        tokio::time::timeout(
+            TIMEOUT,
+            session
+                .sdk()
+                .encryption()
+                .wait_for_e2ee_initialization_tasks(),
+        )
         .await
+        .map_err(|_| CoreError::Internal {
+            message: "the device's keys never went up".to_owned(),
+        })?;
+        Ok(session)
     }
+}
+
+/// Bob accepts Alice's invitation to a direct chat: once it shows as one, as for a person,
+/// since the member event that marks it direct can come a sync after the room. Then waits
+/// until the chat is a direct chat on both sides; Alice's mark (`m.direct`) and Bob's come
+/// back with later syncs.
+async fn accept_dm(
+    alice: &Session,
+    bob: &Session,
+    bob_rooms: &mut support::Watched<RoomSummary, oxitalk_core::api::room_list::RoomListDiff>,
+    room_id: &str,
+) -> TestResult {
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.membership == Membership::Invited && r.is_dm)
+        })
+        .await
+        .map_err(|error| format!("{error}: the invitation as a direct chat"))?;
+    bob.join(room_id.to_owned()).await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.membership == Membership::Joined && r.is_dm)
+        })
+        .await
+        .map_err(|error| format!("{error}: Bob's direct chat, joined"))?;
+    poll_until("Alice has the chat as her direct chat with Bob", || async {
+        Ok((alice.dm_with(bob.user_id())?.as_deref() == Some(room_id)).then_some(()))
+    })
+    .await
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -162,14 +222,7 @@ async fn encrypted_dm_both_ways_and_after_a_restore() -> TestResult {
     // Alice opens a DM; Bob sees the invite and joins.
     let room_id = alice.create_dm(bob.user_id()).await?;
     let mut bob_rooms = watch_rooms(&bob).await?;
-    bob_rooms
-        .wait_until(|rooms| {
-            rooms
-                .iter()
-                .any(|r| r.room_id == room_id && r.membership == Membership::Invited)
-        })
-        .await?;
-    bob.join(room_id.clone()).await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
     bob_rooms
         .wait_until(|rooms| {
             rooms.iter().any(|r| {
@@ -268,10 +321,7 @@ async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
     bob.start_sync().await;
     let room_id = alice.create_dm(bob.user_id()).await?;
     let mut bob_rooms = watch_rooms(&bob).await?;
-    bob_rooms
-        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
-        .await?;
-    bob.join(room_id.clone()).await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
     bob_rooms
         .wait_until(|rooms| {
             rooms.iter().any(|r| {
@@ -426,10 +476,7 @@ async fn marking_a_chat_read_clears_its_unread_count() -> TestResult {
 
     let room_id = alice.create_dm(bob.user_id()).await?;
     let mut bob_rooms = watch_rooms(&bob).await?;
-    bob_rooms
-        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
-        .await?;
-    bob.join(room_id.clone()).await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
     let alice_timeline = alice.timeline(room_id.clone()).await?;
     alice_timeline.send_text("one".to_owned(), false).await?;
     alice_timeline.send_text("two".to_owned(), false).await?;
@@ -457,7 +504,8 @@ async fn marking_a_chat_read_clears_its_unread_count() -> TestResult {
     Ok(())
 }
 
-/// Alice and Bob in an encrypted DM that Bob has joined, with the room ID.
+/// Alice and Bob in an encrypted DM that Bob has joined and both have as a DM, with the room
+/// ID.
 async fn joined_dm() -> Result<(Session, Session, String, Vec<tempfile::TempDir>), Box<dyn Error>> {
     let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
     let stores = vec![tempfile::tempdir()?, tempfile::tempdir()?];
@@ -469,17 +517,7 @@ async fn joined_dm() -> Result<(Session, Session, String, Vec<tempfile::TempDir>
     bob.start_sync().await;
     let room_id = alice.create_dm(bob.user_id()).await?;
     let mut bob_rooms = watch_rooms(&bob).await?;
-    bob_rooms
-        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
-        .await?;
-    bob.join(room_id.clone()).await?;
-    bob_rooms
-        .wait_until(|rooms| {
-            rooms
-                .iter()
-                .any(|r| r.room_id == room_id && r.membership == Membership::Joined)
-        })
-        .await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
     Ok((alice, bob, room_id, stores))
 }
 
@@ -1590,16 +1628,9 @@ async fn wait_for_sections(
     what: &str,
     done: impl Fn(&SectionsUpdate) -> bool,
 ) -> TestResult {
-    tokio::time::timeout(TIMEOUT, async {
-        while let Some(update) = updates.next().await {
-            if done(&update) {
-                return Ok(());
-            }
-        }
-        Err("the stream ended".into())
-    })
-    .await
-    .map_err(|_| format!("timed out waiting for sections: {what}"))?
+    next_matching(updates, &format!("sections: {what}"), done)
+        .await
+        .map(drop)
 }
 
 async fn wait_for_status(session: &Session, wanted: VerificationStatus) -> TestResult {
@@ -2061,12 +2092,13 @@ async fn encrypted_messages_notify_by_the_push_rules() -> TestResult {
     assert_eq!(item.room_id, room_id);
     assert_eq!(item.sender_id, alice.user_id());
     assert!(item.event_id.is_some());
-    // As the chat list marks the room: Bob's side never marks it direct on Tuwunel (seen
-    // 2026-10-21), on Synapse it does.
+    // As the chat list marks the room: a direct chat on Bob's side too, since he accepted a
+    // direct invitation.
     let bob_room = bob
         .sdk()
         .get_room(&OwnedRoomId::try_from(room_id.as_str())?)
         .ok_or("no room")?;
+    assert!(item.is_dm);
     assert_eq!(item.is_dm, bob_room.is_direct().await?);
     assert!(!item.is_highlight && !item.is_invite);
     assert!(item.thread_root.is_none());

@@ -70,10 +70,12 @@ async fn recovery_is_set_up_and_its_key_changed() -> TestResult {
     })
     .await?;
     let mut steps = Vec::new();
-    while let Ok(Some(step)) =
-        tokio::time::timeout(std::time::Duration::from_millis(200), progress.next()).await
-    {
-        steps.push(step);
+    // Every step up to the last, however slowly they come.
+    while steps.last() != Some(&RecoveryProgress::Done) {
+        match tokio::time::timeout(TIMEOUT, progress.next()).await {
+            Ok(Some(step)) => steps.push(step),
+            Ok(None) | Err(_) => break,
+        }
     }
     assert_eq!(steps.last(), Some(&RecoveryProgress::Done), "{steps:?}");
     assert!(

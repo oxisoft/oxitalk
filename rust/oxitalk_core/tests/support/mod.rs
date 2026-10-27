@@ -5,6 +5,7 @@
 
 use std::{error::Error, future::Future, time::Duration};
 
+use futures_util::{Stream, StreamExt};
 use oxitalk_core::api::{
     error::CoreError,
     room_list::{RoomListDiff, RoomSummary},
@@ -73,23 +74,33 @@ impl<T, D> Watched<T, D> {
         }
     }
 
-    /// Applies batches until `done` holds for the list.
-    pub(crate) async fn wait_until(&mut self, done: impl Fn(&[T]) -> bool) -> TestResult {
-        tokio::time::timeout(TIMEOUT, async {
-            while !done(&self.items) {
-                let batch = self.batches.recv().await.ok_or("the stream ended")?;
-                for diff in batch {
-                    (self.apply)(&mut self.items, diff);
+    /// Applies batches until `done` holds for the list. A timeout names the caller's line, so
+    /// a failure on CI tells which wait it was.
+    #[track_caller]
+    pub(crate) fn wait_until<'a>(
+        &'a mut self,
+        done: impl Fn(&[T]) -> bool + 'a,
+    ) -> impl Future<Output = TestResult> + 'a {
+        let at = std::panic::Location::caller();
+        async move {
+            tokio::time::timeout(TIMEOUT, async {
+                while !done(&self.items) {
+                    let batch = self.batches.recv().await.ok_or("the stream ended")?;
+                    for diff in batch {
+                        (self.apply)(&mut self.items, diff);
+                    }
                 }
-            }
-            Ok::<_, Box<dyn Error>>(())
-        })
-        .await
-        .map_err(|_| "timed out waiting for the list")?
+                Ok::<_, Box<dyn Error>>(())
+            })
+            .await
+            .map_err(|_| format!("timed out waiting for the list at {at}"))?
+        }
     }
 }
 
 /// Calls `check` until it returns a value: for state that reaches the store with a later sync.
+/// The shared pattern for anything a test reads after an action: wait for the condition with
+/// a deadline, never for a fixed time or a single sync.
 pub(crate) async fn poll_until<T, F, Fut>(what: &str, mut check: F) -> Result<T, Box<dyn Error>>
 where
     F: FnMut() -> Fut,
@@ -106,6 +117,31 @@ where
     .await
     .map_err(|_| format!("timed out waiting until {what}"))?
     .map_err(Into::into)
+}
+
+/// Takes values from `updates` until one satisfies `done`, within [`TIMEOUT`]: for streams of
+/// whole states, where the sync may send an earlier state again before the awaited one.
+pub(crate) async fn next_matching<T: std::fmt::Debug>(
+    updates: &mut (impl Stream<Item = T> + Unpin),
+    what: &str,
+    done: impl Fn(&T) -> bool,
+) -> Result<T, Box<dyn Error>> {
+    let mut last = None;
+    let found = tokio::time::timeout(TIMEOUT, async {
+        while let Some(value) = updates.next().await {
+            if done(&value) {
+                return Some(value);
+            }
+            last = Some(value);
+        }
+        None
+    })
+    .await;
+    match found {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Err(format!("the stream ended before {what}; last: {last:?}").into()),
+        Err(_) => Err(format!("timed out waiting until {what}; last: {last:?}").into()),
+    }
 }
 
 pub(crate) async fn watch_rooms(
