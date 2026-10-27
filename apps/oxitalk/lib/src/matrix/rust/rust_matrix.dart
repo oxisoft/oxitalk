@@ -932,6 +932,37 @@ final class RustMatrixSession implements MatrixSession {
       );
 
   @override
+  Future<void> saveDraft(
+    String roomId,
+    ComposerDraft draft, {
+    String? thread,
+  }) => guarded(
+    () => _session.saveDraft(
+      roomId: roomId,
+      threadRoot: thread,
+      draft: rustDraft(draft),
+    ),
+  );
+
+  @override
+  Future<ComposerDraft?> loadDraft(String roomId, {String? thread}) async {
+    final draft = await guarded(
+      () => _session.loadDraft(roomId: roomId, threadRoot: thread),
+    );
+    return draft == null ? null : draftOf(draft);
+  }
+
+  @override
+  Future<void> clearDraft(String roomId, {String? thread}) =>
+      guarded(() => _session.clearDraft(roomId: roomId, threadRoot: thread));
+
+  @override
+  Future<Map<String, String>> draftPreviews() async => {
+    for (final preview in await _session.draftPreviews())
+      preview.roomId: preview.text,
+  };
+
+  @override
   Future<void> logout() async {
     try {
       await guarded(_session.logout);
@@ -1068,6 +1099,17 @@ final class RustRoomTimeline implements RoomTimeline {
   @override
   Future<void> setTyping(bool typing) =>
       guarded(() => _timeline.setTyping(typing: typing));
+
+  @override
+  Future<TimelineEntry?> draftTarget(
+    String eventId, {
+    required bool reply,
+  }) async {
+    final item = await guarded(
+      () => _timeline.draftTarget(eventId: eventId, reply: reply),
+    );
+    return item == null ? null : entryOf(item);
+  }
 
   @override
   Future<void> sendReply(

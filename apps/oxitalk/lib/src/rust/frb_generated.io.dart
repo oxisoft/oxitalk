@@ -6,6 +6,7 @@
 import 'api.dart';
 import 'api/devices.dart';
 import 'api/directory.dart';
+import 'api/drafts.dart';
 import 'api/error.dart';
 import 'api/logging.dart';
 import 'api/membership.dart';
@@ -253,6 +254,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError dco_decode_box_autoadd_core_error(dynamic raw);
 
   @protected
+  Draft dco_decode_box_autoadd_draft(dynamic raw);
+
+  @protected
   EventInfo dco_decode_box_autoadd_event_info(dynamic raw);
 
   @protected
@@ -312,6 +316,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviceInfo dco_decode_device_info(dynamic raw);
 
   @protected
+  Draft dco_decode_draft(dynamic raw);
+
+  @protected
+  DraftKind dco_decode_draft_kind(dynamic raw);
+
+  @protected
+  DraftPreview dco_decode_draft_preview(dynamic raw);
+
+  @protected
   EncryptionStatus dco_decode_encryption_status(dynamic raw);
 
   @protected
@@ -349,6 +362,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviceInfo> dco_decode_list_device_info(dynamic raw);
+
+  @protected
+  List<DraftPreview> dco_decode_list_draft_preview(dynamic raw);
 
   @protected
   List<InconsistentDefault> dco_decode_list_inconsistent_default(dynamic raw);
@@ -462,6 +478,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
+  Draft? dco_decode_opt_box_autoadd_draft(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -483,6 +502,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ThreadInfo? dco_decode_opt_box_autoadd_thread_info(dynamic raw);
+
+  @protected
+  TimelineItem? dco_decode_opt_box_autoadd_timeline_item(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -844,6 +866,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError sse_decode_box_autoadd_core_error(SseDeserializer deserializer);
 
   @protected
+  Draft sse_decode_box_autoadd_draft(SseDeserializer deserializer);
+
+  @protected
   EventInfo sse_decode_box_autoadd_event_info(SseDeserializer deserializer);
 
   @protected
@@ -909,6 +934,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviceInfo sse_decode_device_info(SseDeserializer deserializer);
 
   @protected
+  Draft sse_decode_draft(SseDeserializer deserializer);
+
+  @protected
+  DraftKind sse_decode_draft_kind(SseDeserializer deserializer);
+
+  @protected
+  DraftPreview sse_decode_draft_preview(SseDeserializer deserializer);
+
+  @protected
   EncryptionStatus sse_decode_encryption_status(SseDeserializer deserializer);
 
   @protected
@@ -952,6 +986,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviceInfo> sse_decode_list_device_info(SseDeserializer deserializer);
+
+  @protected
+  List<DraftPreview> sse_decode_list_draft_preview(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<InconsistentDefault> sse_decode_list_inconsistent_default(
@@ -1081,6 +1120,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  Draft? sse_decode_opt_box_autoadd_draft(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -1110,6 +1152,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ThreadInfo? sse_decode_opt_box_autoadd_thread_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TimelineItem? sse_decode_opt_box_autoadd_timeline_item(
     SseDeserializer deserializer,
   );
 
@@ -1527,6 +1574,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_draft(Draft self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_event_info(
     EventInfo self,
     SseSerializer serializer,
@@ -1626,6 +1676,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_device_info(DeviceInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_draft(Draft self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_draft_kind(DraftKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_draft_preview(DraftPreview self, SseSerializer serializer);
+
+  @protected
   void sse_encode_encryption_status(
     EncryptionStatus self,
     SseSerializer serializer,
@@ -1676,6 +1735,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_device_info(
     List<DeviceInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_draft_preview(
+    List<DraftPreview> self,
     SseSerializer serializer,
   );
 
@@ -1857,6 +1922,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_draft(Draft? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -1895,6 +1963,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_thread_info(
     ThreadInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_timeline_item(
+    TimelineItem? self,
     SseSerializer serializer,
   );
 

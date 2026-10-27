@@ -756,7 +756,7 @@ pub(crate) fn dart_int(value: usize) -> u32 {
     u32::try_from(value).unwrap_or(u32::MAX)
 }
 
-fn item(item: &timeline::TimelineItem, own: &UserId) -> TimelineItem {
+pub(crate) fn item(item: &timeline::TimelineItem, own: &UserId) -> TimelineItem {
     let content = match item.kind() {
         TimelineItemKind::Event(event) => event_content(event, own),
         TimelineItemKind::Virtual(VirtualTimelineItem::DateDivider(timestamp)) => {
@@ -975,7 +975,7 @@ pub(crate) fn msgtype_preview(msgtype: &MessageType) -> String {
 }
 
 /// The formatting of a text, notice or emote message, if it has any.
-fn formatted_text(msgtype: &MessageType) -> Option<Vec<RichBlock>> {
+pub(crate) fn formatted_text(msgtype: &MessageType) -> Option<Vec<RichBlock>> {
     match msgtype {
         MessageType::Text(text) => text.formatted.as_ref(),
         MessageType::Notice(notice) => notice.formatted.as_ref(),

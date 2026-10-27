@@ -4,6 +4,7 @@ use flutter_rust_bridge::frb;
 
 pub mod devices;
 pub mod directory;
+pub mod drafts;
 pub mod error;
 pub mod jump;
 pub mod logging;
