@@ -10,8 +10,9 @@ use std::{
 use flutter_rust_bridge::frb;
 use futures_util::{Stream, StreamExt};
 use matrix_sdk::{
-    Client, ClientBuilder, SessionMeta, SessionTokens, ThreadingSupport,
+    Client, ClientBuilder, SessionMeta, SessionTokens, SqliteStoreConfig, ThreadingSupport,
     authentication::matrix::MatrixSession,
+    cross_process_lock::CrossProcessLockConfig,
     encryption::{BackupDownloadStrategy, EncryptionSettings},
     notification_settings::NotificationSettings,
     ruma::{OwnedRoomId, OwnedUserId},
@@ -31,6 +32,10 @@ use crate::frb_generated::StreamSink;
 
 /// Device name shown in the user's session list.
 const DEVICE_DISPLAY_NAME: &str = "OxiTalk";
+
+/// Connections per database. The SDK's default is four per physical core, kept open once
+/// opened: 64 per database on a 16-core desktop, each with its own page cache.
+const STORE_POOL_SIZE: usize = 4;
 
 /// What the app keeps in secure storage to restore a session without logging in again.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -150,7 +155,17 @@ async fn build_client(
         .with_threading_support(ThreadingSupport::Enabled {
             with_subscriptions: false,
         })
-        .sqlite_store(store_dir, Some(store_passphrase))
+        .sqlite_store_with_config_and_cache_path(
+            SqliteStoreConfig::new(store_dir)
+                .passphrase(Some(store_passphrase))
+                .pool_max_size(STORE_POOL_SIZE),
+            None::<&str>,
+        )
+        // No other process opens the account's stores (no notification extension or service).
+        // The SDK's default cross-process lock renews its lease with a synced write to the
+        // crypto store every 50 ms while the sync runs: ~4 MB/s of disk writes when idle
+        // with three accounts on btrfs.
+        .cross_process_store_config(CrossProcessLockConfig::SingleProcess)
         .build()
         .await?)
 }

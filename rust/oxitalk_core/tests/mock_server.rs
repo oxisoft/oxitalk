@@ -9,7 +9,10 @@ mod support;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use matrix_sdk::test_utils::mocks::MatrixMockServer;
+use matrix_sdk::{
+    cross_process_lock::CrossProcessLockConfig, store::StateStoreDataKey,
+    test_utils::mocks::MatrixMockServer,
+};
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
@@ -160,6 +163,48 @@ async fn a_store_opens_only_with_its_passphrase() -> TestResult {
             "access-token".into()
         )
     );
+    Ok(())
+}
+
+/// The app is the only process on its stores: no cross-process lock, whose lease the SDK
+/// otherwise renews with a synced write every 50 ms for as long as the sync runs.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_stores_are_used_by_this_process_alone() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    let store = tempfile::tempdir()?;
+    let session = restored_session(&server, &store.path().to_string_lossy()).await?;
+    assert!(matches!(
+        session.sdk().cross_process_lock_config(),
+        CrossProcessLockConfig::SingleProcess
+    ));
+    Ok(())
+}
+
+/// Many reads at once share a few connections instead of opening one each.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+async fn concurrent_reads_open_few_connections() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    let store = tempfile::tempdir()?;
+    let session = restored_session(&server, &store.path().to_string_lossy()).await?;
+    let reads = (0..64).map(|_| {
+        let client = session.sdk().clone();
+        tokio::spawn(async move {
+            client
+                .state_store()
+                .get_kv_data(StateStoreDataKey::SyncToken)
+                .await
+        })
+    });
+    for read in futures_util::future::join_all(reads).await {
+        read??;
+    }
+    let db = store.path().join("matrix-sdk-state.sqlite3");
+    let open = std::fs::read_dir("/proc/self/fd")?
+        .filter_map(|entry| std::fs::read_link(entry.ok()?.path()).ok())
+        .filter(|target| *target == db)
+        .count();
+    assert!(open <= 4, "{open} connections to the state store");
     Ok(())
 }
 
