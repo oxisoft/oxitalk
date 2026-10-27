@@ -404,7 +404,7 @@ impl Timeline {
     ///
     /// # Errors
     ///
-    /// If the item isn't the user's or isn't in the timeline.
+    /// If the item isn't the user's, or is a local echo no longer in the timeline.
     pub async fn edit(
         &self,
         item: String,
@@ -421,19 +421,29 @@ impl Timeline {
         } else {
             EditedContent::RoomMessage(text_content(body, markdown))
         };
-        self.inner.edit(&item_id(&item)?, content).await?;
-        Ok(())
+        edit_item(&self.inner, &item, content).await
     }
 
     /// Deletes the item for everyone; a local echo is just not sent.
     ///
     /// # Errors
     ///
-    /// If the item isn't in the timeline, or the user may not delete it.
+    /// If the item is a local echo no longer in the timeline, or the user may not delete it.
     pub async fn redact(&self, item: String, reason: Option<String>) -> Result<(), CoreError> {
-        self.inner
-            .redact(&item_id(&item)?, reason.as_deref())
-            .await?;
+        match item_id(&item)? {
+            // By its ID, for the reason given at `edit_item`.
+            TimelineEventItemId::EventId(event_id) => {
+                self.inner
+                    .room()
+                    .send_queue()
+                    .redact(event_id, reason.as_deref())
+                    .await
+                    .map_err(|_| timeline::Error::FailedSendingRedaction)?;
+            }
+            local @ TimelineEventItemId::TransactionId(_) => {
+                self.inner.redact(&local, reason.as_deref()).await?;
+            }
+        }
         Ok(())
     }
 
@@ -1079,6 +1089,30 @@ pub(crate) fn item_id(id: &str) -> Result<TimelineEventItemId, CoreError> {
     } else {
         Ok(TimelineEventItemId::TransactionId(id.into()))
     }
+}
+
+/// Edits the item `id` names. The SDK's timeline edits only an item it holds, and a sync
+/// that resets the room's timeline (a limited sync leaves only the newest events) can take
+/// the item out a moment after the user saw it (seen on Tuwunel under load). A sent event is
+/// therefore edited by its ID, as the SDK does for one it holds; a local echo through the
+/// timeline. The SDK still refuses another user's message.
+pub(crate) async fn edit_item(
+    timeline: &timeline::Timeline,
+    id: &str,
+    content: EditedContent,
+) -> Result<(), CoreError> {
+    match item_id(id)? {
+        TimelineEventItemId::EventId(event_id) => {
+            let edit = timeline
+                .room()
+                .make_edit_event(&event_id, content)
+                .await
+                .map_err(|error| timeline::Error::from(timeline::EditError::from(error)))?;
+            timeline.send(edit).await?;
+        }
+        local @ TimelineEventItemId::TransactionId(_) => timeline.edit(&local, content).await?,
+    }
+    Ok(())
 }
 
 /// A text message's content: from markdown (sent as HTML too, if it has any formatting), or

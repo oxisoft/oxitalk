@@ -97,8 +97,8 @@ impl Timeline {
     ///
     /// # Errors
     ///
-    /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or isn't
-    /// in the timeline.
+    /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or is a
+    /// local echo no longer in the timeline.
     pub async fn edit_message(
         &self,
         item: String,
@@ -116,10 +116,7 @@ impl Timeline {
         } else {
             EditedContent::RoomMessage(composed.content())
         };
-        self.inner()
-            .edit(&super::timeline::item_id(&item)?, content)
-            .await?;
-        Ok(())
+        super::timeline::edit_item(self.inner(), &item, content).await
     }
 }
 

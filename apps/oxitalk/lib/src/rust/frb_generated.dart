@@ -16594,7 +16594,7 @@ class TimelineImpl extends RustOpaque implements Timeline {
   ///
   /// # Errors
   ///
-  /// If the item isn't the user's or isn't in the timeline.
+  /// If the item isn't the user's, or is a local echo no longer in the timeline.
   Future<void> edit({
     required String item,
     required String body,
@@ -16614,8 +16614,8 @@ class TimelineImpl extends RustOpaque implements Timeline {
   ///
   /// # Errors
   ///
-  /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or isn't
-  /// in the timeline.
+  /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or is a
+  /// local echo no longer in the timeline.
   Future<void> editMessage({
     required String item,
     required List<MessagePart> parts,
@@ -16674,7 +16674,7 @@ class TimelineImpl extends RustOpaque implements Timeline {
   ///
   /// # Errors
   ///
-  /// If the item isn't in the timeline, or the user may not delete it.
+  /// If the item is a local echo no longer in the timeline, or the user may not delete it.
   Future<void> redact({required String item, String? reason}) => RustLib
       .instance
       .api

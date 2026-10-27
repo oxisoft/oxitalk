@@ -15,7 +15,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `duration`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `inner`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `send_attachment`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
+// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `duration`, `edit_item`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `inner`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `send_attachment`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
 
@@ -42,7 +42,7 @@ abstract class Timeline implements RustOpaqueInterface {
   ///
   /// # Errors
   ///
-  /// If the item isn't the user's or isn't in the timeline.
+  /// If the item isn't the user's, or is a local echo no longer in the timeline.
   Future<void> edit({
     required String item,
     required String body,
@@ -56,8 +56,8 @@ abstract class Timeline implements RustOpaqueInterface {
   ///
   /// # Errors
   ///
-  /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or isn't
-  /// in the timeline.
+  /// [`CoreError::InvalidId`] for a malformed pill, or if the item isn't the user's or is a
+  /// local echo no longer in the timeline.
   Future<void> editMessage({
     required String item,
     required List<MessagePart> parts,
@@ -102,7 +102,7 @@ abstract class Timeline implements RustOpaqueInterface {
   ///
   /// # Errors
   ///
-  /// If the item isn't in the timeline, or the user may not delete it.
+  /// If the item is a local echo no longer in the timeline, or the user may not delete it.
   Future<void> redact({required String item, String? reason});
 
   /// Sends a local echo whose sending failed once more.
