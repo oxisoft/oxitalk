@@ -19,6 +19,7 @@ import 'devices_settings.dart';
 import 'encryption_settings.dart';
 import 'ignored_users_settings.dart';
 import 'notification_settings_screen.dart';
+import 'server_settings.dart';
 import 'settings_heading.dart';
 
 /// The categories of Settings, in the order of the menu; each has its own route under
@@ -366,8 +367,8 @@ String? editedAccount(AccountsState? accounts, String? user) {
 }
 
 /// Everything about one [account], top to bottom: which account (the picker), its
-/// pictures, its notifications (kept on its server), its encryption and devices, then this
-/// device's notification switches, which are for all accounts, and logging out last.
+/// pictures, its notifications (kept on its server), its encryption and devices, ignored
+/// users and its server, then this device's notification switches, which are for all accounts, and logging out last.
 class _AccountSettings extends ConsumerStatefulWidget {
   const _AccountSettings({
     required this.account,
@@ -441,6 +442,11 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
           divider,
           IgnoredUsersSettings(
             key: ValueKey(('ignored', account)),
+            account: account,
+          ),
+          divider,
+          AccountServerSettings(
+            key: ValueKey(('server', account)),
             account: account,
           ),
           divider,

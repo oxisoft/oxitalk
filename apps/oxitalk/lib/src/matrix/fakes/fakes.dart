@@ -146,6 +146,19 @@ final class FakeSession implements MatrixSession {
     ),
   ]);
 
+  /// What [serverInfo] answers; `null` gives one about [userId]'s server with only the
+  /// basics known.
+  ServerInfo? server;
+
+  /// What [serverInfo] throws instead, while set.
+  MatrixFailure? serverInfoFailure;
+
+  /// Holds [serverInfo] until completed, so a test sees it loading.
+  Completer<void>? serverInfoGate;
+
+  /// How often [serverInfo] was asked.
+  var serverInfoCalls = 0;
+
   /// The password [signOutDevices] wants; with `null` the server asks for none.
   String? accountPassword = 'the password';
 
@@ -239,6 +252,20 @@ final class FakeSession implements MatrixSession {
 
   @override
   Future<bool> isLastDevice() async => lastDevice;
+
+  @override
+  Future<ServerInfo> serverInfo() async {
+    serverInfoCalls++;
+    await serverInfoGate?.future;
+    if (serverInfoFailure case final failure?) throw failure;
+    final serverName = userId.split(':').last;
+    return server ??
+        ServerInfo(
+          userId: userId,
+          homeserverUrl: 'https://$serverName/',
+          serverName: serverName,
+        );
+  }
 
   @override
   Future<List<Device>> devices() async => deviceList.value;

@@ -11,6 +11,7 @@ import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/room_settings.dart' as rust;
 import '../../rust/api/search.dart' as search_api;
+import '../../rust/api/server_info.dart' as server_api;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
@@ -657,3 +658,100 @@ UserProfile userProfileOf(users_api.UserProfile profile) => UserProfile(
   ignored: profile.ignored,
   dmRoomId: profile.dmRoomId,
 );
+
+ServerInfo serverInfoOf(server_api.ServerInfo info) => ServerInfo(
+  userId: info.userId,
+  homeserverUrl: info.homeserverUrl,
+  serverName: info.serverName,
+  wellKnownClient: _probeOf(info.wellKnownClient),
+  wellKnownBaseUrl: info.wellKnownBaseUrl,
+  wellKnownServer: _probeOf(info.wellKnownServer),
+  serverDelegation: info.serverDelegation,
+  software: switch (info.software) {
+    final software? => ServerSoftware(
+      name: software.name,
+      version: software.version,
+      source: software.source,
+    ),
+    null => null,
+  },
+  federation: switch (info.federation) {
+    server_api.Federation.enabled => Federation.enabled,
+    server_api.Federation.disabled => Federation.disabled,
+    server_api.Federation.unknown => Federation.unknown,
+  },
+  versionsKnown: info.versionsKnown,
+  specVersions: info.specVersions,
+  newestSpecVersion: info.newestSpecVersion,
+  unstableFeatures: [
+    for (final feature in info.unstableFeatures)
+      UnstableFeature(
+        id: feature.id,
+        enabled: feature.enabled,
+        label: feature.label,
+        usedByApp: feature.usedByApp,
+      ),
+  ],
+  login: switch (info.login) {
+    final login? => LoginInfo(
+      flows: login.flows,
+      getLoginToken: login.getLoginToken,
+      ssoProviders: login.ssoProviders,
+    ),
+    null => null,
+  },
+  oauth: switch (info.oauth) {
+    server_api.Availability.yes => Availability.yes,
+    server_api.Availability.no => Availability.no,
+    server_api.Availability.unknown => Availability.unknown,
+  },
+  oauthIssuer: info.oauthIssuer,
+  capabilities: switch (info.capabilities) {
+    final caps? => ServerCapabilities(
+      changePassword: caps.changePassword,
+      setDisplayName: caps.setDisplayName,
+      setAvatar: caps.setAvatar,
+      change3pids: caps.change3Pids,
+      getLoginToken: caps.getLoginToken,
+      defaultRoomVersion: caps.defaultRoomVersion,
+      roomVersions: [
+        for (final room in caps.roomVersions)
+          RoomVersion(room.version, stable: room.stable),
+      ],
+    ),
+    null => null,
+  },
+  uploadLimitBytes: info.uploadLimitBytes?.toInt(),
+  wellKnownSupport: _probeOf(info.wellKnownSupport),
+  support: switch (info.support) {
+    final support? => SupportInfo(
+      contacts: [
+        for (final contact in support.contacts)
+          SupportContact(
+            role: contact.role,
+            matrixId: contact.matrixId,
+            email: contact.emailAddress,
+          ),
+      ],
+      page: support.supportPage,
+    ),
+    null => null,
+  },
+  connection: ConnectionInfo(
+    host: info.connection.host,
+    port: info.connection.port,
+    addresses: info.connection.addresses,
+    roundTrip: switch (info.connection.roundTripMs) {
+      final ms? => Duration(milliseconds: ms.toInt()),
+      null => null,
+    },
+    tls: info.connection.tls,
+    httpVersion: info.connection.httpVersion,
+  ),
+);
+
+Probe _probeOf(server_api.Probe probe) => switch (probe) {
+  server_api.Probe.found => Probe.found,
+  server_api.Probe.notFound => Probe.notFound,
+  server_api.Probe.noAnswer => Probe.noAnswer,
+};

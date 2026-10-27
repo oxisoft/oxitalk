@@ -384,6 +384,18 @@ Stream<EncryptionStatus> encryptionStatus(Ref ref, String account) =>
     _session(ref, account)?.encryptionStatus ??
     Stream.value(const EncryptionStatus());
 
+/// What the account's homeserver tells about itself, asked when first watched and again
+/// when invalidated (Refresh, Try again). A failure isn't retried by itself: each try is a
+/// dozen requests to the server, so the user decides.
+@Riverpod(retry: _noRetry)
+Future<ServerInfo> serverInfo(Ref ref, String account) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.serverInfo();
+}
+
+Duration? _noRetry(int retryCount, Object error) => null;
+
 /// The account's devices, this one first; follows every change while it is watched.
 @riverpod
 class AccountDevices extends _$AccountDevices {

@@ -1677,6 +1677,99 @@ final class EncryptionStatusFamily extends $Family
   String toString() => r'encryptionStatusProvider';
 }
 
+/// What the account's homeserver tells about itself, asked when first watched and again
+/// when invalidated (Refresh, Try again). A failure isn't retried by itself: each try is a
+/// dozen requests to the server, so the user decides.
+
+@ProviderFor(serverInfo)
+final serverInfoProvider = ServerInfoFamily._();
+
+/// What the account's homeserver tells about itself, asked when first watched and again
+/// when invalidated (Refresh, Try again). A failure isn't retried by itself: each try is a
+/// dozen requests to the server, so the user decides.
+
+final class ServerInfoProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ServerInfo>,
+          ServerInfo,
+          FutureOr<ServerInfo>
+        >
+    with $FutureModifier<ServerInfo>, $FutureProvider<ServerInfo> {
+  /// What the account's homeserver tells about itself, asked when first watched and again
+  /// when invalidated (Refresh, Try again). A failure isn't retried by itself: each try is a
+  /// dozen requests to the server, so the user decides.
+  ServerInfoProvider._({
+    required ServerInfoFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: _noRetry,
+         name: r'serverInfoProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$serverInfoHash();
+
+  @override
+  String toString() {
+    return r'serverInfoProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<ServerInfo> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<ServerInfo> create(Ref ref) {
+    final argument = this.argument as String;
+    return serverInfo(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ServerInfoProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$serverInfoHash() => r'5fde179b6bf9af81d3442f14c613ff8e65b60483';
+
+/// What the account's homeserver tells about itself, asked when first watched and again
+/// when invalidated (Refresh, Try again). A failure isn't retried by itself: each try is a
+/// dozen requests to the server, so the user decides.
+
+final class ServerInfoFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<ServerInfo>, String> {
+  ServerInfoFamily._()
+    : super(
+        retry: _noRetry,
+        name: r'serverInfoProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// What the account's homeserver tells about itself, asked when first watched and again
+  /// when invalidated (Refresh, Try again). A failure isn't retried by itself: each try is a
+  /// dozen requests to the server, so the user decides.
+
+  ServerInfoProvider call(String account) =>
+      ServerInfoProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'serverInfoProvider';
+}
+
 /// The account's devices, this one first; follows every change while it is watched.
 
 @ProviderFor(AccountDevices)

@@ -322,6 +322,12 @@ void main() {
       );
       await pickFromAccountMenu(tester, 'accountMenu.settings');
       await openSettingsSection(tester, 'account');
+      // Under the account's groups (Server among them): scrolled to, the switches are on
+      // screen together.
+      await tester.ensureVisible(
+        find.byKey(const Key('settings.device.sound')),
+      );
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('settings.device.showText')));
       await tester.pumpAndSettle();

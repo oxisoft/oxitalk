@@ -4,12 +4,14 @@ import 'membership.dart';
 import 'models.dart';
 import 'pins.dart';
 import 'search.dart';
+import 'server_info.dart';
 
 export 'membership.dart';
 export 'models.dart';
 export 'notices.dart';
 export 'pins.dart';
 export 'search.dart';
+export 'server_info.dart';
 
 enum FailureKind {
   invalidServer,
@@ -134,6 +136,10 @@ abstract interface class MatrixSession {
 
   /// Whether this is the account's only device.
   Future<bool> isLastDevice();
+
+  /// What the account's homeserver tells about itself, asked now. A part the server
+  /// doesn't answer is left unknown; this fails only when the session is gone.
+  Future<ServerInfo> serverInfo();
 
   /// The user's profile (empty until it is fetched), then every change made here.
   Stream<Profile> get profile;

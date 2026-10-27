@@ -443,6 +443,10 @@ final class RustMatrixSession implements MatrixSession {
   Future<bool> isLastDevice() => guarded(_session.isLastDevice);
 
   @override
+  Future<ServerInfo> serverInfo() async =>
+      serverInfoOf(await guarded(_session.serverInfo));
+
+  @override
   Future<List<Device>> devices() async => [
     for (final device in await guarded(_session.devices)) deviceOf(device),
   ];
