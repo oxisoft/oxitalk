@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'devices.dart';
 import 'directory.dart';
+import 'drafts.dart';
 import 'error.dart';
 import 'membership.dart';
 import 'mentions.dart';
@@ -106,6 +107,14 @@ abstract class Session implements RustOpaqueInterface {
   /// `notifications.room` power level).
   Future<bool> canMentionRoom({required String roomId});
 
+  /// Forgets the room's draft (or the thread's): after sending, or when the composer is
+  /// emptied.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::save_draft`].
+  Future<void> clearDraft({required String roomId, String? threadRoot});
+
   /// Empties the media cache; the retention period stays.
   ///
   /// # Errors
@@ -140,6 +149,10 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`].
   String? dmWith({required String userId});
+
+  /// The rooms the user is in that have a draft of their own (thread drafts aren't listed),
+  /// with its first line, for the chat list.
+  Future<List<DraftPreview>> draftPreviews();
 
   /// Sets recovery up: a key backup if there is none, then a new recovery key that the
   /// account's secrets are stored with; waits until the message keys are backed up.
@@ -260,6 +273,13 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<LeaveInfo> leaveInfo({required String roomId});
+
+  /// The room's draft (or the thread's), if one was kept.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::save_draft`].
+  Future<Draft?> loadDraft({required String roomId, String? threadRoot});
 
   /// Stops syncing and logs this device out on the server. The store stays; the app deletes
   /// it.
@@ -469,6 +489,18 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<RoomSettings> roomSettings({required String roomId});
+
+  /// Keeps `draft` as the room's draft, or the thread's that starts at `thread_root`. A draft
+  /// without text removes the stored one.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or if the store fails.
+  Future<void> saveDraft({
+    required String roomId,
+    String? threadRoot,
+    required Draft draft,
+  });
 
   /// Writes a message's whole file to `path`, to open it in another app or keep it.
   ///

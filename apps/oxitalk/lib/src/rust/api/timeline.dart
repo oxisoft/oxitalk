@@ -23,6 +23,19 @@ abstract class Timeline implements RustOpaqueInterface {
   /// Whether the user may delete other people's messages here (a moderator's right).
   Future<bool> canRedactOthers();
 
+  /// The message a restored draft answers or edits, to show above the composer again:
+  /// from this timeline, or for a reply also from the store or the server. `None` if it
+  /// can't be found any more (the draft's text is kept without it); an edit needs the message
+  /// in the timeline, as the SDK only edits what it has loaded.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] for a malformed event ID.
+  Future<TimelineItem?> draftTarget({
+    required String eventId,
+    required bool reply,
+  });
+
   /// Replaces the text of the user's message, or with `caption` the caption of their file
   /// (an empty one removes it).
   ///

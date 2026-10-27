@@ -7,6 +7,8 @@
 
 #[path = "homeserver/devices.rs"]
 mod devices;
+#[path = "homeserver/drafts.rs"]
+mod drafts;
 #[path = "homeserver/membership.rs"]
 mod membership;
 #[path = "homeserver/mentions.rs"]

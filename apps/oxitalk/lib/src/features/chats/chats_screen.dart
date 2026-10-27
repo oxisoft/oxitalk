@@ -14,6 +14,7 @@ import '../../ui/format.dart';
 import '../../ui/pane_divider.dart';
 import '../accounts/account_switcher.dart';
 import '../chat/chat_pane.dart';
+import '../chat/drafts.dart';
 import '../chat/threads.dart';
 import '../chat_info/chat_info.dart';
 import '../chat_info/room_notifications.dart';
@@ -824,6 +825,11 @@ class RoomTile extends ConsumerWidget {
       ref.watch(typingProvider(account)).value?[room.id],
       direct: room.isDm,
     );
+    final draft = invited
+        ? null
+        : ref.watch(
+            draftsProvider(account).select((drafts) => drafts[room.id]),
+          );
     final palette = context.oxi;
     final tile = ListTile(
       selected: selected,
@@ -859,10 +865,26 @@ class RoomTile extends ConsumerWidget {
       subtitle: Row(
         children: [
           Expanded(
-            child: Text(
-              invited
-                  ? 'Invitation — tap to see it'
-                  : typing ?? room.lastMessage ?? '',
+            child: Text.rich(
+              typing == null && draft != null
+                  ? TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Draft: ',
+                          style: TextStyle(
+                            color: OxiButtons.danger(theme.brightness),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextSpan(text: draft),
+                      ],
+                    )
+                  : TextSpan(
+                      text: invited
+                          ? 'Invitation — tap to see it'
+                          : typing ?? room.lastMessage ?? '',
+                    ),
+              key: draft != null ? Key('draft.${room.id}') : null,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(

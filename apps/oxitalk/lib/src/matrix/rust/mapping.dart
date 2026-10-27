@@ -1,4 +1,5 @@
 import '../../rust/api/devices.dart' as rust;
+import '../../rust/api/drafts.dart' as drafts_api;
 import '../../rust/api/error.dart';
 import '../../rust/api/membership.dart' as membership_api;
 import '../../rust/api/notices.dart' as notice_api;
@@ -754,4 +755,46 @@ Probe _probeOf(server_api.Probe probe) => switch (probe) {
   server_api.Probe.found => Probe.found,
   server_api.Probe.notFound => Probe.notFound,
   server_api.Probe.noAnswer => Probe.noAnswer,
+};
+
+/// The core's parts as the composer has them.
+List<MessagePart> partsOf(List<mentions_api.MessagePart> parts) => [
+  for (final part in parts)
+    switch (part) {
+      mentions_api.MessagePart_Text(:final text) => TextPart(text),
+      mentions_api.MessagePart_User(:final userId, :final name) => UserPill(
+        userId,
+        name,
+      ),
+      mentions_api.MessagePart_Room(:final roomId, :final alias, :final name) =>
+        RoomPill(roomId: roomId, alias: alias, name: name),
+      mentions_api.MessagePart_AtRoom() => const AtRoomPill(),
+    },
+];
+
+drafts_api.Draft rustDraft(ComposerDraft draft) => drafts_api.Draft(
+  parts: rustParts(draft.parts),
+  kind: switch ((draft.type, draft.eventId)) {
+    (DraftType.reply, final eventId?) => drafts_api.DraftKind.reply(
+      eventId: eventId,
+    ),
+    (DraftType.edit, final eventId?) => drafts_api.DraftKind.edit(
+      eventId: eventId,
+    ),
+    _ => const drafts_api.DraftKind.newMessage(),
+  },
+);
+
+ComposerDraft draftOf(drafts_api.Draft draft) => switch (draft.kind) {
+  drafts_api.DraftKind_NewMessage() => ComposerDraft(partsOf(draft.parts)),
+  drafts_api.DraftKind_Reply(:final eventId) => ComposerDraft(
+    partsOf(draft.parts),
+    type: DraftType.reply,
+    eventId: eventId,
+  ),
+  drafts_api.DraftKind_Edit(:final eventId) => ComposerDraft(
+    partsOf(draft.parts),
+    type: DraftType.edit,
+    eventId: eventId,
+  ),
 };

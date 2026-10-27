@@ -384,6 +384,21 @@ abstract interface class MatrixSession {
   /// Reports the message [eventId] of the room [roomId] to the server's admins.
   Future<void> reportEvent(String roomId, String eventId, {String? reason});
 
+  /// Keeps [draft] as the room's draft, or with [thread] the draft of the thread that starts
+  /// at that event, in the account's encrypted store on this device; a draft without text
+  /// removes it.
+  Future<void> saveDraft(String roomId, ComposerDraft draft, {String? thread});
+
+  /// The room's (or the thread's) draft, if one was kept.
+  Future<ComposerDraft?> loadDraft(String roomId, {String? thread});
+
+  /// Forgets the room's (or the thread's) draft.
+  Future<void> clearDraft(String roomId, {String? thread});
+
+  /// The first line of each room's own draft (not the threads'), by room ID, for the chat
+  /// list.
+  Future<Map<String, String>> draftPreviews();
+
   /// Logs out on the server and deletes everything stored for this account; the other
   /// accounts stay.
   Future<void> logout();
@@ -491,6 +506,10 @@ abstract interface class RoomTimeline {
 
   /// Tells the room whether the user is typing; call it as often as the text changes.
   Future<void> setTyping(bool typing);
+
+  /// The message a restored draft answers ([reply]) or edits, to show above the composer
+  /// again; `null` if it can't be loaded any more. An edit needs it in this timeline.
+  Future<TimelineEntry?> draftTarget(String eventId, {required bool reply});
 
   /// Marks the room read up to its latest message, for the other members and the user's
   /// other devices.

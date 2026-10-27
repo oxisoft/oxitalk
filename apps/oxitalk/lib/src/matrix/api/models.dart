@@ -1252,3 +1252,35 @@ final class UserProfile {
 
   String get name => displayName ?? userId;
 }
+
+/// Whether a composer draft is a new message, or answers or edits one.
+enum DraftType { newMessage, reply, edit }
+
+/// What a composer held when the user left it: its text and pills as typed, and the message it
+/// answered or edited. Kept on the device in the account's encrypted store, never sent.
+final class ComposerDraft {
+  const ComposerDraft(
+    this.parts, {
+    this.type = DraftType.newMessage,
+    this.eventId,
+  });
+
+  final List<MessagePart> parts;
+  final DraftType type;
+
+  /// The message answered or edited; `null` for a new message.
+  final String? eventId;
+
+  /// Whether there is any text in it (white space doesn't count).
+  bool get hasText =>
+      parts.any((part) => part is! TextPart || part.text.trim().isNotEmpty);
+
+  /// Its first line with text, for the chat list.
+  String get firstLine =>
+      plainText(parts)
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .firstOrNull ??
+      '';
+}

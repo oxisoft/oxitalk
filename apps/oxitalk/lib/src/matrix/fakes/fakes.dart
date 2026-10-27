@@ -1093,6 +1093,38 @@ final class FakeSession implements MatrixSession {
     String? reason,
   }) async => reports.add('event $roomId $eventId $reason');
 
+  /// The drafts kept, by room and thread (`null` for the room's own), as the store would.
+  final drafts = <(String, String?), ComposerDraft>{};
+
+  /// How many times a draft was saved.
+  var draftSaves = 0;
+
+  @override
+  Future<void> saveDraft(
+    String roomId,
+    ComposerDraft draft, {
+    String? thread,
+  }) async {
+    draftSaves++;
+    draft.hasText
+        ? drafts[(roomId, thread)] = draft
+        : drafts.remove((roomId, thread));
+  }
+
+  @override
+  Future<ComposerDraft?> loadDraft(String roomId, {String? thread}) async =>
+      drafts[(roomId, thread)];
+
+  @override
+  Future<void> clearDraft(String roomId, {String? thread}) async =>
+      drafts.remove((roomId, thread));
+
+  @override
+  Future<Map<String, String>> draftPreviews() async => {
+    for (final MapEntry(key: (roomId, thread), value: draft) in drafts.entries)
+      if (thread == null && draft.hasText) roomId: draft.firstLine,
+  };
+
   @override
   Future<void> logout() async => loggedOut = true;
 
@@ -1229,6 +1261,24 @@ final class FakeTimeline implements RoomTimeline {
 
   @override
   Future<void> setTyping(bool typing) async => typingSent.add(typing);
+
+  /// Messages [draftTarget] finds besides [entryList], as if loaded from the store.
+  final storedEvents = <String, TimelineEntry>{};
+
+  @override
+  Future<TimelineEntry?> draftTarget(
+    String eventId, {
+    required bool reply,
+  }) async {
+    for (final entry in entryList) {
+      final id = switch (entry) {
+        MessageEntry(:final meta) || MediaEntry(:final meta) => meta.eventId,
+        _ => null,
+      };
+      if (id == eventId) return entry;
+    }
+    return reply ? storedEvents[eventId] : null;
+  }
 
   @override
   Future<void> sendReply(
