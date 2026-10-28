@@ -13,10 +13,14 @@ import 'package:oxitalk/src/app/pick_image.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
 import 'package:oxitalk/src/app/window_controls.dart';
 import 'package:oxitalk/src/app/providers.dart';
+import 'package:oxitalk/src/features/calls/call_controller.dart';
+import 'package:oxitalk/src/features/calls/call_media.dart';
+import 'package:oxitalk/src/features/calls/call_ui.dart';
 import 'package:oxitalk/src/features/chat/video/video_message.dart';
 import 'package:oxitalk/src/features/chat/voice/audio_io.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 
+import 'call_fakes.dart';
 import 'voice_fakes.dart';
 
 /// For tests of what the mouse does on desktop (the hover toolbar and its menu): they run
@@ -42,6 +46,7 @@ Future<void> pumpApp(
   FakeAudioOutput? audio,
   VideoRecorder Function()? camera,
   bool video = false,
+  FakeRinger? ringer,
 }) async {
   tester.view
     ..physicalSize = size
@@ -78,6 +83,10 @@ Future<void> pumpApp(
         videoRecorderFactoryProvider.overrideWithValue(
           camera ?? FakeVideoRecorder.new,
         ),
+        callMediaFactoryProvider.overrideWithValue(FakeCallMedia.create),
+        ringerProvider.overrideWithValue(ringer ?? FakeRinger()),
+        // No ticking clock: it would keep pumpAndSettle busy.
+        callTickerProvider.overrideWith((ref) => const Stream.empty()),
       ],
       child: const OxiTalkApp(),
     ),

@@ -18,6 +18,8 @@ import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../ui/touch.dart';
 import '../../app/file_actions.dart';
+import '../calls/call_controller.dart';
+import '../calls/call_ui.dart';
 import '../chats/badges.dart';
 import 'chat_search.dart';
 import 'drafts.dart';
@@ -103,6 +105,7 @@ class ChatPane extends ConsumerWidget {
             : null,
         titleSpacing: showBack ? 0 : null,
         actions: [
+          CallButtons(account: account, roomId: roomId),
           IconButton(
             key: const Key('chat.search'),
             tooltip: 'Search this chat (Ctrl+F)',
@@ -204,6 +207,7 @@ class ChatPane extends ConsumerWidget {
               else
                 SearchShortcut(account: account, roomId: roomId),
               PinnedBanner(account: account, roomId: roomId),
+              CallBanner(account: account, roomId: roomId),
               Expanded(
                 child: TimelineView(
                   account: account,
@@ -689,7 +693,13 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   ) {
     final line = NoticeLine(
       key: _bubbleKeys.putIfAbsent(entry.id, GlobalKey.new),
-      text: noticeText(entry, ownUserId: widget.account),
+      text: noticeText(
+        entry,
+        ownUserId: widget.account,
+        missedCalls: ref.watch(
+          incomingCallsProvider.select((calls) => calls.missed),
+        ),
+      ),
     );
     final start = runStarts[position];
     if (start == null) return line;

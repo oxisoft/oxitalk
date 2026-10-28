@@ -33,8 +33,13 @@ List<int?> noticeRunStarts(List<TimelineEntry> entries) {
   return starts;
 }
 
-/// The one line a notice shows. [ownUserId] names the account, as "you".
-String noticeText(NoticeEntry entry, {String? ownUserId}) {
+/// The one line a notice shows. [ownUserId] names the account, as "you". [missedCalls] are
+/// the rings (by event ID) that stopped on this device unanswered.
+String noticeText(
+  NoticeEntry entry, {
+  String? ownUserId,
+  Set<String> missedCalls = const {},
+}) {
   final actor = entry.isOwn ? 'You' : (entry.senderName ?? entry.sender);
   String user(String id, String? name, {bool own = false}) =>
       own || id == ownUserId ? 'you' : (name ?? _shortId(id));
@@ -142,7 +147,23 @@ String noticeText(NoticeEntry entry, {String? ownUserId}) {
       '$actor shared a location',
     LocationNotice(:final body) => '$actor shared a location: $body',
     LiveLocationNotice() => '$actor started sharing $their live location',
-    CallNotice() => '$actor started a call',
+    CallNotice(:final video, :final declinedBy, :final ongoing) => () {
+      final kind = switch (video) {
+        true => 'a video call',
+        false => 'a voice call',
+        null => 'a call',
+      };
+      final declined = declinedBy.isEmpty
+          ? ''
+          : ' · declined by ${declinedBy.map((id) => user(id, null)).join(', ')}';
+      if (!entry.isOwn &&
+          !ongoing &&
+          missedCalls.contains(entry.eventId) &&
+          !declinedBy.contains(ownUserId)) {
+        return 'Missed ${kind.substring(2)} from $actor';
+      }
+      return '$actor started $kind${ongoing ? ' · in progress' : ''}$declined';
+    }(),
   };
 }
 

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>OxiTalk records voice messages with the microphone when you choose to. They are sent only to the chat you record them in.</string>
+	<string>OxiTalk uses the microphone for calls and to record voice messages, when you choose to. Messages are sent only to the chat you record them in; calls are end-to-end encrypted.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>

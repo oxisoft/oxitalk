@@ -1,8 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Voice and video messages: used only while the user records one, which goes only to
-         their homeserver. Phones without a camera can still install the app. -->
+    <!-- Voice and video messages, and calls: used only while the user records one or is in a
+         call. Messages go only to their homeserver; a call's media goes end-to-end encrypted
+         through the call service (SFU) of the homeserver. Phones without a camera can still
+         install the app. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Calls: the network (the app's own release builds don't get it from Flutter's debug
+         manifest), and routing the call's sound to the speaker or a Bluetooth headset. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application

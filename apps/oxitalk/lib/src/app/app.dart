@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/account_switcher.dart';
+import '../features/calls/call_ui.dart';
 import '../features/verify/incoming_verifications.dart';
 import 'notification_service.dart';
 import 'providers.dart';
@@ -22,7 +23,9 @@ class OxiTalkApp extends ConsumerWidget {
     routerConfig: ref.watch(routerProvider),
     builder: (_, child) => OsNotifications(
       child: WithTitleBar(
-        child: IncomingVerifications(child: AccountHotkeys(child: child!)),
+        child: CallOverlay(
+          child: IncomingVerifications(child: AccountHotkeys(child: child!)),
+        ),
       ),
     ),
   );
