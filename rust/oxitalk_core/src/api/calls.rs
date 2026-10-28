@@ -810,72 +810,6 @@ impl Session {
         Ok(url)
     }
 
-    /// A LiveKit address and token for the room's call from the lk-jwt-service at
-    /// `service_url`: an OpenID token from the homeserver, then `POST {service_url}/sfu/get`.
-    async fn livekit_token(
-        &self,
-        room_id: &str,
-        service_url: &str,
-        device_id: &str,
-    ) -> Result<(String, String), CoreError> {
-        let user = self
-            .client
-            .user_id()
-            .ok_or(CoreError::SessionExpired)?
-            .to_owned();
-        let openid = self
-            .client
-            .send(request_openid_token::v3::Request::new(user))
-            .await?;
-        let body = json!({
-            "room": room_id,
-            "openid_token": {
-                "access_token": openid.access_token,
-                "token_type": openid.token_type.to_string(),
-                "matrix_server_name": openid.matrix_server_name.to_string(),
-                "expires_in": openid.expires_in.as_secs(),
-            },
-            "device_id": device_id,
-        });
-        let url = format!("{}/sfu/get", service_url.trim_end_matches('/'));
-        let response = self
-            .client
-            .http_client()
-            .post(url)
-            .header("Content-Type", "application/json")
-            .body(body.to_string())
-            .timeout(Duration::from_secs(20))
-            .send()
-            .await
-            .map_err(|error| CoreError::Network {
-                message: format!("the call service can't be reached: {error}"),
-            })?;
-        let status = response.status().as_u16();
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| CoreError::internal(&error))?;
-        if !(200..300).contains(&status) {
-            let message = format!(
-                "the call service answered HTTP {status}: {}",
-                String::from_utf8_lossy(&bytes)
-            );
-            return Err(if status == 401 || status == 403 {
-                CoreError::Forbidden { message }
-            } else {
-                CoreError::Internal { message }
-            });
-        }
-        let answer: Value =
-            serde_json::from_slice(&bytes).map_err(|error| CoreError::internal(&error))?;
-        let url = answer.get("url").and_then(Value::as_str);
-        let jwt = answer.get("jwt").and_then(Value::as_str);
-        match (url, jwt) {
-            (Some(url), Some(jwt)) => Ok((url.to_owned(), jwt.to_owned())),
-            _ => Err(CoreError::internal(&"the call service sent no url or jwt")),
-        }
-    }
-
     /// Joins the room's call (starting it if nobody is in it) with this device: a LiveKit token,
     /// then the membership, kept fresh until [`ActiveCall::leave`]; then rings or notifies as
     /// `notify` says. The returned call has the LiveKit address and token and streams the media
@@ -930,7 +864,7 @@ impl Session {
         let (livekit_url, livekit_token) = if no_media.is_some() {
             (String::new(), String::new())
         } else {
-            self.livekit_token(&room_id, &service_url, &device).await?
+            livekit_token(&self.client, &room_id, &service_url, &device).await?
         };
 
         lock(&self.active_calls).insert(room.room_id().to_owned());
@@ -1231,8 +1165,79 @@ async fn follow_ring(
     }
 }
 
+/// A LiveKit address and token for the room's call from the lk-jwt-service at `service_url`:
+/// an OpenID token from the homeserver, then `POST {service_url}/sfu/get`.
+async fn livekit_token(
+    client: &Client,
+    room_id: &str,
+    service_url: &str,
+    device_id: &str,
+) -> Result<(String, String), CoreError> {
+    let user = client
+        .user_id()
+        .ok_or(CoreError::SessionExpired)?
+        .to_owned();
+    let openid = client
+        .send(request_openid_token::v3::Request::new(user))
+        .await?;
+    let body = json!({
+        "room": room_id,
+        "openid_token": {
+            "access_token": openid.access_token,
+            "token_type": openid.token_type.to_string(),
+            "matrix_server_name": openid.matrix_server_name.to_string(),
+            "expires_in": openid.expires_in.as_secs(),
+        },
+        "device_id": device_id,
+    });
+    let url = format!("{}/sfu/get", service_url.trim_end_matches('/'));
+    let response = client
+        .http_client()
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .timeout(Duration::from_secs(20))
+        .send()
+        .await
+        .map_err(|error| CoreError::Network {
+            message: format!("the call service can't be reached: {error}"),
+        })?;
+    let status = response.status().as_u16();
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| CoreError::internal(&error))?;
+    if !(200..300).contains(&status) {
+        let message = format!(
+            "the call service answered HTTP {status}: {}",
+            String::from_utf8_lossy(&bytes)
+        );
+        return Err(if status == 401 || status == 403 {
+            CoreError::Forbidden { message }
+        } else {
+            CoreError::Internal { message }
+        });
+    }
+    let answer: Value =
+        serde_json::from_slice(&bytes).map_err(|error| CoreError::internal(&error))?;
+    let url = answer.get("url").and_then(Value::as_str);
+    let jwt = answer.get("jwt").and_then(Value::as_str);
+    match (url, jwt) {
+        (Some(url), Some(jwt)) => Ok((url.to_owned(), jwt.to_owned())),
+        _ => Err(CoreError::internal(&"the call service sent no url or jwt")),
+    }
+}
+
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Where and how to join a call's media: the LiveKit server and an access token for it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LiveKitAccess {
+    /// The LiveKit server (`wss://…`).
+    pub url: String,
+    pub token: String,
 }
 
 /// This device in a room's call. Its membership is kept fresh and its media keys go out and
@@ -1311,6 +1316,26 @@ impl ActiveCall {
     #[must_use]
     pub fn intent(&self) -> CallIntent {
         self.inner.intent
+    }
+
+    /// A new LiveKit address and token from the call's lk-jwt-service, which also creates the
+    /// LiveKit room again if it is gone. A token can name a room that LiveKit closes before the
+    /// media connects: lk-jwt-service hands out the existing room ("reused") while LiveKit's
+    /// departure timeout (20 s after the last participant left) is running, and a connect after
+    /// it ran out gets "requested room does not exist". The media then retries with this.
+    ///
+    /// # Errors
+    ///
+    /// As [`Session::join_call`] for the token.
+    pub async fn renew_livekit_access(&self) -> Result<LiveKitAccess, CoreError> {
+        let (url, token) = livekit_token(
+            &self.inner.client,
+            self.inner.room.room_id().as_str(),
+            &self.inner.service_url,
+            &self.inner.device,
+        )
+        .await?;
+        Ok(LiveKitAccess { url, token })
     }
 
     /// Sends every media key so far (ours and the others'), then each new one.

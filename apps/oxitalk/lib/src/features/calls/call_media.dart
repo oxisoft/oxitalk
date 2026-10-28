@@ -497,7 +497,20 @@ final class LiveKitCallMedia implements CallMedia {
         (_) => _set(_state.copyWith(connection: CallConnection.connected)),
       )
       ..listen((_) => _refresh());
-    await room.connect(url, token);
+    try {
+      await room.connect(url, token);
+    } on Object {
+      // A room that failed to connect isn't used again; a retry makes a new one.
+      await events.dispose();
+      await cryptors.close();
+      await room.dispose();
+      if (_room == room) {
+        _room = null;
+        _events = null;
+        _cryptors = null;
+      }
+      rethrow;
+    }
     appLog(
       LogLevel.info,
       'calls',

@@ -38,6 +38,7 @@ Future<FakeSession> _open(
   FakeRinger? ringer,
 }) async {
   FakeCallMedia.made.clear();
+  FakeCallMedia.failConnects = 0;
   final fake = session ?? _session();
   await pumpApp(
     tester,
@@ -98,6 +99,47 @@ void main() {
     expect(find.byKey(const Key('call.screen')), findsNothing);
     expect(media.closed, isTrue);
     expect(session.callOf(_dm).value.isActive, isFalse);
+  });
+
+  testWidgets('a media connect that fails is tried again with a new token', (
+    tester,
+  ) async {
+    final session = await _open(tester, 'Bob');
+    FakeCallMedia.failConnects = 1;
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pump();
+    final media = FakeCallMedia.made.single;
+    expect(media.connects, ['fake-token']);
+    expect(session.lastJoinedCall!.renewals, 0);
+
+    await tester.pump(CallController.connectRetries.first);
+    await tester.pumpAndSettle();
+    expect(session.lastJoinedCall!.renewals, 1);
+    expect(media.connects, ['fake-token', 'fake-token-2']);
+    expect(media.token, 'fake-token-2');
+    expect(media.state.connection, CallConnection.connected);
+    expect(find.text('The call’s media couldn’t connect.'), findsNothing);
+  });
+
+  testWidgets('a media connect that keeps failing says so', (tester) async {
+    final session = await _open(tester, 'Bob');
+    FakeCallMedia.failConnects = 3;
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pump();
+    for (final wait in CallController.connectRetries) {
+      await tester.pump(wait);
+    }
+    await tester.pumpAndSettle();
+    expect(session.lastJoinedCall!.renewals, 2);
+    expect(FakeCallMedia.made.single.connects, [
+      'fake-token',
+      'fake-token-2',
+      'fake-token-3',
+    ]);
+    expect(find.text('The call’s media couldn’t connect.'), findsOneWidget);
+    // Left on the Matrix side too, and the media closed.
+    expect(session.lastJoinedCall!.left, isTrue);
+    expect(FakeCallMedia.made.single.closed, isTrue);
   });
 
   testWidgets('a group is notified, not rung, and a voice call has no camera', (

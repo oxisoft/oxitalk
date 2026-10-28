@@ -544,6 +544,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VerificationEmoji> dco_decode_list_verification_emoji(dynamic raw);
 
   @protected
+  LiveKitAccess dco_decode_live_kit_access(dynamic raw);
+
+  @protected
   LogLevel dco_decode_log_level(dynamic raw);
 
   @protected
@@ -1353,6 +1356,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VerificationEmoji> sse_decode_list_verification_emoji(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LiveKitAccess sse_decode_live_kit_access(SseDeserializer deserializer);
 
   @protected
   LogLevel sse_decode_log_level(SseDeserializer deserializer);
@@ -2367,6 +2373,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<VerificationEmoji> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_live_kit_access(LiveKitAccess self, SseSerializer serializer);
 
   @protected
   void sse_encode_log_level(LogLevel self, SseSerializer serializer);

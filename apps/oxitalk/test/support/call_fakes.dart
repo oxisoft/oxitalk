@@ -12,6 +12,12 @@ final class FakeCallMedia implements CallMedia {
   /// Every media made, in order (the test reads the last).
   static final made = <FakeCallMedia>[];
 
+  /// How many connects fail next (across media), as LiveKit's "requested room does not exist".
+  static int failConnects = 0;
+
+  /// The tokens [connect] was called with, failed ones too.
+  final connects = <String>[];
+
   final keys = <CallMediaKey>[];
   String? url;
   String? token;
@@ -47,6 +53,11 @@ final class FakeCallMedia implements CallMedia {
     required String token,
     required bool camera,
   }) async {
+    connects.add(token);
+    if (failConnects > 0) {
+      failConnects--;
+      throw Exception('requested room does not exist');
+    }
     this.url = url;
     this.token = token;
     state = CallMediaState(

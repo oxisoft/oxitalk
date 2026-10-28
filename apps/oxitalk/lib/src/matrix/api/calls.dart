@@ -147,5 +147,9 @@ abstract interface class JoinedCall {
   /// Every key so far, then each new one.
   Stream<CallMediaKey> get mediaKeys;
 
+  /// A new LiveKit address and token, for a media connect that failed. The call service also
+  /// makes the LiveKit room again if LiveKit closed it after the first token.
+  Future<({String url, String token})> renewAccess();
+
   Future<void> leave();
 }

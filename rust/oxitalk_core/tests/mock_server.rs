@@ -639,6 +639,15 @@ async fn joining_a_call_asks_a_token_then_sends_the_membership() -> TestResult {
         service
     );
 
+    // A new token for the media (LiveKit closed the room before it connected): a new OpenID
+    // token and `/sfu/get` again, same room and device.
+    let renewed = call.renew_livekit_access().await?;
+    assert_eq!(renewed.url, "wss://sfu.example");
+    assert_eq!(renewed.token, "the.jwt.token");
+    let token_requests = bodies(&server, "/livekit/jwt/sfu/get").await;
+    assert_eq!(token_requests.len(), 2);
+    assert_eq!(token_requests[1].1, token_requests[0].1);
+
     call.leave().await?;
     let state = bodies(&server, "/_matrix/client/v3/rooms/").await;
     assert_eq!(state.last().map(|(_, body)| body.clone()), Some(json!({})));

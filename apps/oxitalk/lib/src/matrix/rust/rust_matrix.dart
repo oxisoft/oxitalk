@@ -1397,5 +1397,11 @@ final class _RustJoinedCall implements JoinedCall {
       _call.subscribeMediaKeys().map(callMediaKeyOf);
 
   @override
+  Future<({String url, String token})> renewAccess() => guarded(() async {
+    final access = await _call.renewLivekitAccess();
+    return (url: access.url, token: access.token);
+  });
+
+  @override
   Future<void> leave() => guarded(_call.leave);
 }

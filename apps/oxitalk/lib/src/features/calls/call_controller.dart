@@ -168,15 +168,50 @@ final class CallController extends Notifier<ActiveCallState?> {
         }, onError: (Object _) {}),
       );
     state = state?.copyWith(phase: CallPhase.inCall);
-    try {
-      await media.connect(
-        url: joined.livekitUrl,
-        token: joined.livekitToken,
-        camera: intent == CallIntent.video,
+    await _connect(joined, media, camera: intent == CallIntent.video);
+  }
+
+  /// How often a failed media connect is tried again, each time with a new token, and the
+  /// wait before each.
+  static const connectRetries = [Duration(seconds: 1), Duration(seconds: 3)];
+
+  /// Connects [media]; a failed connect is tried again with a new token. A token can name a
+  /// LiveKit room that closes before the media connects (lk-jwt-service reuses a room while
+  /// LiveKit's departure timeout runs, e.g. a call started again right after the last one
+  /// ended: "requested room does not exist"); asking for a token again makes the room again.
+  Future<void> _connect(
+    JoinedCall joined,
+    CallMedia media, {
+    required bool camera,
+  }) async {
+    var url = joined.livekitUrl;
+    var token = joined.livekitToken;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await media.connect(url: url, token: token, camera: camera);
+        return;
+      } on Object catch (error) {
+        appLog(LogLevel.warn, 'calls', 'media failed: $error');
+        if (attempt >= connectRetries.length) break;
+      }
+      await Future<void>.delayed(connectRetries[attempt]);
+      // Hung up meanwhile.
+      if (!identical(_media, media)) return;
+      try {
+        (:url, :token) = await joined.renewAccess();
+      } on Object catch (error) {
+        appLog(LogLevel.warn, 'calls', 'new media token failed: $error');
+        break;
+      }
+      if (!identical(_media, media)) return;
+    }
+    // Out of the call (nobody would hear or see this device), and the screen says why.
+    if (identical(_media, media)) {
+      await _teardown();
+      state = state?.copyWith(
+        phase: CallPhase.failed,
+        error: 'The call’s media couldn’t connect.',
       );
-    } on Object catch (error) {
-      appLog(LogLevel.warn, 'calls', 'media failed: $error');
-      state = state?.copyWith(error: 'The call’s media couldn’t connect.');
     }
   }
 

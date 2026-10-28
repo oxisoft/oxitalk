@@ -1614,6 +1614,15 @@ final class FakeJoinedCall implements JoinedCall {
   @override
   Stream<CallMediaKey> get mediaKeys => keys.stream;
 
+  /// How often [renewAccess] was called; the n-th renewal gives `fake-token-<n+1>`.
+  int renewals = 0;
+
+  @override
+  Future<({String url, String token})> renewAccess() async {
+    renewals++;
+    return (url: livekitUrl, token: 'fake-token-${renewals + 1}');
+  }
+
   @override
   Future<void> leave() async {
     if (left) return;

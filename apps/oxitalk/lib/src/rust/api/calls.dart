@@ -12,7 +12,7 @@ part 'calls.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `active_memberships`, `as_str`, `distribute_keys`, `follow_ring`, `homeserver_path`, `identity`, `keep_membership`, `key_content`, `leave`, `listen_for_keys`, `livekit_token`, `livekit_urls`, `lock`, `membership_content`, `membership_events`, `membership_state_key`, `next_expiry`, `notification_content`, `notify`, `now_ms`, `own_ids`, `parse_key`, `parse_membership`, `parse_ring`, `parse`, `plan_keys`, `publish_key`, `random_key`, `retry_decrypt`, `ring_event`, `ring_expiry`, `room_call`, `send_key`, `start`, `unstable_rtc_transports`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CallInner`, `KeyPlan`, `ReceivedKey`, `Ring`, `RtcMembership`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `incoming_call_updates`, `join_call_with`, `media_key_updates`, `room_call_updates`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ActiveCall>>
@@ -35,6 +35,17 @@ abstract class ActiveCall implements RustOpaqueInterface {
 
   /// The LiveKit server to connect to (`wss://…`).
   String livekitUrl();
+
+  /// A new LiveKit address and token from the call's lk-jwt-service, which also creates the
+  /// LiveKit room again if it is gone. A token can name a room that LiveKit closes before the
+  /// media connects: lk-jwt-service hands out the existing room ("reused") while LiveKit's
+  /// departure timeout (20 s after the last participant left) is running, and a connect after
+  /// it ran out gets "requested room does not exist". The media then retries with this.
+  ///
+  /// # Errors
+  ///
+  /// As [`Session::join_call`] for the token.
+  Future<LiveKitAccess> renewLivekitAccess();
 
   String roomId();
 
@@ -244,6 +255,26 @@ sealed class IncomingCallUpdate with _$IncomingCallUpdate {
     required String notificationEventId,
     required IncomingCallEnd reason,
   }) = IncomingCallUpdate_Ended;
+}
+
+/// Where and how to join a call's media: the LiveKit server and an access token for it.
+class LiveKitAccess {
+  /// The LiveKit server (`wss://…`).
+  final String url;
+  final String token;
+
+  const LiveKitAccess({required this.url, required this.token});
+
+  @override
+  int get hashCode => url.hashCode ^ token.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LiveKitAccess &&
+          runtimeType == other.runtimeType &&
+          url == other.url &&
+          token == other.token;
 }
 
 /// A room's call as its state says: who is in it, oldest first. No participants, no call.
