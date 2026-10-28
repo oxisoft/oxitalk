@@ -700,3 +700,129 @@ async fn a_refused_call_token_joins_nothing() -> TestResult {
     assert_eq!(bodies(&server, "/_matrix/client/v3/rooms/").await, []);
     Ok(())
 }
+
+/// One `/v3/sync` answer, for a `sync_once` (the session's own sync isn't running).
+async fn sync_once_with(
+    server: &MatrixMockServer,
+    session: &Session,
+    batch: &str,
+    rooms: serde_json::Value,
+) -> TestResult {
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/_matrix/client/v3/sync"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!({ "next_batch": batch, "rooms": rooms })),
+        )
+        .up_to_n_times(1)
+        .mount(server.server())
+        .await;
+    session
+        .sdk()
+        .sync_once(matrix_sdk::config::SyncSettings::default())
+        .await?;
+    Ok(())
+}
+
+/// A member event of `user` in `!dm:localhost`, `membership` and from `sender`.
+fn member(user: &str, membership: &str, sender: &str, is_direct: bool) -> serde_json::Value {
+    json!({
+        "type": "m.room.member", "state_key": user, "sender": sender,
+        "content": { "membership": membership, "is_direct": is_direct },
+        "event_id": format!("${user}-{membership}"), "origin_server_ts": 1,
+    })
+}
+
+/// Accepting an invitation to a direct chat marks it direct (`m.direct`) even when the sync
+/// brings the join before the server answers the join request; the SDK alone then saw the
+/// room joined already and didn't mark it (seen on Tuwunel under load).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_direct_invitation_joined_is_a_direct_chat_whatever_comes_first() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    server.mock_versions().ok().mount().await;
+    let store = tempfile::tempdir()?;
+    let session = server_info_session(&server, &store.path().to_string_lossy()).await?;
+    let (alice, bob) = ("@alice:localhost", "@bob:localhost");
+    sync_once_with(
+        &server,
+        &session,
+        "1",
+        json!({ "invite": { "!dm:localhost": { "invite_state": { "events": [
+            { "type": "m.room.create", "state_key": "", "sender": bob,
+              "content": { "room_version": "11" } },
+            { "type": "m.room.member", "state_key": bob, "sender": bob,
+              "content": { "membership": "join" } },
+            { "type": "m.room.member", "state_key": alice, "sender": bob,
+              "content": { "membership": "invite", "is_direct": true } },
+        ] } } } }),
+    )
+    .await?;
+    let invited = session
+        .sdk()
+        .get_room(matrix_sdk::ruma::room_id!("!dm:localhost"))
+        .ok_or("no invitation")?;
+    assert!(
+        invited.is_direct().await?,
+        "the invitation is to a direct chat"
+    );
+
+    // The server answers the join late; the sync with the join comes first.
+    wiremock::Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path_regex(
+            "^/_matrix/client/v3/(join/|rooms/[^/]+/join$)",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!({ "room_id": "!dm:localhost" }))
+                .set_delay(Duration::from_millis(1500)),
+        )
+        .mount(server.server())
+        .await;
+    let joined = [
+        json!({ "type": "m.room.create", "state_key": "", "sender": bob,
+                "content": { "room_version": "11" }, "event_id": "$create",
+                "origin_server_ts": 1 }),
+        member(bob, "join", bob, false),
+        member(alice, "join", alice, false),
+    ];
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path(
+            "/_matrix/client/v3/rooms/!dm:localhost/members",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "chunk": joined })))
+        .mount(server.server())
+        .await;
+    wiremock::Mock::given(wiremock::matchers::method("PUT"))
+        .and(wiremock::matchers::path(format!(
+            "/_matrix/client/v3/user/{alice}/account_data/m.direct"
+        )))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .mount(server.server())
+        .await;
+    let join = session.join("!dm:localhost".to_owned());
+    let sync = async {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        sync_once_with(
+            &server,
+            &session,
+            "2",
+            json!({ "join": { "!dm:localhost": {
+                "state": { "events": joined },
+                "timeline": { "events": [], "limited": false },
+            } } }),
+        )
+        .await
+    };
+    let (joined_result, synced) = tokio::join!(join, sync);
+    synced?;
+    joined_result?;
+
+    let marks = bodies(
+        &server,
+        &format!("/_matrix/client/v3/user/{alice}/account_data/m.direct"),
+    )
+    .await;
+    let (_, content) = marks.last().ok_or("the chat wasn't marked direct")?;
+    assert_eq!(content[bob], json!(["!dm:localhost"]), "{content}");
+    Ok(())
+}

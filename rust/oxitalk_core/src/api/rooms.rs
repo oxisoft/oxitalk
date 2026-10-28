@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use matrix_sdk::{
-    EncryptionState, Room,
+    EncryptionState, Room, RoomState,
     ruma::{
         MatrixToUri, MatrixUri, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId,
         api::client::room::{
@@ -100,7 +100,24 @@ impl Session {
     /// [`CoreError::InvalidId`] for a malformed room ID, otherwise as the server answers.
     pub async fn join(&self, room_id: String) -> Result<(), CoreError> {
         let room_id: OwnedRoomId = parse_id(&room_id)?;
-        self.client.join_room_by_id(&room_id).await?;
+        // Whether this accepts an invitation to a direct chat, asked before joining. The SDK
+        // asks after the server's answer, and marks the chat direct (`m.direct`) only if the
+        // room is still an invitation then: when the sync has brought the join first (seen on
+        // Tuwunel under load) the chat was never marked, and showed as a group for good.
+        let direct_invite = match self.client.get_room(&room_id) {
+            Some(room) if room.state() == RoomState::Invited => {
+                room.is_direct().await.unwrap_or(false)
+            }
+            _ => false,
+        };
+        let room = self.client.join_room_by_id(&room_id).await?;
+        if direct_invite && !room.is_direct().await.unwrap_or(false) {
+            // Also when the SDK marked it: its mark isn't in the store before the next sync,
+            // and marking twice writes the same `m.direct`. The user is in the room either way.
+            if let Err(error) = room.set_is_direct(true).await {
+                tracing::warn!(%room_id, %error, "a joined direct chat couldn't be marked direct");
+            }
+        }
         Ok(())
     }
 
