@@ -1,0 +1,151 @@
+name: Google Play release
+
+# Builds the Android App Bundle, signs it with the Play upload key and uploads it to the
+# INTERNAL testing track of Google Play (io.oxisoft.oxitalk). Nothing is ever promoted to
+# closed, open or production testing: those stay clicks in the Play Console. Runs on a
+# pushed tag v<version>+<build> (equal to the version in apps/oxitalk/pubspec.yaml) or by
+# hand; by hand, upload=false only builds and checks the signed bundle.
+#
+# Secrets of the google-play environment (deployment branches: main and v* tags):
+#   ANDROID_KEYSTORE_B64    base64 of the upload keystore (PKCS12)
+#   ANDROID_KEY_ALIAS       key alias in it
+#   ANDROID_KEY_PASSWORD    key password
+#   ANDROID_STORE_PASSWORD  keystore password
+#   PLAY_SA_JSON            Google Play service account JSON (release to testing tracks)
+#
+# The release notes come from docs/store/release_notes/<version>.txt.
+# Play's signed universal APK is published to fdroid.oxisoft.io by OxiSoft's own box
+# once the build is on the internal track (the F-Droid index key never leaves it).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        default: main
+      upload:
+        description: Upload to the Play internal track (off = build and check only)
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PLAY_PACKAGE: io.oxisoft.oxitalk
+  # SHA-256 of the upload certificate: a bundle signed with anything else is refused.
+  UPLOAD_CERT_SHA256: 9c7046af8eb937c3dd0d4eaf8376ce5382aa3020d1f8f1545cf5c3be9a941e07
+
+jobs:
+  release:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: google-play
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          version=$(sed -n 's/^version: *//p' apps/oxitalk/pubspec.yaml)
+          case "$version" in *+*) ;; *) echo "pubspec version $version has no +build"; exit 1 ;; esac
+          if [ "$EVENT" = push ]; then
+            echo "tag $TAG, pubspec $version"
+            [ "${TAG#v}" = "$version" ] || [ "${TAG#v}" = "${version%%+*}" ]
+          fi
+          echo "name=${version%%+*}" >>"$GITHUB_OUTPUT"
+          echo "code=${version#*+}" >>"$GITHUB_OUTPUT"
+
+      - name: Release notes
+        env:
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          f="docs/store/release_notes/$NAME.txt"
+          test -s "$f" || { echo "missing $f"; exit 1; }
+          n=$(wc -m <"$f")
+          [ "$n" -le 501 ] || { echo "$f has $n characters, Play allows 500"; exit 1; }
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      # No cache: a release is built from a clean toolchain.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: apps/oxitalk/pubspec.yaml
+
+      - name: Android NDK and platform pinned by the app
+        run: |
+          ndk=$(sed -n 's/.*ndkVersion = "\(.*\)".*/\1/p' apps/oxitalk/android/app/build.gradle.kts)
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" "platforms;android-37.0" >/dev/null
+
+      - name: Dependencies
+        working-directory: apps/oxitalk
+        run: flutter pub get --enforce-lockfile
+
+      - name: Upload key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          for v in KS_B64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD; do
+            [ -n "${!v}" ] || { echo "the google-play environment lacks a signing secret ($v)"; exit 1; }
+          done
+          umask 077
+          mkdir -p "$RUNNER_TEMP/sign"
+          printf '%s' "$KS_B64" | base64 -d >"$RUNNER_TEMP/sign/upload.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/sign/upload.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } >"$RUNNER_TEMP/sign/key.properties"
+
+      - name: Build the app bundle
+        working-directory: apps/oxitalk
+        run: ANDROID_KEY_PROPERTIES="$RUNNER_TEMP/sign/key.properties" flutter build appbundle --release
+
+      - name: Check the bundle
+        working-directory: apps/oxitalk
+        run: |
+          aab=build/app/outputs/bundle/release/app-release.aab
+          ls -la "$aab"
+          signer=$(keytool -printcert -jarfile "$aab" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')
+          echo "signed by $signer"
+          [ "$signer" = "$UPLOAD_CERT_SHA256" ] || { echo "not signed with the upload key"; exit 1; }
+
+      - name: Upload to the internal track
+        if: github.event_name == 'push' || inputs.upload
+        env:
+          PLAY_SA_JSON: ${{ secrets.PLAY_SA_JSON }}
+          NAME: ${{ steps.version.outputs.name }}
+          CODE: ${{ steps.version.outputs.code }}
+        run: |
+          [ -n "$PLAY_SA_JSON" ] || { echo "the google-play environment has no PLAY_SA_JSON"; exit 1; }
+          umask 077
+          printf '%s' "$PLAY_SA_JSON" >"$RUNNER_TEMP/sign/play.json"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet -r scripts/play-requirements.txt
+          PLAY_SA_FILE="$RUNNER_TEMP/sign/play.json" "$RUNNER_TEMP/venv/bin/python" scripts/play-upload.py \
+            apps/oxitalk/build/app/outputs/bundle/release/app-release.aab "$NAME" "$CODE"
+
+      - name: Remove the signing material
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/sign"

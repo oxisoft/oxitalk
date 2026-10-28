@@ -1,0 +1,1 @@
+Voice and video calls in direct chats and groups, end-to-end encrypted and compatible with Element. Calls ring while the app is open, and a call in progress shows in its room with a Join button.
