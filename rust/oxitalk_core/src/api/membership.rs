@@ -84,11 +84,18 @@ impl Session {
         let avatar_url = room
             .avatar_url()
             .or_else(|| is_dm.then(|| inviter_avatar.clone()).flatten());
+        let inviter_name = inviter.and_then(|member| member.display_name().map(ToOwned::to_owned));
+        // The SDK works the display name out a moment after the room shows; until then a
+        // direct chat goes by its inviter, another room by its name, else its ID.
+        let name = room
+            .cached_display_name()
+            .map(|name| name.to_string())
+            .or_else(|| is_dm.then(|| inviter_name.clone()).flatten())
+            .or_else(|| room.name())
+            .unwrap_or_else(|| room.room_id().to_string());
         Ok(InviteDetails {
             room_id,
-            name: room
-                .cached_display_name()
-                .map_or_else(|| room.room_id().to_string(), |name| name.to_string()),
+            name,
             avatar_url: avatar_url.map(|url| url.to_string()),
             topic: room.topic().filter(|topic| !topic.trim().is_empty()),
             alias: room.canonical_alias().map(|alias| alias.to_string()),
@@ -99,7 +106,7 @@ impl Session {
                 .as_ref()
                 .map(|invite| invite.inviter_id.to_string())
                 .filter(|id| id.as_str() != room.own_user_id().as_str()),
-            inviter_name: inviter.and_then(|member| member.display_name().map(ToOwned::to_owned)),
+            inviter_name,
             inviter_avatar_url: inviter_avatar.map(|url| url.to_string()),
         })
     }
