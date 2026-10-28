@@ -132,8 +132,10 @@ void main() {
     addTearDown(() => _bounded(bobTimeline.close));
 
     // Alice sees the invite, joins, and reads Bob's encrypted message.
-    await _pumpUntil(tester, find.text('Invitation — tap to join'));
-    await tester.tap(find.text('Invitation — tap to join'));
+    await _pumpUntil(tester, find.text('Invitation — tap to see it'));
+    await tester.tap(find.text('Invitation — tap to see it'));
+    await _pumpUntil(tester, find.byKey(const Key('invite.accept')));
+    await tester.tap(find.byKey(const Key('invite.accept')));
     await _pumpUntil(tester, find.byKey(const Key('composer.text')));
     // Bob's profile picture, downloaded through the core, marks the chat.
     await _pumpUntil(tester, find.byType(PictureAvatar));
@@ -271,6 +273,8 @@ void main() {
     await _postPicture(bob, invite: '@${alice.name}:localhost');
     await _pumpUntil(tester, find.text('Pictures'));
     await tester.tap(find.text('Pictures'));
+    await _pumpUntil(tester, find.byKey(const Key('invite.accept')));
+    await tester.tap(find.byKey(const Key('invite.accept')));
     await _pumpUntil(tester, find.text('office.png caption'));
     await _pumpUntil(
       tester,
