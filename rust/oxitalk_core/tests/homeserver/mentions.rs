@@ -125,6 +125,19 @@ async fn public_room(
             .then_some(()))
     })
     .await?;
+    // The room's own state reaches Alice's store with a sync too, not with the creation: her
+    // power levels (for `@room`), the room's address and name (for `#`). On Tuwunel under load
+    // the room can show before them.
+    poll_until(
+        "Alice has the room's power levels, address and name",
+        || async {
+            let listed = alice.mention_rooms().into_iter().any(|room| {
+                room.room_id == room_id && room.alias.is_some() && room.name == "Mentions"
+            });
+            Ok((listed && alice.can_mention_room(room_id.clone()).await).then_some(()))
+        },
+    )
+    .await?;
     Ok(room_id)
 }
 
