@@ -9,10 +9,9 @@ mod support;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use matrix_sdk::{
-    cross_process_lock::CrossProcessLockConfig, store::StateStoreDataKey,
-    test_utils::mocks::MatrixMockServer,
-};
+#[cfg(target_os = "linux")]
+use matrix_sdk::store::StateStoreDataKey;
+use matrix_sdk::{cross_process_lock::CrossProcessLockConfig, test_utils::mocks::MatrixMockServer};
 use oxitalk_core::api::{
     error::CoreError,
     init_app,
