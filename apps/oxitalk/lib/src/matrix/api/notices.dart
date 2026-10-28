@@ -170,5 +170,22 @@ final class LiveLocationNotice extends RoomNotice {
 
 /// A call invitation, or a call started in the room.
 final class CallNotice extends RoomNotice {
-  const CallNotice();
+  const CallNotice({
+    this.video,
+    this.declinedBy = const [],
+    this.ongoing = false,
+    this.joined = false,
+  });
+
+  /// Video (`true`) or voice (`false`), if the caller said.
+  final bool? video;
+
+  /// The user IDs who declined the ring.
+  final List<String> declinedBy;
+
+  /// The call is still going on (only the room's latest call can be).
+  final bool ongoing;
+
+  /// The user is in it, on any device.
+  final bool joined;
 }

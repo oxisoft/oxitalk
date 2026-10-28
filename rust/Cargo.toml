@@ -10,11 +10,14 @@ license = "MIT"
 repository = "https://github.com/oxisoft/oxitalk"
 
 [workspace.dependencies]
+# Calls: the media keys as Element Call sends them (standard base64) and made from OS randomness.
+base64 = "0.22.1"
 flutter_rust_bridge = "=2.13.0"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+getrandom = "0.4.3"
 # D5: a rev of main, bumped every 2 weeks. Default features off: TLS is rustls + ring (P1), not aws-lc-rs.
 # All matrix-rust-sdk crates stay on the same rev.
-matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false, features = ["automatic-room-key-forwarding", "bundled-sqlite", "e2e-encryption", "experimental-element-recent-emojis", "markdown"] }
+matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false, features = ["automatic-room-key-forwarding", "bundled-sqlite", "e2e-encryption", "experimental-element-recent-emojis", "experimental-send-custom-to-device", "markdown"] }
 matrix-sdk-sqlite = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false }
 matrix-sdk-ui = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false }
 image = { version = "0.25.10", default-features = false, features = ["gif", "jpeg", "png", "webp"] }

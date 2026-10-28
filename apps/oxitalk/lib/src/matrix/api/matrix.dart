@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
+import 'calls.dart';
 import 'membership.dart';
 import 'models.dart';
 import 'pins.dart';
 import 'search.dart';
 import 'server_info.dart';
 
+export 'calls.dart';
 export 'membership.dart';
 export 'models.dart';
 export 'notices.dart';
@@ -398,6 +400,24 @@ abstract interface class MatrixSession {
   /// The first line of each room's own draft (not the threads'), by room ID, for the chat
   /// list.
   Future<Map<String, String>> draftPreviews();
+
+  /// The room's call now, then after every change (someone joining or leaving).
+  Stream<RoomCall> roomCall(String roomId);
+
+  /// Joins the room's call with this device (starting it if nobody is in it), then rings or
+  /// notifies as [notify] says. Throws [MatrixFailure]: [FailureKind.forbidden] when the room
+  /// or the call service doesn't let the user in.
+  Future<JoinedCall> joinCall(
+    String roomId, {
+    required CallIntent intent,
+    CallNotify notify = CallNotify.none,
+  });
+
+  /// Declines the ring [notificationEventId], for all the user's devices and the caller.
+  Future<void> declineCall(String roomId, String notificationEventId);
+
+  /// Every ring addressed to the user from now on, and when each stops.
+  Stream<IncomingCallUpdate> get incomingCalls;
 
   /// Logs out on the server and deletes everything stored for this account; the other
   /// accounts stay.

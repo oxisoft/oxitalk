@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../rust/api/calls.dart' as calls_api;
 import '../../rust/api/error.dart';
 import '../../rust/api/pins.dart' as pins_api;
 import '../../rust/api/room_list.dart' as rust;
@@ -967,6 +968,46 @@ final class RustMatrixSession implements MatrixSession {
   };
 
   @override
+  Stream<RoomCall> roomCall(String roomId) => _session
+      .subscribeRoomCall(roomId: roomId)
+      .map(roomCallOf)
+      .handleError(
+        (Object error) => throw failure(error as CoreError),
+        test: (error) => error is CoreError,
+      );
+
+  @override
+  Future<JoinedCall> joinCall(
+    String roomId, {
+    required CallIntent intent,
+    CallNotify notify = CallNotify.none,
+  }) async => _RustJoinedCall(
+    await guarded(
+      () => _session.joinCall(
+        roomId: roomId,
+        intent: rustCallIntent(intent),
+        notify: rustCallNotify(notify),
+      ),
+    ),
+  );
+
+  @override
+  Future<void> declineCall(String roomId, String notificationEventId) =>
+      guarded(
+        () => _session.declineCall(
+          roomId: roomId,
+          notificationEventId: notificationEventId,
+        ),
+      );
+
+  /// One subscription in the core, shared: each one registers its own event handlers.
+  @override
+  late final Stream<IncomingCallUpdate> incomingCalls = _session
+      .subscribeIncomingCalls()
+      .map(incomingCallUpdateOf)
+      .asBroadcastStream();
+
+  @override
   Future<void> logout() async {
     try {
       await guarded(_session.logout);
@@ -1329,4 +1370,32 @@ final class RustAudioCodec implements AudioCodec {
   @override
   Future<Uint8List?> playableWav(Uint8List data) =>
       voice.playableWav(data: data);
+}
+
+final class _RustJoinedCall implements JoinedCall {
+  _RustJoinedCall(this._call);
+
+  final calls_api.ActiveCall _call;
+
+  @override
+  String get roomId => _call.roomId();
+
+  @override
+  String get livekitUrl => _call.livekitUrl();
+
+  @override
+  String get livekitToken => _call.livekitToken();
+
+  @override
+  String get identity => _call.identity();
+
+  @override
+  CallIntent get intent => callIntentOf(_call.intent());
+
+  @override
+  Stream<CallMediaKey> get mediaKeys =>
+      _call.subscribeMediaKeys().map(callMediaKeyOf);
+
+  @override
+  Future<void> leave() => guarded(_call.leave);
 }

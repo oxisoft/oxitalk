@@ -1125,6 +1125,72 @@ final class FakeSession implements MatrixSession {
       if (thread == null && draft.hasText) roomId: draft.firstLine,
   };
 
+  /// Each room's call, for tests to change as the server would.
+  final calls = <String, Latest<RoomCall>>{};
+
+  Latest<RoomCall> callOf(String roomId) =>
+      calls.putIfAbsent(roomId, () => Latest(RoomCall(roomId: roomId)));
+
+  /// The calls joined, in order: (room, intent, notify).
+  final joinedCalls = <(String, CallIntent, CallNotify)>[];
+
+  /// The call [joinCall] made last.
+  FakeJoinedCall? lastJoinedCall;
+
+  /// When set, [joinCall] fails with it.
+  MatrixFailure? joinCallFailure;
+
+  /// The rings declined: (room, notification event).
+  final declinedCalls = <(String, String)>[];
+
+  /// What [incomingCalls] sends; tests add rings and their ends.
+  final incomingCallUpdates = StreamController<IncomingCallUpdate>.broadcast();
+
+  @override
+  Stream<RoomCall> roomCall(String roomId) => callOf(roomId).stream;
+
+  @override
+  Future<JoinedCall> joinCall(
+    String roomId, {
+    required CallIntent intent,
+    CallNotify notify = CallNotify.none,
+  }) async {
+    if (joinCallFailure case final failure?) throw failure;
+    joinedCalls.add((roomId, intent, notify));
+    final call = lastJoinedCall = FakeJoinedCall(roomId, intent, userId);
+    final latest = callOf(roomId);
+    latest.value = RoomCall(
+      roomId: roomId,
+      intent: intent,
+      participants: [
+        ...latest.value.participants,
+        CallParticipant(
+          userId: userId,
+          deviceId: 'FAKEDEVICE',
+          identity: call.identity,
+          isOwnUser: true,
+          isThisDevice: true,
+        ),
+      ],
+    );
+    call.onLeave = () => latest.value = RoomCall(
+      roomId: roomId,
+      intent: latest.value.intent,
+      participants: [
+        for (final p in latest.value.participants)
+          if (!p.isThisDevice) p,
+      ],
+    );
+    return call;
+  }
+
+  @override
+  Future<void> declineCall(String roomId, String notificationEventId) async =>
+      declinedCalls.add((roomId, notificationEventId));
+
+  @override
+  Stream<IncomingCallUpdate> get incomingCalls => incomingCallUpdates.stream;
+
   @override
   Future<void> logout() async => loggedOut = true;
 
@@ -1517,4 +1583,41 @@ final class FakeVerification implements DeviceVerification {
 
   @override
   void close() => closed = true;
+}
+
+/// A call joined through [FakeSession.joinCall].
+final class FakeJoinedCall implements JoinedCall {
+  FakeJoinedCall(this.roomId, this.intent, String userId)
+    : identity = '$userId:FAKEDEVICE';
+
+  @override
+  final String roomId;
+
+  @override
+  final CallIntent intent;
+
+  @override
+  final String identity;
+
+  @override
+  String get livekitUrl => 'wss://sfu.test';
+
+  @override
+  String get livekitToken => 'fake-token';
+
+  /// What [mediaKeys] sends; tests add keys.
+  final keys = StreamController<CallMediaKey>.broadcast();
+
+  bool left = false;
+  void Function()? onLeave;
+
+  @override
+  Stream<CallMediaKey> get mediaKeys => keys.stream;
+
+  @override
+  Future<void> leave() async {
+    if (left) return;
+    left = true;
+    onLeave?.call();
+  }
 }

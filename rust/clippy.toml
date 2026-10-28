@@ -1,1 +1,1 @@
-doc-valid-idents = ["OxiTalk", ".."]
+doc-valid-idents = ["OxiTalk", "LiveKit", "MatrixRTC", "OpenID", ".."]

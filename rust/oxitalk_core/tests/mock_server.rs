@@ -491,3 +491,204 @@ async fn server_info_reads_the_software_from_federation() -> TestResult {
     );
     Ok(())
 }
+
+/// A restored `@alice:localhost` in the joined room `!call:localhost`, the room's state
+/// encryption answered as none.
+async fn call_session(server: &MatrixMockServer, store_dir: &str) -> Result<Session, CoreError> {
+    server.mock_versions().ok().mount().await;
+    let session = server_info_session(server, store_dir).await?;
+    server
+        .sync_joined_room(session.sdk(), matrix_sdk::ruma::room_id!("!call:localhost"))
+        .await;
+    Ok(session)
+}
+
+async fn mount_post(server: &MatrixMockServer, at: &str, response: ResponseTemplate) {
+    wiremock::Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path(at))
+        .respond_with(response)
+        .mount(server.server())
+        .await;
+}
+
+/// The bodies of the requests to paths starting with `prefix`, in order.
+async fn bodies(server: &MatrixMockServer, prefix: &str) -> Vec<(String, serde_json::Value)> {
+    server
+        .server()
+        .received_requests()
+        .await
+        .unwrap_or_default()
+        .iter()
+        .filter(|r| r.url.path().starts_with(prefix))
+        .map(|r| {
+            (
+                r.url.path().to_owned(),
+                serde_json::from_slice(&r.body).unwrap_or(serde_json::Value::Null),
+            )
+        })
+        .collect()
+}
+
+/// Synapse and Tuwunel 1.9.4 serve the transports only under the unstable path; the SDK asks
+/// v1 (and the well-known, not there for `localhost`) first.
+#[tokio::test(flavor = "multi_thread")]
+async fn call_services_fall_back_to_the_unstable_transports() -> TestResult {
+    let server = MatrixMockServer::new().await;
+    mount_get(
+        &server,
+        "/_matrix/client/v1/rtc/transports",
+        ResponseTemplate::new(404)
+            .set_body_json(json!({ "errcode": "M_UNRECOGNIZED", "error": "Unrecognized request" })),
+    )
+    .await;
+    mount_get(
+        &server,
+        "/_matrix/client/unstable/org.matrix.msc4143/rtc/transports",
+        ResponseTemplate::new(200).set_body_json(json!({ "rtc_transports": [
+            { "type": "something-else", "url": "https://other" },
+            { "type": "livekit", "livekit_service_url": "https://rtc.example/livekit/jwt" },
+        ] })),
+    )
+    .await;
+    let store = tempfile::tempdir()?;
+    let session = server_info_session(&server, &store.path().to_string_lossy()).await?;
+    assert_eq!(
+        session.call_services().await?,
+        ["https://rtc.example/livekit/jwt"]
+    );
+    Ok(())
+}
+
+/// Joining: OpenID token, `/sfu/get` with it, then the membership as Element Call writes it;
+/// leaving sends empty content.
+#[tokio::test(flavor = "multi_thread")]
+async fn joining_a_call_asks_a_token_then_sends_the_membership() -> TestResult {
+    use oxitalk_core::api::calls::{CallIntent, CallNotify};
+
+    let server = MatrixMockServer::new().await;
+    let service = format!("{}/livekit/jwt", server.uri());
+    mount_get(
+        &server,
+        "/_matrix/client/unstable/org.matrix.msc4143/rtc/transports",
+        ResponseTemplate::new(200).set_body_json(json!({ "rtc_transports": [
+            { "type": "livekit", "livekit_service_url": service },
+        ] })),
+    )
+    .await;
+    mount_post(
+        &server,
+        "/_matrix/client/v3/user/@alice:localhost/openid/request_token",
+        ResponseTemplate::new(200).set_body_json(json!({
+            "access_token": "openid-token", "token_type": "Bearer",
+            "matrix_server_name": "localhost", "expires_in": 3600,
+        })),
+    )
+    .await;
+    mount_post(
+        &server,
+        "/livekit/jwt/sfu/get",
+        ResponseTemplate::new(200)
+            .set_body_json(json!({ "url": "wss://sfu.example", "jwt": "the.jwt.token" })),
+    )
+    .await;
+    wiremock::Mock::given(wiremock::matchers::method("PUT"))
+        .and(wiremock::matchers::path_regex(
+            "^/_matrix/client/v3/rooms/.*/state/org.matrix.msc3401.call.member/.*",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "event_id": "$member" })))
+        .mount(server.server())
+        .await;
+    let store = tempfile::tempdir()?;
+    let session = call_session(&server, &store.path().to_string_lossy()).await?;
+
+    let call = session
+        .join_call(
+            "!call:localhost".to_owned(),
+            CallIntent::Audio,
+            CallNotify::None,
+        )
+        .await?;
+    assert_eq!(call.livekit_url(), "wss://sfu.example");
+    assert_eq!(call.livekit_token(), "the.jwt.token");
+    assert_eq!(call.identity(), "@alice:localhost:DEVICEID");
+
+    let token_request = bodies(&server, "/livekit/jwt/sfu/get").await;
+    assert_eq!(
+        token_request[0].1,
+        json!({
+            "room": "!call:localhost",
+            "device_id": "DEVICEID",
+            "openid_token": {
+                "access_token": "openid-token", "token_type": "Bearer",
+                "matrix_server_name": "localhost", "expires_in": 3600,
+            },
+        })
+    );
+    let state = bodies(&server, "/_matrix/client/v3/rooms/").await;
+    let (path, membership) = state.first().ok_or("no membership sent")?;
+    assert!(
+        path.ends_with("/state/org.matrix.msc3401.call.member/_@alice:localhost_DEVICEID_m.call"),
+        "{path}"
+    );
+    assert_eq!(membership["application"], "m.call");
+    assert_eq!(membership["call_id"], "");
+    assert_eq!(membership["device_id"], "DEVICEID");
+    assert_eq!(membership["m.call.intent"], "audio");
+    assert_eq!(
+        membership["foci_preferred"][0]["livekit_service_url"],
+        service
+    );
+
+    call.leave().await?;
+    let state = bodies(&server, "/_matrix/client/v3/rooms/").await;
+    assert_eq!(state.last().map(|(_, body)| body.clone()), Some(json!({})));
+    Ok(())
+}
+
+/// A refusal from the call service is a [`CoreError::Forbidden`], and nothing is joined.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_refused_call_token_joins_nothing() -> TestResult {
+    use oxitalk_core::api::calls::{CallIntent, CallNotify};
+
+    let server = MatrixMockServer::new().await;
+    let service = format!("{}/livekit/jwt", server.uri());
+    mount_get(
+        &server,
+        "/_matrix/client/unstable/org.matrix.msc4143/rtc/transports",
+        ResponseTemplate::new(200).set_body_json(json!({ "rtc_transports": [
+            { "type": "livekit", "livekit_service_url": service },
+        ] })),
+    )
+    .await;
+    mount_post(
+        &server,
+        "/_matrix/client/v3/user/@alice:localhost/openid/request_token",
+        ResponseTemplate::new(200).set_body_json(json!({
+            "access_token": "t", "token_type": "Bearer",
+            "matrix_server_name": "localhost", "expires_in": 3600,
+        })),
+    )
+    .await;
+    mount_post(
+        &server,
+        "/livekit/jwt/sfu/get",
+        ResponseTemplate::new(403).set_body_json(json!({ "errcode": "M_FORBIDDEN" })),
+    )
+    .await;
+    let store = tempfile::tempdir()?;
+    let session = call_session(&server, &store.path().to_string_lossy()).await?;
+    let error = session
+        .join_call(
+            "!call:localhost".to_owned(),
+            CallIntent::Video,
+            CallNotify::Ring,
+        )
+        .await
+        .err();
+    assert!(
+        matches!(error, Some(CoreError::Forbidden { .. })),
+        "{error:?}"
+    );
+    assert_eq!(bodies(&server, "/_matrix/client/v3/rooms/").await, []);
+    Ok(())
+}

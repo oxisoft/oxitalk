@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/calls.dart';
 import 'api/devices.dart';
 import 'api/directory.dart';
 import 'api/drafts.dart';
@@ -50,6 +51,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ActiveCallPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCallPtr;
+
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_PinsPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPinsPtr;
 
@@ -71,6 +76,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  ActiveCall
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    dynamic raw,
+  );
 
   @protected
   Pins
@@ -99,6 +110,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Verification
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    dynamic raw,
+  );
+
+  @protected
+  ActiveCall
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
     dynamic raw,
   );
 
@@ -133,6 +150,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ActiveCall
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    dynamic raw,
+  );
+
+  @protected
   Pins
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     dynamic raw,
@@ -163,9 +186,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<CallMediaKey> dco_decode_StreamSink_call_media_key_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<EncryptionStatus> dco_decode_StreamSink_encryption_status_Sse(
     dynamic raw,
   );
+
+  @protected
+  RustStreamSink<IncomingCallUpdate>
+  dco_decode_StreamSink_incoming_call_update_Sse(dynamic raw);
 
   @protected
   RustStreamSink<List<String>> dco_decode_StreamSink_list_String_Sse(
@@ -202,6 +234,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<RecoveryProgress> dco_decode_StreamSink_recovery_progress_Sse(
     dynamic raw,
   );
+
+  @protected
+  RustStreamSink<RoomCall> dco_decode_StreamSink_room_call_Sse(dynamic raw);
 
   @protected
   RustStreamSink<RoomPins> dco_decode_StreamSink_room_pins_Sse(dynamic raw);
@@ -255,6 +290,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  CallIntent dco_decode_box_autoadd_call_intent(dynamic raw);
+
+  @protected
   CoreError dco_decode_box_autoadd_core_error(dynamic raw);
 
   @protected
@@ -265,6 +303,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  IncomingCall dco_decode_box_autoadd_incoming_call(dynamic raw);
 
   @protected
   LoginInfo dco_decode_box_autoadd_login_info(dynamic raw);
@@ -283,6 +324,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomAvatar dco_decode_box_autoadd_room_avatar(dynamic raw);
+
+  @protected
+  RoomCall dco_decode_box_autoadd_room_call(dynamic raw);
 
   @protected
   RoomNotice dco_decode_box_autoadd_room_notice(dynamic raw);
@@ -329,6 +373,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
+  CallIntent dco_decode_call_intent(dynamic raw);
+
+  @protected
+  CallMediaKey dco_decode_call_media_key(dynamic raw);
+
+  @protected
+  CallNotify dco_decode_call_notify(dynamic raw);
+
+  @protected
+  CallParticipant dco_decode_call_participant(dynamic raw);
+
+  @protected
   ConnectionInfo dco_decode_connection_info(dynamic raw);
 
   @protected
@@ -371,6 +427,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  IncomingCall dco_decode_incoming_call(dynamic raw);
+
+  @protected
+  IncomingCallEnd dco_decode_incoming_call_end(dynamic raw);
+
+  @protected
+  IncomingCallUpdate dco_decode_incoming_call_update(dynamic raw);
+
+  @protected
   InconsistentDefault dco_decode_inconsistent_default(dynamic raw);
 
   @protected
@@ -384,6 +449,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<CallParticipant> dco_decode_list_call_participant(dynamic raw);
 
   @protected
   List<CustomSection> dco_decode_list_custom_section(dynamic raw);
@@ -518,6 +586,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
+  CallIntent? dco_decode_opt_box_autoadd_call_intent(dynamic raw);
+
+  @protected
   Draft? dco_decode_opt_box_autoadd_draft(dynamic raw);
 
   @protected
@@ -616,6 +687,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomAvatar dco_decode_room_avatar(dynamic raw);
+
+  @protected
+  RoomCall dco_decode_room_call(dynamic raw);
 
   @protected
   RoomDetails dco_decode_room_details(dynamic raw);
@@ -759,6 +833,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  ActiveCall
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Pins
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     SseDeserializer deserializer,
@@ -785,6 +865,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Verification
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ActiveCall
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
     SseDeserializer deserializer,
   );
 
@@ -819,6 +905,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ActiveCall
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Pins
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     SseDeserializer deserializer,
@@ -849,9 +941,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<CallMediaKey> sse_decode_StreamSink_call_media_key_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<EncryptionStatus> sse_decode_StreamSink_encryption_status_Sse(
     SseDeserializer deserializer,
   );
+
+  @protected
+  RustStreamSink<IncomingCallUpdate>
+  sse_decode_StreamSink_incoming_call_update_Sse(SseDeserializer deserializer);
 
   @protected
   RustStreamSink<List<String>> sse_decode_StreamSink_list_String_Sse(
@@ -888,6 +989,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<RecoveryProgress> sse_decode_StreamSink_recovery_progress_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<RoomCall> sse_decode_StreamSink_room_call_Sse(
     SseDeserializer deserializer,
   );
 
@@ -953,6 +1059,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  CallIntent sse_decode_box_autoadd_call_intent(SseDeserializer deserializer);
+
+  @protected
   CoreError sse_decode_box_autoadd_core_error(SseDeserializer deserializer);
 
   @protected
@@ -963,6 +1072,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  IncomingCall sse_decode_box_autoadd_incoming_call(
+    SseDeserializer deserializer,
+  );
 
   @protected
   LoginInfo sse_decode_box_autoadd_login_info(SseDeserializer deserializer);
@@ -983,6 +1097,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomAvatar sse_decode_box_autoadd_room_avatar(SseDeserializer deserializer);
+
+  @protected
+  RoomCall sse_decode_box_autoadd_room_call(SseDeserializer deserializer);
 
   @protected
   RoomNotice sse_decode_box_autoadd_room_notice(SseDeserializer deserializer);
@@ -1037,6 +1154,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
+  CallIntent sse_decode_call_intent(SseDeserializer deserializer);
+
+  @protected
+  CallMediaKey sse_decode_call_media_key(SseDeserializer deserializer);
+
+  @protected
+  CallNotify sse_decode_call_notify(SseDeserializer deserializer);
+
+  @protected
+  CallParticipant sse_decode_call_participant(SseDeserializer deserializer);
+
+  @protected
   ConnectionInfo sse_decode_connection_info(SseDeserializer deserializer);
 
   @protected
@@ -1081,6 +1210,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  IncomingCall sse_decode_incoming_call(SseDeserializer deserializer);
+
+  @protected
+  IncomingCallEnd sse_decode_incoming_call_end(SseDeserializer deserializer);
+
+  @protected
+  IncomingCallUpdate sse_decode_incoming_call_update(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   InconsistentDefault sse_decode_inconsistent_default(
     SseDeserializer deserializer,
   );
@@ -1096,6 +1236,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<CallParticipant> sse_decode_list_call_participant(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<CustomSection> sse_decode_list_custom_section(
@@ -1254,6 +1399,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  CallIntent? sse_decode_opt_box_autoadd_call_intent(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Draft? sse_decode_opt_box_autoadd_draft(SseDeserializer deserializer);
 
   @protected
@@ -1374,6 +1524,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomAvatar sse_decode_room_avatar(SseDeserializer deserializer);
+
+  @protected
+  RoomCall sse_decode_room_call(SseDeserializer deserializer);
 
   @protected
   RoomDetails sse_decode_room_details(SseDeserializer deserializer);
@@ -1533,6 +1686,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    ActiveCall self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     Pins self,
     SseSerializer serializer,
@@ -1563,6 +1723,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVerification(
     Verification self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    ActiveCall self,
     SseSerializer serializer,
   );
 
@@ -1603,6 +1770,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    ActiveCall self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(
     Pins self,
     SseSerializer serializer,
@@ -1637,8 +1811,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_call_media_key_Sse(
+    RustStreamSink<CallMediaKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_encryption_status_Sse(
     RustStreamSink<EncryptionStatus> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_incoming_call_update_Sse(
+    RustStreamSink<IncomingCallUpdate> self,
     SseSerializer serializer,
   );
 
@@ -1687,6 +1873,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_recovery_progress_Sse(
     RustStreamSink<RecoveryProgress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_room_call_Sse(
+    RustStreamSink<RoomCall> self,
     SseSerializer serializer,
   );
 
@@ -1760,6 +1952,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_call_intent(
+    CallIntent self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_core_error(
     CoreError self,
     SseSerializer serializer,
@@ -1777,6 +1975,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_incoming_call(
+    IncomingCall self,
     SseSerializer serializer,
   );
 
@@ -1810,6 +2014,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_room_avatar(
     RoomAvatar self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_room_call(
+    RoomCall self,
     SseSerializer serializer,
   );
 
@@ -1889,6 +2099,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_call_intent(CallIntent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_call_media_key(CallMediaKey self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_call_notify(CallNotify self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_call_participant(
+    CallParticipant self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_connection_info(
     ConnectionInfo self,
     SseSerializer serializer,
@@ -1940,6 +2165,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_incoming_call(IncomingCall self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_incoming_call_end(
+    IncomingCallEnd self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_incoming_call_update(
+    IncomingCallUpdate self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_inconsistent_default(
     InconsistentDefault self,
     SseSerializer serializer,
@@ -1956,6 +2196,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_call_participant(
+    List<CallParticipant> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_custom_section(
@@ -2174,6 +2420,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_call_intent(
+    CallIntent? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_draft(Draft? self, SseSerializer serializer);
 
   @protected
@@ -2325,6 +2577,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_avatar(RoomAvatar self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_call(RoomCall self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_details(RoomDetails self, SseSerializer serializer);
@@ -2517,6 +2772,40 @@ class RustLibWire implements BaseWire {
   /// The symbols are looked up in [dynamicLibrary].
   RustLibWire(ffi.DynamicLibrary dynamicLibrary)
     : _lookup = dynamicLibrary.lookup;
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCallPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_oxitalk_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCallPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCallPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_oxitalk_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCall =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerActiveCallPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPins(

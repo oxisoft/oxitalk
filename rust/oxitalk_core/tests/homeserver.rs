@@ -5,6 +5,8 @@
 // The futures of matrix-sdk-ui (the timeline in particular) are deeply nested.
 #![recursion_limit = "256"]
 
+#[path = "homeserver/calls.rs"]
+mod calls;
 #[path = "homeserver/devices.rs"]
 mod devices;
 #[path = "homeserver/drafts.rs"]

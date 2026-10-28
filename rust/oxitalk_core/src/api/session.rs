@@ -1,7 +1,7 @@
 //! Logging in, restoring a session, and the handle the app holds while it is logged in.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     sync::{Arc, Mutex, PoisonError},
     time::Duration,
@@ -71,6 +71,8 @@ pub struct Session {
     pub(crate) room_subscriptions: Arc<Mutex<HashMap<OwnedRoomId, usize>>>,
     /// How far setting up recovery is, for whoever follows it.
     pub(crate) recovery_progress: broadcast::Sender<RecoveryProgress>,
+    /// The rooms whose call this device is in through an `ActiveCall` of this session.
+    pub(crate) active_calls: Arc<Mutex<HashSet<OwnedRoomId>>>,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -182,6 +184,7 @@ impl Session {
             notification_candidates,
             room_subscriptions: Arc::default(),
             recovery_progress: broadcast::channel(16).0,
+            active_calls: Arc::default(),
             tasks: Mutex::default(),
             runtime: Handle::current(),
         };

@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'calls.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -155,6 +156,19 @@ sealed class RoomNotice with _$RoomNotice {
       RoomNotice_Location;
   const factory RoomNotice.liveLocation() = RoomNotice_LiveLocation;
 
-  /// A call invitation (the old 1:1 calls), or a call started in the room.
-  const factory RoomNotice.call() = RoomNotice_Call;
+  /// A call invitation (the old 1:1 calls), or a call started in the room (an
+  /// `m.rtc.notification`).
+  const factory RoomNotice.call({
+    /// Voice or video, as the caller said.
+    CallIntent? intent,
+
+    /// Who declined the ring.
+    required List<String> declinedBy,
+
+    /// The call is still going on (only for the room's latest call).
+    required bool ongoing,
+
+    /// The user is in it, on any device.
+    required bool joined,
+  }) = RoomNotice_Call;
 }

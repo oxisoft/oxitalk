@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'calls.dart';
 import 'devices.dart';
 import 'directory.dart';
 import 'drafts.dart';
@@ -103,6 +104,16 @@ abstract class Session implements RustOpaqueInterface {
     String? reason,
   });
 
+  /// The LiveKit services the homeserver offers for calls (MSC4143 `rtc/transports`, Synapse's
+  /// unstable path, then the well-known `org.matrix.msc4143.rtc_foci`), as their
+  /// `livekit_service_url`s. Empty when it offers none.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::SessionExpired`], or [`CoreError::Network`] when the server can't be
+  /// reached.
+  Future<List<String>> callServices();
+
   /// Whether the user may notify the whole room with `@room` (the room's
   /// `notifications.room` power level).
   Future<bool> canMentionRoom({required String roomId});
@@ -135,6 +146,17 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As the server answers: [`CoreError::Internal`] if the address is taken or malformed.
   Future<String> createRoom({required NewRoom room});
+
+  /// Declines the ring `notification_event_id` in the room, for all the user's devices and
+  /// the caller (MSC4310).
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or as the server answers.
+  Future<void> declineCall({
+    required String roomId,
+    required String notificationEventId,
+  });
 
   /// The account's devices: this one first, then the others, the last seen first.
   ///
@@ -248,6 +270,22 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] for anything else, otherwise as the server answers.
   Future<String> joinByAddress({required String address});
+
+  /// Joins the room's call (starting it if nobody is in it) with this device: a LiveKit token,
+  /// then the membership, kept fresh until [`ActiveCall::leave`]; then rings or notifies as
+  /// `notify` says. The returned call has the LiveKit address and token and streams the media
+  /// keys.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::RoomNotFound`]; [`CoreError::Internal`] when the server offers no call
+  /// service; [`CoreError::Forbidden`] when the room doesn't let the user join calls or the
+  /// call service refuses; otherwise as the servers answer.
+  Future<ActiveCall> joinCall({
+    required String roomId,
+    required CallIntent intent,
+    required CallNotify notify,
+  });
 
   /// The people the user shares chats with, those of the most recently active chats first,
   /// each once; the user left out. Read from the store, so it works offline.
@@ -459,6 +497,13 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::RecoveryNotSetUp`] if recovery is off, otherwise as the server answers.
   Future<String> resetRecoveryKey();
+
+  /// The room's call now.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`] or [`CoreError::SessionExpired`].
+  Future<RoomCall> roomCall({required String roomId});
 
   /// A room's details for its info screen.
   ///
@@ -758,6 +803,11 @@ abstract class Session implements RustOpaqueInterface {
   /// another device.
   Stream<List<String>> subscribeIgnoredUsers();
 
+  /// Sends every ring addressed to the user from now on, and when each one stops. A ring
+  /// counts while it is fresh (MSC4075 lifetime), the call it is about is going on and the
+  /// user is not in it yet.
+  Stream<IncomingCallUpdate> subscribeIncomingCalls();
+
   /// Sends the account's notification settings, then the settings after every change, made
   /// here or on another device.
   Stream<NotificationSettingsState> subscribeNotificationSettings();
@@ -768,6 +818,14 @@ abstract class Session implements RustOpaqueInterface {
 
   /// Sends how far a running [`Self::enable_recovery`] is, from now on.
   Stream<RecoveryProgress> subscribeRecoveryProgress();
+
+  /// Sends the room's call now, then after every change: someone joining, leaving, or their
+  /// membership running out.
+  ///
+  /// # Errors
+  ///
+  /// As [`Self::room_call`].
+  Stream<RoomCall> subscribeRoomCall({required String roomId});
 
   /// Sends the room's [`Self::room_settings`] now, then after every change, made here or
   /// elsewhere (they arrive with the sync), power levels included.

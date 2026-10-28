@@ -4,14 +4,19 @@ use matrix_sdk::ruma::{
     MatrixToUri, MatrixUri, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId,
     api::client::room::{
         Visibility,
-        create_room::v3::{Request as CreateRoomRequest, RoomPreset},
+        create_room::{
+            RoomPowerLevelsContentOverride,
+            v3::{Request as CreateRoomRequest, RoomPreset},
+        },
     },
     events::{InitialStateEvent, room::encryption::RoomEncryptionEventContent},
     matrix_uri::MatrixId,
+    serde::Raw,
 };
 use mime::Mime;
 
 use super::{
+    calls::CALL_MEMBER_TYPE,
     error::{CoreError, parse_id},
     session::Session,
 };
@@ -88,6 +93,9 @@ impl Session {
                 .to_raw_any(),
             ];
         }
+        // Members may join calls, as in the rooms Element creates: the call membership event
+        // at level 0 (by default only moderators could send it).
+        request.power_level_content_override = Some(call_power_levels()?);
         let created = self.client.create_room(request).await?;
         if let Some(avatar) = room.avatar {
             let mime: Mime = avatar
@@ -156,6 +164,26 @@ fn room_target(address: &str) -> Option<(OwnedRoomOrAliasId, Vec<OwnedServerName
         MatrixId::RoomAlias(alias) => Some((alias.into(), via)),
         _ => None,
     }
+}
+
+/// The events' power levels of a new room: the servers' defaults (Synapse
+/// `handlers/room.py`, also Element Web's `DEFAULT_EVENT_POWER_LEVELS`) and the call
+/// membership at 0. The whole map, since servers replace `events` rather than merge it.
+fn call_power_levels() -> Result<Raw<RoomPowerLevelsContentOverride>, CoreError> {
+    let content = serde_json::json!({
+        "events": {
+            "m.room.name": 50,
+            "m.room.power_levels": 100,
+            "m.room.history_visibility": 100,
+            "m.room.canonical_alias": 50,
+            "m.room.avatar": 50,
+            "m.room.tombstone": 100,
+            "m.room.server_acl": 100,
+            "m.room.encryption": 100,
+            CALL_MEMBER_TYPE: 0,
+        }
+    });
+    Raw::from_json_string(content.to_string()).map_err(|error| CoreError::internal(&error))
 }
 
 #[cfg(test)]

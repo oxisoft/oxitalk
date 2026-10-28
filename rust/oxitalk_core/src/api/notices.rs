@@ -1,6 +1,7 @@
 //! The timeline's small notices: what happened in a room besides messages (who joined or
 //! left, a new name or topic, a poll, a call), as data the app turns into one line.
 
+use super::calls::CallIntent;
 use matrix_sdk::ruma::{
     UserId,
     events::{
@@ -92,8 +93,18 @@ pub enum RoomNotice {
         body: String,
     },
     LiveLocation,
-    /// A call invitation (the old 1:1 calls), or a call started in the room.
-    Call,
+    /// A call invitation (the old 1:1 calls), or a call started in the room (an
+    /// `m.rtc.notification`).
+    Call {
+        /// Voice or video, as the caller said.
+        intent: Option<CallIntent>,
+        /// Who declined the ring.
+        declined_by: Vec<String>,
+        /// The call is still going on (only for the room's latest call).
+        ongoing: bool,
+        /// The user is in it, on any device.
+        joined: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -169,7 +180,28 @@ pub(crate) fn notice(content: &Content, own: &UserId) -> Option<RoomNotice> {
         Content::MembershipChange(change) => membership(change, own),
         Content::ProfileChange(change) => profile(change),
         Content::OtherState(state) => other_state(state.content()),
-        Content::CallInvite | Content::RtcNotification { .. } => Some(RoomNotice::Call),
+        Content::CallInvite => Some(RoomNotice::Call {
+            intent: None,
+            declined_by: Vec::new(),
+            ongoing: false,
+            joined: false,
+        }),
+        Content::RtcNotification {
+            call_intent,
+            declined_by,
+            active_call_info,
+        } => Some(RoomNotice::Call {
+            intent: call_intent
+                .as_ref()
+                .and_then(|intent| match intent.as_str() {
+                    "audio" => Some(CallIntent::Audio),
+                    "video" => Some(CallIntent::Video),
+                    _ => None,
+                }),
+            declined_by: declined_by.iter().map(ToString::to_string).collect(),
+            ongoing: active_call_info.is_some(),
+            joined: active_call_info.as_ref().is_some_and(|info| info.is_joined),
+        }),
         Content::FailedToParseMessageLike { .. } | Content::FailedToParseState { .. } => None,
     }
 }

@@ -2704,8 +2704,10 @@ dependencies = [
 name = "oxitalk_core"
 version = "0.1.30"
 dependencies = [
+ "base64 0.22.1",
  "flutter_rust_bridge",
  "futures-util",
+ "getrandom 0.4.3",
  "image",
  "matrix-sdk",
  "matrix-sdk-sqlite",

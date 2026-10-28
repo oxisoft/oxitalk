@@ -1,3 +1,4 @@
+import '../../rust/api/calls.dart' as calls_api;
 import '../../rust/api/devices.dart' as rust;
 import '../../rust/api/drafts.dart' as drafts_api;
 import '../../rust/api/error.dart';
@@ -344,7 +345,22 @@ RoomNotice noticeOf(notice_api.RoomNotice notice) => switch (notice) {
   notice_api.RoomNotice_Sticker(:final body) => StickerNotice(body),
   notice_api.RoomNotice_Location(:final body) => LocationNotice(body),
   notice_api.RoomNotice_LiveLocation() => const LiveLocationNotice(),
-  notice_api.RoomNotice_Call() => const CallNotice(),
+  notice_api.RoomNotice_Call(
+    :final intent,
+    :final declinedBy,
+    :final ongoing,
+    :final joined,
+  ) =>
+    CallNotice(
+      video: switch (intent) {
+        null => null,
+        calls_api.CallIntent.video => true,
+        calls_api.CallIntent.audio => false,
+      },
+      declinedBy: declinedBy,
+      ongoing: ongoing,
+      joined: joined,
+    ),
 };
 
 InviteDetails inviteDetailsOf(membership_api.InviteDetails details) =>
@@ -798,3 +814,77 @@ ComposerDraft draftOf(drafts_api.Draft draft) => switch (draft.kind) {
     eventId: eventId,
   ),
 };
+
+CallIntent callIntentOf(calls_api.CallIntent intent) => switch (intent) {
+  calls_api.CallIntent.audio => CallIntent.audio,
+  calls_api.CallIntent.video => CallIntent.video,
+};
+
+calls_api.CallIntent rustCallIntent(CallIntent intent) => switch (intent) {
+  CallIntent.audio => calls_api.CallIntent.audio,
+  CallIntent.video => calls_api.CallIntent.video,
+};
+
+calls_api.CallNotify rustCallNotify(CallNotify notify) => switch (notify) {
+  CallNotify.none => calls_api.CallNotify.none,
+  CallNotify.ring => calls_api.CallNotify.ring,
+  CallNotify.notify => calls_api.CallNotify.notify,
+};
+
+RoomCall roomCallOf(calls_api.RoomCall call) => RoomCall(
+  roomId: call.roomId,
+  intent: call.intent == null ? null : callIntentOf(call.intent!),
+  participants: [
+    for (final p in call.participants)
+      CallParticipant(
+        userId: p.userId,
+        deviceId: p.deviceId,
+        identity: p.identity,
+        displayName: p.displayName,
+        avatarUrl: p.avatarUrl,
+        intent: p.intent == null ? null : callIntentOf(p.intent!),
+        isOwnUser: p.isOwnUser,
+        isThisDevice: p.isThisDevice,
+      ),
+  ],
+);
+
+CallMediaKey callMediaKeyOf(calls_api.CallMediaKey key) => CallMediaKey(
+  identity: key.identity,
+  index: key.index,
+  key: key.key,
+  isOwn: key.isOwn,
+);
+
+IncomingCallUpdate incomingCallUpdateOf(calls_api.IncomingCallUpdate update) =>
+    switch (update) {
+      calls_api.IncomingCallUpdate_Ringing(:final call) => CallRinging(
+        IncomingCall(
+          roomId: call.roomId,
+          notificationEventId: call.notificationEventId,
+          senderId: call.senderId,
+          senderName: call.senderName,
+          senderAvatarUrl: call.senderAvatarUrl,
+          intent: call.intent == null ? null : callIntentOf(call.intent!),
+          ring: call.ring,
+          expiresAt: DateTime.fromMillisecondsSinceEpoch(
+            call.expiresAtMs.toInt(),
+          ),
+        ),
+      ),
+      calls_api.IncomingCallUpdate_Ended(
+        :final roomId,
+        :final notificationEventId,
+        :final reason,
+      ) =>
+        CallRingEnded(
+          roomId: roomId,
+          notificationEventId: notificationEventId,
+          reason: switch (reason) {
+            calls_api.IncomingCallEnd.expired => IncomingCallEnd.expired,
+            calls_api.IncomingCallEnd.callEnded => IncomingCallEnd.callEnded,
+            calls_api.IncomingCallEnd.answered => IncomingCallEnd.answered,
+            calls_api.IncomingCallEnd.declined => IncomingCallEnd.declined,
+          },
+        ),
+    };

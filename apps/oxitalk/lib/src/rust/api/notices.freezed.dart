@@ -168,7 +168,7 @@ return call(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String userId,  String? userName,  bool userIsOwn,  MembershipKind change,  String? reason)?  membership,TResult Function( String userId,  String? oldName,  String? newName,  bool nameChanged,  bool avatarChanged,  bool avatarRemoved)?  profile,TResult Function()?  roomCreated,TResult Function( String? name)?  roomName,TResult Function( String? topic)?  roomTopic,TResult Function( bool removed)?  roomAvatar,TResult Function( String? alias)?  roomAlias,TResult Function()?  encryptionEnabled,TResult Function( HistoryVisibilityKind visibility)?  historyVisibility,TResult Function( JoinRuleKind rule)?  joinRules,TResult Function( List<PowerLevelChange> changes)?  powerLevels,TResult Function( bool added,  bool removed)?  pinned,TResult Function()?  roomUpgraded,TResult Function( String question)?  poll,TResult Function( String body)?  sticker,TResult Function( String body)?  location,TResult Function()?  liveLocation,TResult Function()?  call,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String userId,  String? userName,  bool userIsOwn,  MembershipKind change,  String? reason)?  membership,TResult Function( String userId,  String? oldName,  String? newName,  bool nameChanged,  bool avatarChanged,  bool avatarRemoved)?  profile,TResult Function()?  roomCreated,TResult Function( String? name)?  roomName,TResult Function( String? topic)?  roomTopic,TResult Function( bool removed)?  roomAvatar,TResult Function( String? alias)?  roomAlias,TResult Function()?  encryptionEnabled,TResult Function( HistoryVisibilityKind visibility)?  historyVisibility,TResult Function( JoinRuleKind rule)?  joinRules,TResult Function( List<PowerLevelChange> changes)?  powerLevels,TResult Function( bool added,  bool removed)?  pinned,TResult Function()?  roomUpgraded,TResult Function( String question)?  poll,TResult Function( String body)?  sticker,TResult Function( String body)?  location,TResult Function()?  liveLocation,TResult Function( CallIntent? intent,  List<String> declinedBy,  bool ongoing,  bool joined)?  call,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case RoomNotice_Membership() when membership != null:
 return membership(_that.userId,_that.userName,_that.userIsOwn,_that.change,_that.reason);case RoomNotice_Profile() when profile != null:
@@ -188,7 +188,7 @@ return poll(_that.question);case RoomNotice_Sticker() when sticker != null:
 return sticker(_that.body);case RoomNotice_Location() when location != null:
 return location(_that.body);case RoomNotice_LiveLocation() when liveLocation != null:
 return liveLocation();case RoomNotice_Call() when call != null:
-return call();case _:
+return call(_that.intent,_that.declinedBy,_that.ongoing,_that.joined);case _:
   return orElse();
 
 }
@@ -206,7 +206,7 @@ return call();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String userId,  String? userName,  bool userIsOwn,  MembershipKind change,  String? reason)  membership,required TResult Function( String userId,  String? oldName,  String? newName,  bool nameChanged,  bool avatarChanged,  bool avatarRemoved)  profile,required TResult Function()  roomCreated,required TResult Function( String? name)  roomName,required TResult Function( String? topic)  roomTopic,required TResult Function( bool removed)  roomAvatar,required TResult Function( String? alias)  roomAlias,required TResult Function()  encryptionEnabled,required TResult Function( HistoryVisibilityKind visibility)  historyVisibility,required TResult Function( JoinRuleKind rule)  joinRules,required TResult Function( List<PowerLevelChange> changes)  powerLevels,required TResult Function( bool added,  bool removed)  pinned,required TResult Function()  roomUpgraded,required TResult Function( String question)  poll,required TResult Function( String body)  sticker,required TResult Function( String body)  location,required TResult Function()  liveLocation,required TResult Function()  call,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String userId,  String? userName,  bool userIsOwn,  MembershipKind change,  String? reason)  membership,required TResult Function( String userId,  String? oldName,  String? newName,  bool nameChanged,  bool avatarChanged,  bool avatarRemoved)  profile,required TResult Function()  roomCreated,required TResult Function( String? name)  roomName,required TResult Function( String? topic)  roomTopic,required TResult Function( bool removed)  roomAvatar,required TResult Function( String? alias)  roomAlias,required TResult Function()  encryptionEnabled,required TResult Function( HistoryVisibilityKind visibility)  historyVisibility,required TResult Function( JoinRuleKind rule)  joinRules,required TResult Function( List<PowerLevelChange> changes)  powerLevels,required TResult Function( bool added,  bool removed)  pinned,required TResult Function()  roomUpgraded,required TResult Function( String question)  poll,required TResult Function( String body)  sticker,required TResult Function( String body)  location,required TResult Function()  liveLocation,required TResult Function( CallIntent? intent,  List<String> declinedBy,  bool ongoing,  bool joined)  call,}) {final _that = this;
 switch (_that) {
 case RoomNotice_Membership():
 return membership(_that.userId,_that.userName,_that.userIsOwn,_that.change,_that.reason);case RoomNotice_Profile():
@@ -226,7 +226,7 @@ return poll(_that.question);case RoomNotice_Sticker():
 return sticker(_that.body);case RoomNotice_Location():
 return location(_that.body);case RoomNotice_LiveLocation():
 return liveLocation();case RoomNotice_Call():
-return call();}
+return call(_that.intent,_that.declinedBy,_that.ongoing,_that.joined);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -240,7 +240,7 @@ return call();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String userId,  String? userName,  bool userIsOwn,  MembershipKind change,  String? reason)?  membership,TResult? Function( String userId,  String? oldName,  String? newName,  bool nameChanged,  bool avatarChanged,  bool avatarRemoved)?  profile,TResult? Function()?  roomCreated,TResult? Function( String? name)?  roomName,TResult? Function( String? topic)?  roomTopic,TResult? Function( bool removed)?  roomAvatar,TResult? Function( String? alias)?  roomAlias,TResult? Function()?  encryptionEnabled,TResult? Function( HistoryVisibilityKind visibility)?  historyVisibility,TResult? Function( JoinRuleKind rule)?  joinRules,TResult? Function( List<PowerLevelChange> changes)?  powerLevels,TResult? Function( bool added,  bool removed)?  pinned,TResult? Function()?  roomUpgraded,TResult? Function( String question)?  poll,TResult? Function( String body)?  sticker,TResult? Function( String body)?  location,TResult? Function()?  liveLocation,TResult? Function()?  call,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String userId,  String? userName,  bool userIsOwn,  MembershipKind change,  String? reason)?  membership,TResult? Function( String userId,  String? oldName,  String? newName,  bool nameChanged,  bool avatarChanged,  bool avatarRemoved)?  profile,TResult? Function()?  roomCreated,TResult? Function( String? name)?  roomName,TResult? Function( String? topic)?  roomTopic,TResult? Function( bool removed)?  roomAvatar,TResult? Function( String? alias)?  roomAlias,TResult? Function()?  encryptionEnabled,TResult? Function( HistoryVisibilityKind visibility)?  historyVisibility,TResult? Function( JoinRuleKind rule)?  joinRules,TResult? Function( List<PowerLevelChange> changes)?  powerLevels,TResult? Function( bool added,  bool removed)?  pinned,TResult? Function()?  roomUpgraded,TResult? Function( String question)?  poll,TResult? Function( String body)?  sticker,TResult? Function( String body)?  location,TResult? Function()?  liveLocation,TResult? Function( CallIntent? intent,  List<String> declinedBy,  bool ongoing,  bool joined)?  call,}) {final _that = this;
 switch (_that) {
 case RoomNotice_Membership() when membership != null:
 return membership(_that.userId,_that.userName,_that.userIsOwn,_that.change,_that.reason);case RoomNotice_Profile() when profile != null:
@@ -260,7 +260,7 @@ return poll(_that.question);case RoomNotice_Sticker() when sticker != null:
 return sticker(_that.body);case RoomNotice_Location() when location != null:
 return location(_that.body);case RoomNotice_LiveLocation() when liveLocation != null:
 return liveLocation();case RoomNotice_Call() when call != null:
-return call();case _:
+return call(_that.intent,_that.declinedBy,_that.ongoing,_that.joined);case _:
   return null;
 
 }
@@ -1316,32 +1316,85 @@ String toString() {
 
 
 class RoomNotice_Call extends RoomNotice {
-  const RoomNotice_Call(): super._();
+  const RoomNotice_Call({this.intent, required  List<String> declinedBy, required this.ongoing, required this.joined}): _declinedBy = declinedBy,super._();
   
 
+/// Voice or video, as the caller said.
+ final  CallIntent? intent;
+/// Who declined the ring.
+ final  List<String> _declinedBy;
+/// Who declined the ring.
+ List<String> get declinedBy {
+  if (_declinedBy is EqualUnmodifiableListView) return _declinedBy;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_declinedBy);
+}
 
+/// The call is still going on (only for the room's latest call).
+ final  bool ongoing;
+/// The user is in it, on any device.
+ final  bool joined;
 
+/// Create a copy of RoomNotice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RoomNotice_CallCopyWith<RoomNotice_Call> get copyWith => _$RoomNotice_CallCopyWithImpl<RoomNotice_Call>(this, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is RoomNotice_Call);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is RoomNotice_Call&&(identical(other.intent, intent) || other.intent == intent)&&const DeepCollectionEquality().equals(other.declinedBy, _declinedBy)&&(identical(other.ongoing, ongoing) || other.ongoing == ongoing)&&(identical(other.joined, joined) || other.joined == joined));
 }
 
 
 @override
-int get hashCode => runtimeType.hashCode;
+int get hashCode {
+    return Object.hash(runtimeType,intent,const DeepCollectionEquality().hash(_declinedBy),ongoing,joined);
+}
 
 @override
 String toString() {
-    return 'RoomNotice.call()';
+    return 'RoomNotice.call(intent: $intent, declinedBy: $declinedBy, ongoing: $ongoing, joined: $joined)';
 }
 
 
 }
 
+/// @nodoc
+abstract mixin class $RoomNotice_CallCopyWith<$Res> implements $RoomNoticeCopyWith<$Res> {
+  factory $RoomNotice_CallCopyWith(RoomNotice_Call value, $Res Function(RoomNotice_Call) _then) = _$RoomNotice_CallCopyWithImpl;
+@useResult
+$Res call({
+ CallIntent? intent, List<String> declinedBy, bool ongoing, bool joined
+});
 
 
+
+
+}
+/// @nodoc
+class _$RoomNotice_CallCopyWithImpl<$Res>
+    implements $RoomNotice_CallCopyWith<$Res> {
+  _$RoomNotice_CallCopyWithImpl(this._self, this._then);
+
+  final RoomNotice_Call _self;
+  final $Res Function(RoomNotice_Call) _then;
+
+/// Create a copy of RoomNotice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? intent = freezed,Object? declinedBy = null,Object? ongoing = null,Object? joined = null,}) {
+  return _then(RoomNotice_Call(
+intent: freezed == intent ? _self.intent : intent // ignore: cast_nullable_to_non_nullable
+as CallIntent?,declinedBy: null == declinedBy ? _self._declinedBy : declinedBy // ignore: cast_nullable_to_non_nullable
+as List<String>,ongoing: null == ongoing ? _self.ongoing : ongoing // ignore: cast_nullable_to_non_nullable
+as bool,joined: null == joined ? _self.joined : joined // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
 
 // dart format on
