@@ -33,7 +33,7 @@ use base64::{
 use flutter_rust_bridge::frb;
 use matrix_sdk::{
     Client, Room,
-    deserialized_responses::RawAnySyncOrStrippedState,
+    deserialized_responses::{RawAnySyncOrStrippedState, TimelineEvent},
     event_handler::EventHandlerDropGuard,
     ruma::{
         MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
@@ -1055,18 +1055,38 @@ async fn retry_decrypt(
     if !fresh || !from_other {
         return;
     }
+    let decrypted = retry_until(DECRYPT_RETRY, || async {
+        decrypted(room.decrypt_event(&event, None).await)
+    })
+    .await;
+    if let Some(value) = decrypted.as_ref().and_then(|event| ring_event(event.raw())) {
+        let _ = sender.send((room, value));
+    }
+}
+
+/// The event if it could be read. A missing room key is no error for the SDK: it gives the
+/// event back as unable to decrypt, which must count as not decrypted yet.
+fn decrypted<E>(result: Result<TimelineEvent, E>) -> Option<TimelineEvent> {
+    result.ok().filter(|event| !event.kind.is_utd())
+}
+
+/// Calls `attempt` after growing waits (0.5 s, then doubling up to 3 s) until it gives a value
+/// or `limit` has passed.
+async fn retry_until<T, F, Fut>(limit: Duration, mut attempt: F) -> Option<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Option<T>>,
+{
     let started = Instant::now();
     let mut wait = Duration::from_millis(500);
-    while started.elapsed() < DECRYPT_RETRY {
+    while started.elapsed() < limit {
         tokio::time::sleep(wait).await;
         wait = (wait * 2).min(Duration::from_secs(3));
-        if let Ok(decrypted) = room.decrypt_event(&event, None).await {
-            if let Some(value) = ring_event(decrypted.raw()) {
-                let _ = sender.send((room, value));
-            }
-            return;
+        if let Some(value) = attempt().await {
+            return Some(value);
         }
     }
+    None
 }
 
 /// Shows one ring until it stops: emits `Ringing` once the call is seen going on, then `Ended`.
@@ -1693,6 +1713,69 @@ impl CallInner {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use matrix_sdk::deserialized_responses::{UnableToDecryptInfo, UnableToDecryptReason};
+
+    fn ring_raw(kind: &str) -> Raw<AnySyncTimelineEvent> {
+        Raw::from_json(
+            serde_json::value::to_raw_value(&json!({
+                "type": kind,
+                "sender": "@alice:x",
+                "event_id": "$ring",
+                "origin_server_ts": 1,
+                "content": {},
+            }))
+            .unwrap_or_default(),
+        )
+    }
+
+    fn no_key_yet() -> TimelineEvent {
+        TimelineEvent::from_utd(
+            ring_raw("m.room.encrypted"),
+            UnableToDecryptInfo {
+                session_id: Some("s".to_owned()),
+                reason: UnableToDecryptReason::MissingMegolmSession {
+                    withheld_code: None,
+                },
+            },
+        )
+    }
+
+    /// The SDK answers a ring whose room key hasn't come with Ok(unable to decrypt): that is
+    /// tried again, so the ring shows once the key comes (on Tuwunel under load it came 2 s
+    /// after the ring, and the ring was dropped at the first try).
+    #[tokio::test]
+    async fn an_encrypted_ring_is_read_once_its_key_comes() -> Result<(), &'static str> {
+        assert!(decrypted(Ok::<_, ()>(no_key_yet())).is_none());
+        assert!(decrypted(Err::<TimelineEvent, _>(())).is_none());
+        let mut tries = 0;
+        let read = retry_until(Duration::from_secs(5), || {
+            tries += 1;
+            let result = if tries < 3 {
+                Ok::<_, ()>(no_key_yet())
+            } else {
+                Ok(TimelineEvent::from_plaintext(ring_raw(NOTIFICATION_TYPE)))
+            };
+            async move { decrypted(result) }
+        })
+        .await
+        .ok_or("not read after the key came")?;
+        assert_eq!(tries, 3);
+        assert!(ring_event(read.raw()).is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn an_encrypted_ring_without_a_key_is_given_up() {
+        let mut tries = 0;
+        let read = retry_until(Duration::from_millis(1200), || {
+            tries += 1;
+            async { decrypted(Ok::<_, ()>(no_key_yet())) }
+        })
+        .await;
+        assert!(read.is_none());
+        assert_eq!(tries, 2, "0.5 s, then 1 s");
+    }
 
     fn member_event(sender: &str, device: &str, content: &Value, origin: i64) -> Value {
         json!({
