@@ -103,6 +103,12 @@ async fn search_finds_decrypted_edited_messages_and_files() -> TestResult {
         .await?;
     timeline.redact(secret, None).await?;
 
+    // Known SDK race (matrix-rust-sdk f06f626, still on main 2026-10-28): the event cache
+    // drops its lock before it sends a sync's diffs, so a timeline opened in that gap gets an
+    // event both in its first items and as a diff. Later diffs then land one item off: the
+    // deleted message overwrites the copy holding the edit (3 of 48 Tuwunel suites under load,
+    // 0 of 34 on Synapse: "a red fox" edited=false, Redacted twice; a timeline opened again is
+    // right). See the 2026-10-28 flaky CI report.
     let bob_timeline = bob.timeline(room_id.clone()).await?;
     let mut bob_items = watch_timeline(&bob_timeline).await;
     // A sync that brings several events at once keeps only the latest in the live timeline,
