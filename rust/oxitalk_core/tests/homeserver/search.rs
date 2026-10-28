@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use oxitalk_core::api::{
     search::SearchResults,
-    timeline::{MediaKind, TimelineItem, TimelineItemContent},
+    session::Session,
+    timeline::{MediaKind, Timeline, TimelineItem, TimelineItemContent},
 };
 
 use super::{
@@ -15,6 +16,61 @@ use super::{
 
 fn texts(results: &SearchResults) -> Vec<&str> {
     results.hits.iter().map(|hit| hit.text.as_str()).collect()
+}
+
+/// One line per item: its unique ID and what it shows, events with their ID.
+fn describe(items: &[TimelineItem]) -> Vec<String> {
+    items
+        .iter()
+        .map(|item| {
+            let what = match &item.content {
+                TimelineItemContent::Message { event, body, .. } => format!(
+                    "Message {:?} {body:?} edited={}",
+                    event.event_id, event.is_edited
+                ),
+                TimelineItemContent::Redacted { event } => format!("Redacted {:?}", event.event_id),
+                TimelineItemContent::UnableToDecrypt { event } => {
+                    format!("UnableToDecrypt {:?}", event.event_id)
+                }
+                TimelineItemContent::Media { event, media } => {
+                    format!("Media {:?} {:?}", event.event_id, media.filename)
+                }
+                other => format!("{other:?}").chars().take(60).collect(),
+            };
+            format!("[{}] {what}", item.id)
+        })
+        .collect()
+}
+
+/// What each layer holds when a timeline misses something: the list kept from the diffs, a
+/// new subscription of the same timeline (the SDK's items), a new timeline of the room paged
+/// back, and the search over the store.
+async fn missing_report(
+    session: &Session,
+    room_id: &str,
+    timeline: &Timeline,
+    kept: &[TimelineItem],
+) -> String {
+    let mut again = watch_timeline(timeline).await;
+    let _ = again
+        .holds_within(Duration::from_secs(1), |items| !items.is_empty())
+        .await;
+    let mut reopened = Vec::new();
+    if let Ok(new) = session.timeline(room_id.to_owned()).await {
+        let mut items = watch_timeline(&new).await;
+        let _ = new.paginate_back(50).await;
+        let _ = items.holds_within(Duration::from_secs(3), |_| false).await;
+        reopened = describe(&items.items);
+    }
+    let search = session
+        .search_room(room_id.to_owned(), "blue".to_owned(), 50)
+        .await
+        .map(|results| texts(&results).join(" | "));
+    format!(
+        "kept from the diffs: {:#?}\nsubscribed again: {:#?}\nreopened: {reopened:#?}\nsearch: {search:?}",
+        describe(kept),
+        describe(&again.items),
+    )
 }
 
 /// Search finds the decrypted messages of an encrypted chat as they are after edits, leaves
@@ -68,17 +124,8 @@ async fn search_finds_decrypted_edited_messages_and_files() -> TestResult {
         .await?
     {
         if tokio::time::Instant::now() > deadline {
-            let kinds: Vec<_> = bob_items
-                .items
-                .iter()
-                .map(|item| {
-                    format!("{:?}", item.content)
-                        .chars()
-                        .take(60)
-                        .collect::<String>()
-                })
-                .collect();
-            return Err(format!("Bob's chat never got all of it: {kinds:#?}").into());
+            let report = missing_report(&bob, &room_id, &bob_timeline, &bob_items.items).await;
+            return Err(format!("Bob's chat never got all of it (fox {fox}): {report}").into());
         }
         bob_timeline.paginate_back(50).await?;
     }

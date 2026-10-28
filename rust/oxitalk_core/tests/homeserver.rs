@@ -95,11 +95,33 @@ struct TestUser {
     password: String,
 }
 
+/// The SDK's and the core's logs, for a failure that needs them: `OXITALK_TEST_LOG_DIR=<dir>`
+/// writes them to `<dir>/test.log`, at the level of `OXITALK_TEST_LOG` (an `EnvFilter`,
+/// default `info`). Once per process.
+fn init_test_logs() {
+    static LOGS: std::sync::Once = std::sync::Once::new();
+    LOGS.call_once(|| {
+        let Ok(dir) = std::env::var("OXITALK_TEST_LOG_DIR") else {
+            return;
+        };
+        let Ok(file) = std::fs::File::create(std::path::Path::new(&dir).join("test.log")) else {
+            return;
+        };
+        let filter = std::env::var("OXITALK_TEST_LOG").unwrap_or_else(|_| "info".into());
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
+            .with_writer(std::sync::Mutex::new(file))
+            .with_ansi(false)
+            .try_init();
+    });
+}
+
 impl TestUser {
     async fn register() -> Result<Self, Box<dyn Error>> {
         // Tells apart users registered in the same nanosecond, on other threads or processes.
         static REGISTERED: AtomicU32 = AtomicU32::new(0);
         init_app();
+        init_test_logs();
         // A name no earlier run has taken: the server keeps its data until `compose down -v`.
         let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let name = format!(
