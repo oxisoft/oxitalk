@@ -87,7 +87,7 @@ void main() {
     expect(find.byKey(const Key('about.hero')), findsOneWidget);
     expect(find.bySemanticsLabel('OxiTalk icon'), findsWidgets);
     expect(find.text('OxiTalk'), findsWidgets);
-    expect(find.text('Version 0.1.30'), findsOneWidget);
+    expect(find.text('Version 0.1.31'), findsOneWidget);
     expect(
       find.text(
         'An open-source Matrix client, privacy first, built with Flutter on '
