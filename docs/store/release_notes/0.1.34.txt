@@ -1,0 +1,1 @@
+For server admins: Settings › Server shows whether the homeserver and the call media server run their latest release, with a green check, or in red with the newer version next to it, and a red banner names what to update. Only admins' apps ask the release pages, and the check can be turned off in Account.
