@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../app/ui_prefs.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/format.dart';
 import 'settings_heading.dart';
@@ -20,9 +21,22 @@ class AccountServerSettings extends ConsumerWidget {
 
   final String account;
 
-  Future<void> _copy(BuildContext context, ServerInfo info) async {
+  Future<void> _copy(
+    BuildContext context,
+    ServerInfo info,
+    List<(String, String, String)> calls,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
-    await Clipboard.setData(ClipboardData(text: serverDetailsText(info)));
+    await Clipboard.setData(
+      ClipboardData(
+        text: [
+          serverDetailsText(info),
+          'Calls',
+          for (final (label, value, _) in calls)
+            '$label: ${value.replaceAll('\n', ' · ')}',
+        ].join('\n'),
+      ),
+    );
     messenger.showSnackBar(
       const SnackBar(content: Text('Server details copied')),
     );
@@ -31,8 +45,21 @@ class AccountServerSettings extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final server = ref.watch(serverInfoProvider(account));
-    void refresh() => ref.invalidate(serverInfoProvider(account));
+    final services = ref.watch(callServicesProvider(account));
+    final seen = ref.watch(uiPrefsProvider).callServer(account);
+    void refresh() {
+      ref
+        ..invalidate(serverInfoProvider(account))
+        ..invalidate(callServicesProvider(account));
+    }
+
     final info = server.value;
+    final calls = callLines(
+      info: info,
+      services: services.value,
+      servicesFailed: services.hasError && services.value == null,
+      seen: seen,
+    );
     return Column(
       key: const Key('settings.server'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -64,7 +91,7 @@ class AccountServerSettings extends ConsumerWidget {
                 ),
                 OutlinedButton.icon(
                   key: const Key('server.copy'),
-                  onPressed: () => unawaited(_copy(context, info)),
+                  onPressed: () => unawaited(_copy(context, info, calls)),
                   icon: const Icon(Icons.copy_rounded),
                   label: const Text('Copy server details'),
                 ),
@@ -85,6 +112,19 @@ class AccountServerSettings extends ConsumerWidget {
             padding: EdgeInsets.all(16),
             child: Center(child: CircularProgressIndicator()),
           ),
+        const Divider(height: 33, indent: 16, endIndent: 16),
+        const SettingsHeading(
+          'Calls',
+          subtitle: 'Voice and video calls through this server.',
+        ),
+        Column(
+          key: const Key('settings.calls'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (label, value, key) in calls)
+              _InfoLine(label, value, key: Key('calls.$key')),
+          ],
+        ),
       ],
     );
   }
@@ -132,6 +172,11 @@ class _ServerLines extends StatelessWidget {
         'Matrix version',
         info.newestSpecVersion ?? 'Unknown',
         key: const Key('server.matrixVersion'),
+      ),
+      _InfoLine(
+        'Sliding sync',
+        slidingSyncLabel(info),
+        key: const Key('server.slidingSync'),
       ),
       _InfoLine(
         'Federation',
@@ -441,6 +486,7 @@ String serverDetailsText(ServerInfo info) {
     'Software: ${info.software?.label ?? 'Unknown'}'
         '${info.software == null ? '' : ' (from ${info.software!.source})'}',
     'Matrix version: ${info.newestSpecVersion ?? 'Unknown'}',
+    'Sliding sync: ${slidingSyncLabel(info)}',
     'Federation: ${federationLabel(info.federation)}',
     'Sign-in methods: ${signInLabel(info)}',
     'Login types: ${info.login?.flows.join(', ') ?? 'Unknown'}',
@@ -476,4 +522,86 @@ String serverDetailsText(ServerInfo info) {
         '${info.unstableFeatures.isEmpty ? 'None' : [for (final f in info.unstableFeatures) '${f.id}${f.enabled ? '' : ' (off)'}'].join(', ')}',
   ];
   return lines.join('\n');
+}
+
+const _slidingSync = 'org.matrix.simplified_msc3575';
+const _delayedEvents = 'org.matrix.msc4140';
+
+/// Whether the server lists the unstable feature [id] as on; `null` before `/versions`
+/// answered.
+bool? _feature(ServerInfo? info, String id) {
+  if (info == null || !info.versionsKnown) return null;
+  for (final feature in info.unstableFeatures) {
+    if (feature.id == id) return feature.enabled;
+  }
+  return false;
+}
+
+/// Simplified sliding sync (MSC4186), which OxiTalk syncs with.
+String slidingSyncLabel(ServerInfo info) =>
+    switch (_feature(info, _slidingSync)) {
+      null => 'Unknown',
+      true => 'Supported',
+      false => 'Not advertised (OxiTalk needs it)',
+    };
+
+/// The Calls lines as (label, value, key): whether the homeserver offers calls
+/// ([services], its call services), through which service, the media server the last call
+/// connected to ([seen]; LiveKit tells its version only to a device that joins), and who
+/// cleans up after a device that crashed in a call.
+List<(String, String, String)> callLines({
+  required ServerInfo? info,
+  required List<String>? services,
+  required bool servicesFailed,
+  required CallServerSeen? seen,
+  DateTime? now,
+}) {
+  final lines = <(String, String, String)>[
+    (
+      'Voice and video calls',
+      switch (services) {
+        null => servicesFailed ? 'Can’t check' : 'Checking…',
+        [] => 'Not offered by this server',
+        _ => 'Supported, end-to-end encrypted',
+      },
+      'supported',
+    ),
+  ];
+  if (services != null && services.isEmpty) return lines;
+  if (services != null) {
+    lines.add((
+      services.length == 1 ? 'Call service' : 'Call services',
+      [for (final url in services) '$url (lk-jwt-service)'].join('\n'),
+      'service',
+    ));
+  }
+  lines.add((
+    'Media server',
+    switch (seen) {
+      null => 'Shown after the first call',
+      final seen => [
+        'LiveKit ${seen.version ?? '(version not told)'}'
+            '${seen.region == null || seen.region!.isEmpty ? '' : ', region ${seen.region}'}',
+        seen.url,
+        'Seen in a call ${_when(seen.seenAt.toLocal(), now)}',
+      ].join('\n'),
+    },
+    'mediaServer',
+  ));
+  if (_feature(info, _delayedEvents) case final delayed?) {
+    lines.add((
+      'Call clean-up',
+      delayed
+          ? 'By the server (delayed events)'
+          : 'By the app only (no delayed events)',
+      'cleanup',
+    ));
+  }
+  return lines;
+}
+
+String _when(DateTime time, DateTime? now) {
+  final day = dayLabel(time, now: now);
+  return '${day == 'Today' || day == 'Yesterday' ? day.toLowerCase() : 'on $day'}'
+      ' at ${clockTime(time)}';
 }

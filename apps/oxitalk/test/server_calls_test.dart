@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
-import 'package:oxitalk/src/features/about/about_screen.dart';
+import 'package:oxitalk/src/features/settings/server_settings.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 
 const _info = ServerInfo(
@@ -27,12 +27,25 @@ Map<String, String> _byKey(List<(String, String, String)> lines) => {
 };
 
 void main() {
-  test('the server card names the homeserver and the call servers', () {
-    final now = DateTime(2026, 10, 29, 15);
+  test('Server names sliding sync', () {
+    expect(slidingSyncLabel(_info), 'Supported');
+    expect(
+      slidingSyncLabel(
+        const ServerInfo(
+          userId: '@a:b',
+          homeserverUrl: 'https://b/',
+          serverName: 'b',
+          versionsKnown: true,
+        ),
+      ),
+      'Not advertised (OxiTalk needs it)',
+    );
+  });
+
+  test('Calls names the call service and the media server seen in a call', () {
     final lines = _byKey(
-      aboutServerLines(
+      callLines(
         info: _info,
-        serverFailed: false,
         services: const ['https://rtc.oxisoft.net/livekit/jwt'],
         servicesFailed: false,
         seen: CallServerSeen(
@@ -40,17 +53,12 @@ void main() {
           seenAt: DateTime(2026, 10, 29, 14, 5),
           version: '1.13.11',
         ),
-        now: now,
+        now: DateTime(2026, 10, 29, 15),
       ),
     );
-    expect(lines['address'], 'https://chat.oxisoft.net');
-    expect(lines['software'], 'Tuwunel 1.9.4');
-    expect(lines['matrixVersion'], 'v1.15');
-    expect(lines['slidingSync'], 'Supported');
-    expect(lines['uploadLimit'], '50 MB');
-    expect(lines['calls'], 'Supported, end-to-end encrypted');
+    expect(lines['supported'], 'Supported, end-to-end encrypted');
     expect(
-      lines['callService'],
+      lines['service'],
       'https://rtc.oxisoft.net/livekit/jwt (lk-jwt-service)',
     );
     expect(
@@ -58,49 +66,38 @@ void main() {
       'LiveKit 1.13.11\nwss://rtc.oxisoft.net/livekit/sfu\n'
       'Seen in a call today at 14:05',
     );
-    expect(lines['callCleanup'], 'By the app only (no delayed events)');
+    expect(lines['cleanup'], 'By the app only (no delayed events)');
   });
 
-  test('a server without a call service says so and shows no call lines', () {
-    final lines = _byKey(
-      aboutServerLines(
-        info: _info,
-        serverFailed: false,
-        services: const [],
-        servicesFailed: false,
-        seen: null,
-      ),
+  test('a server without a call service says so and nothing more', () {
+    final lines = callLines(
+      info: _info,
+      services: const [],
+      servicesFailed: false,
+      seen: null,
     );
-    expect(lines['calls'], 'Not offered by this server');
-    expect(lines.containsKey('callService'), isFalse);
-    expect(lines.containsKey('mediaServer'), isFalse);
+    expect(lines, hasLength(1));
+    expect(_byKey(lines)['supported'], 'Not offered by this server');
   });
 
-  test('before the answers come, and when they fail', () {
-    final loading = _byKey(
-      aboutServerLines(
-        info: null,
-        serverFailed: false,
-        services: null,
-        servicesFailed: false,
-        seen: null,
+  test('before the call services answer, and when they fail', () {
+    expect(
+      _byKey(
+        callLines(
+          info: null,
+          services: null,
+          servicesFailed: false,
+          seen: null,
+        ),
       ),
+      {'supported': 'Checking…', 'mediaServer': 'Shown after the first call'},
     );
-    expect(loading['address'], 'Checking…');
-    expect(loading['calls'], 'Checking…');
-    expect(loading['mediaServer'], 'Shown after the first call');
-
-    final failed = _byKey(
-      aboutServerLines(
-        info: null,
-        serverFailed: true,
-        services: null,
-        servicesFailed: true,
-        seen: null,
-      ),
+    expect(
+      _byKey(
+        callLines(info: null, services: null, servicesFailed: true, seen: null),
+      )['supported'],
+      'Can’t check',
     );
-    expect(failed['address'], 'Can’t load');
-    expect(failed['calls'], 'Can’t check');
   });
 
   test('the media server seen in a call is kept as JSON', () {

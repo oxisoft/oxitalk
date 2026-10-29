@@ -40,10 +40,19 @@ abstract final class Routes {
       '$settings/${section.slug}';
 
   /// The Account section about [userId], whichever account is in front.
-  static String settingsAccount(String userId) => Uri(
-    path: settingsSection(SettingsSection.account),
-    queryParameters: {'user': userId},
-  ).toString();
+  static String settingsAccount(String userId) =>
+      settingsSectionOf(SettingsSection.account, userId);
+
+  /// Settings › Server about [userId]'s homeserver.
+  static String settingsServer(String userId) =>
+      settingsSectionOf(SettingsSection.server, userId);
+
+  /// [section] about the account [userId].
+  static String settingsSectionOf(SettingsSection section, String userId) =>
+      Uri(
+        path: settingsSection(section),
+        queryParameters: {'user': userId},
+      ).toString();
 
   /// The Account section scrolled to the notifications of [userId] (the active account's
   /// without one).

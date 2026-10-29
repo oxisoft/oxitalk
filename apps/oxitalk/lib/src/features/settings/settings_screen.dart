@@ -27,6 +27,7 @@ import 'settings_heading.dart';
 /// this device's own switches after them ([Routes.oldNotificationSettings] leads there).
 enum SettingsSection {
   account('account', 'Account', Icons.person_outline_rounded),
+  server('server', 'Server', Icons.dns_outlined),
   appearance('appearance', 'Appearance', Icons.palette_outlined),
   messages('messages', 'Messages', Icons.chat_bubble_outline_rounded),
   media('media', 'Media & storage', Icons.perm_media_outlined),
@@ -39,8 +40,8 @@ enum SettingsSection {
   final String title;
   final IconData icon;
 
-  /// Account is about an account, so it needs one.
-  bool get needsAccount => this == account;
+  /// Account and Server are about an account, so they need one.
+  bool get needsAccount => this == account || this == server;
 
   /// The section named [slug] in a route, if any.
   static SettingsSection? bySlug(String? slug) {
@@ -205,6 +206,12 @@ class SettingsMenu extends ConsumerWidget {
       1 => ref.watch(activeAccountProvider) ?? '',
       final count => '$count accounts',
     },
+    SettingsSection.server => switch (ref.watch(activeAccountProvider)) {
+      final user? when user.contains(':') => user.substring(
+        user.indexOf(':') + 1,
+      ),
+      _ => '',
+    },
     SettingsSection.appearance => switch (ref.watch(appThemeProvider)) {
       ThemeMode.system => 'Automatic',
       ThemeMode.light => 'Light',
@@ -338,6 +345,13 @@ class SettingsSectionPane extends ConsumerWidget {
         ),
         null => const SizedBox.shrink(),
       },
+      SettingsSection.server => switch (editedAccount(
+        ref.watch(accountsProvider).value,
+        user,
+      )) {
+        final edited? => _ServerSettings(account: edited),
+        null => const SizedBox.shrink(),
+      },
       SettingsSection.appearance => const _AppearanceSettings(),
       SettingsSection.messages => const _MessageSettings(),
       SettingsSection.media => ListView(
@@ -368,7 +382,7 @@ String? editedAccount(AccountsState? accounts, String? user) {
 
 /// Everything about one [account], top to bottom: which account (the picker), its
 /// pictures, its notifications (kept on its server), its encryption and devices, ignored
-/// users and its server, then this device's notification switches, which are for all accounts, and logging out last.
+/// users, then this device's notification switches, which are for all accounts, and logging out last.
 class _AccountSettings extends ConsumerStatefulWidget {
   const _AccountSettings({
     required this.account,
@@ -445,11 +459,6 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
             account: account,
           ),
           divider,
-          AccountServerSettings(
-            key: ValueKey(('server', account)),
-            account: account,
-          ),
-          divider,
           const DeviceNotificationSettings(),
           divider,
           _LogOut(key: ValueKey(('logout', account)), account: account),
@@ -459,14 +468,49 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
   }
 }
 
+/// The homeserver of one [account] (the picker first, as in Account): what it runs and
+/// supports, then its voice and video calls.
+class _ServerSettings extends StatelessWidget {
+  const _ServerSettings({required this.account});
+
+  final String account;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsHeading('Accounts'),
+        SettingsAccountSwitcher(
+          selected: account,
+          section: SettingsSection.server,
+        ),
+        const Divider(height: 33, indent: 16, endIndent: 16),
+        AccountServerSettings(
+          key: ValueKey(('server', account)),
+          account: account,
+        ),
+      ],
+    ),
+  );
+}
+
 /// Which account the Account section is about, as a dropdown: the [selected] account's
 /// picture, name and user ID; opened, every logged-in account (the selected one checked),
 /// then adding one. Picking an account shows its settings below; it doesn't bring it to the
 /// front. With one account it still opens, for Add account.
 class SettingsAccountSwitcher extends ConsumerStatefulWidget {
-  const SettingsAccountSwitcher({required this.selected, super.key});
+  const SettingsAccountSwitcher({
+    required this.selected,
+    this.section = SettingsSection.account,
+    super.key,
+  });
 
   final String selected;
+
+  /// The section picking an account opens it in.
+  final SettingsSection section;
 
   /// The closed control's height, a field's.
   static const height = 56.0;
@@ -482,7 +526,7 @@ class _SettingsAccountSwitcherState
 
   void _pick(String account) {
     if (account != widget.selected) {
-      context.go(Routes.settingsAccount(account));
+      context.go(Routes.settingsSectionOf(widget.section, account));
     }
   }
 

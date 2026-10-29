@@ -70,7 +70,7 @@ const _oxisoft = ServerInfo(
 ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
 
-/// Settings › Account of [user], without waiting for everything to settle (a loading
+/// Settings › Server of [user], without waiting for everything to settle (a loading
 /// indicator never does).
 Future<void> _open(
   WidgetTester tester,
@@ -85,7 +85,7 @@ Future<void> _open(
   );
   _container(tester)
       .read(routerProvider)
-      .go(Routes.settingsAccount(user ?? sessions.first.userId));
+      .go(Routes.settingsServer(user ?? sessions.first.userId));
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
@@ -115,7 +115,7 @@ void main() {
       await _open(tester, [session]);
       await _scrollTo(tester, find.byKey(const Key('settings.server')));
 
-      expect(find.text('Server'), findsOneWidget);
+      expect(find.text('Server'), findsWidgets);
       expect(find.byKey(const Key('server.loading')), findsOneWidget);
       expect(session.serverInfoCalls, 1);
 
@@ -275,7 +275,7 @@ void main() {
       expect(active.serverInfoCalls, 0);
 
       // Picking the other account shows its server.
-      _container(tester).read(routerProvider).go(Routes.settingsAccount(_me));
+      _container(tester).read(routerProvider).go(Routes.settingsServer(_me));
       await tester.pumpAndSettle();
       await _scrollTo(tester, find.byKey(const Key('settings.server')));
       await tester.pumpAndSettle();
