@@ -396,6 +396,15 @@ Future<ServerInfo> serverInfo(Ref ref, String account) async {
 
 Duration? _noRetry(int retryCount, Object error) => null;
 
+/// The call services [account]'s homeserver offers (empty: calls can't start there), asked
+/// when watched and when invalidated; a failure isn't retried by itself.
+@Riverpod(retry: _noRetry)
+Future<List<String>> callServices(Ref ref, String account) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.callServices();
+}
+
 /// The account's devices, this one first; follows every change while it is watched.
 @riverpod
 class AccountDevices extends _$AccountDevices {

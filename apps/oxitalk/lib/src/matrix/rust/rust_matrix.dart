@@ -448,6 +448,9 @@ final class RustMatrixSession implements MatrixSession {
       serverInfoOf(await guarded(_session.serverInfo));
 
   @override
+  Future<List<String>> callServices() => guarded(_session.callServices);
+
+  @override
   Future<List<Device>> devices() async => [
     for (final device in await guarded(_session.devices)) deviceOf(device),
   ];

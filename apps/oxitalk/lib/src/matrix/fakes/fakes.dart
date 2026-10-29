@@ -159,6 +159,9 @@ final class FakeSession implements MatrixSession {
   /// How often [serverInfo] was asked.
   var serverInfoCalls = 0;
 
+  /// What [callServices] answers.
+  var callServiceUrls = <String>[];
+
   /// The password [signOutDevices] wants; with `null` the server asks for none.
   String? accountPassword = 'the password';
 
@@ -266,6 +269,9 @@ final class FakeSession implements MatrixSession {
           serverName: serverName,
         );
   }
+
+  @override
+  Future<List<String>> callServices() async => callServiceUrls;
 
   @override
   Future<List<Device>> devices() async => deviceList.value;

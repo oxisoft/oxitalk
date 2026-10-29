@@ -43,6 +43,9 @@ abstract interface class UiPrefs {
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
+  /// The call media server [account] last connected to, if it ever did.
+  CallServerSeen? callServer(String account);
+
   Future<void> setNarrowList({required bool narrow});
   Future<void> setRailHidden({required bool hidden});
 
@@ -60,6 +63,45 @@ abstract interface class UiPrefs {
   Future<void> setNotificationText({required bool on});
   Future<void> setNotificationSound({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
+  Future<void> setCallServer(String account, CallServerSeen server);
+}
+
+/// The LiveKit server a call connected to: its address, and the version and region it
+/// told when it let this device in. Only a call learns them (the server answers nothing
+/// before a join), so About shows the last one seen.
+final class CallServerSeen {
+  const CallServerSeen({
+    required this.url,
+    required this.seenAt,
+    this.version,
+    this.region,
+  });
+
+  static CallServerSeen? fromJson(Object? json) => switch (json) {
+    {'url': final String url, 'seenAt': final String seenAt} =>
+      switch (DateTime.tryParse(seenAt)) {
+        final at? => CallServerSeen(
+          url: url,
+          seenAt: at,
+          version: json['version'] as String?,
+          region: json['region'] as String?,
+        ),
+        null => null,
+      },
+    _ => null,
+  };
+
+  final String url;
+  final DateTime seenAt;
+  final String? version;
+  final String? region;
+
+  Map<String, Object?> toJson() => {
+    'url': url,
+    'seenAt': seenAt.toUtc().toIso8601String(),
+    if (version != null) 'version': version,
+    if (region != null) 'region': region,
+  };
 }
 
 /// Keeps them in `<dataDir>/ui.json`.
@@ -128,6 +170,14 @@ final class FileUiPrefs implements UiPrefs {
   String? lastRoom(String account) => _rooms[account] as String?;
 
   @override
+  CallServerSeen? callServer(String account) => switch (_json['callServers']) {
+    final Map<String, Object?> servers => CallServerSeen.fromJson(
+      servers[account],
+    ),
+    _ => null,
+  };
+
+  @override
   Future<void> setNarrowList({required bool narrow}) =>
       _save(() => _json['narrowList'] = narrow);
 
@@ -188,6 +238,16 @@ final class FileUiPrefs implements UiPrefs {
     }
   });
 
+  @override
+  Future<void> setCallServer(String account, CallServerSeen server) =>
+      _save(() {
+        final servers = switch (_json['callServers']) {
+          final Map<String, Object?> servers => servers,
+          _ => _json['callServers'] = <String, Object?>{},
+        };
+        servers[account] = server.toJson();
+      });
+
   Future<void> _save(void Function() change) {
     change();
     final text = jsonEncode(_json);
@@ -213,7 +273,9 @@ final class MemoryUiPrefs implements UiPrefs {
     this.notificationText = true,
     this.notificationSound = true,
     Map<String, String>? lastRooms,
-  }) : lastRooms = {...?lastRooms};
+    Map<String, CallServerSeen>? callServers,
+  }) : lastRooms = {...?lastRooms},
+       callServers = {...?callServers};
 
   @override
   bool narrowList;
@@ -253,8 +315,17 @@ final class MemoryUiPrefs implements UiPrefs {
 
   final Map<String, String> lastRooms;
 
+  final Map<String, CallServerSeen> callServers;
+
   @override
   String? lastRoom(String account) => lastRooms[account];
+
+  @override
+  CallServerSeen? callServer(String account) => callServers[account];
+
+  @override
+  Future<void> setCallServer(String account, CallServerSeen server) async =>
+      callServers[account] = server;
 
   @override
   Future<void> setNarrowList({required bool narrow}) async =>

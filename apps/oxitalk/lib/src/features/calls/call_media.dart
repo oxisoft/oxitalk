@@ -68,6 +68,8 @@ final class CallMediaState {
     this.cameraOn = false,
     this.encrypted = false,
     this.error,
+    this.serverVersion,
+    this.serverRegion,
   });
 
   final CallConnection connection;
@@ -81,6 +83,10 @@ final class CallMediaState {
   final bool encrypted;
   final String? error;
 
+  /// What the media server told about itself when it let this device in.
+  final String? serverVersion;
+  final String? serverRegion;
+
   CallMediaState copyWith({
     CallConnection? connection,
     List<CallTile>? tiles,
@@ -88,6 +94,8 @@ final class CallMediaState {
     bool? cameraOn,
     bool? encrypted,
     String? error,
+    String? serverVersion,
+    String? serverRegion,
   }) => CallMediaState(
     connection: connection ?? this.connection,
     tiles: tiles ?? this.tiles,
@@ -95,6 +103,8 @@ final class CallMediaState {
     cameraOn: cameraOn ?? this.cameraOn,
     encrypted: encrypted ?? this.encrypted,
     error: error ?? this.error,
+    serverVersion: serverVersion ?? this.serverVersion,
+    serverRegion: serverRegion ?? this.serverRegion,
   );
 }
 
@@ -516,7 +526,13 @@ final class LiveKitCallMedia implements CallMedia {
       'calls',
       'connected to $url as ${room.localParticipant?.identity}',
     );
-    _set(_state.copyWith(connection: CallConnection.connected));
+    _set(
+      _state.copyWith(
+        connection: CallConnection.connected,
+        serverVersion: room.serverVersion,
+        serverRegion: room.serverRegion,
+      ),
+    );
     try {
       await _enable(lk.TrackSource.microphone);
     } on Object catch (error) {

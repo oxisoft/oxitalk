@@ -10,7 +10,11 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
+import '../../app/ui_prefs.dart';
+import '../../matrix/api/matrix.dart';
 import '../../rust/api.dart';
+import '../../ui/format.dart';
+import '../settings/server_settings.dart';
 
 part 'about_screen.g.dart';
 
@@ -177,6 +181,15 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                           ),
                         ],
                       ),
+                      if (ref.watch(activeAccountProvider)
+                          case final account?) ...[
+                        const SizedBox(height: 12),
+                        _ServerCard(
+                          key: ValueKey('about.server.$account'),
+                          account: account,
+                          version: version,
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       _LinkGroup(
                         children: [
@@ -455,3 +468,262 @@ class _Appear extends StatelessWidget {
     );
   }
 }
+
+/// The server the app runs against (the active account's): the homeserver, its software
+/// and Matrix version, and whether it offers voice and video calls, through which call
+/// service and media server. More is in Settings › Account › Server; Copy puts it all
+/// on the clipboard for a support request.
+class _ServerCard extends ConsumerWidget {
+  const _ServerCard({required this.account, required this.version, super.key});
+
+  final String account;
+  final AppVersion version;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final server = ref.watch(serverInfoProvider(account));
+    final services = ref.watch(callServicesProvider(account));
+    final seen = ref.watch(uiPrefsProvider).callServer(account);
+    final info = server.value;
+    final loading = server.isLoading || services.isLoading;
+    void refresh() {
+      ref
+        ..invalidate(serverInfoProvider(account))
+        ..invalidate(callServicesProvider(account));
+    }
+
+    final lines = aboutServerLines(
+      info: info,
+      serverFailed: server.hasError && info == null,
+      services: services.value,
+      servicesFailed: services.hasError && services.value == null,
+      seen: seen,
+    );
+    return _LinkGroup(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.dns_rounded, color: theme.colorScheme.primary),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Text(
+                      'Server',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  if (loading)
+                    const SizedBox.square(
+                      key: Key('about.server.loading'),
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              for (final (label, value, key) in lines)
+                _ServerLine(label, value, key: Key('about.server.$key')),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const Key('about.server.refresh'),
+                    onPressed: loading ? null : refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Refresh'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('about.server.copy'),
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await Clipboard.setData(
+                        ClipboardData(
+                          text: aboutDetailsText(
+                            version: version,
+                            lines: lines,
+                            info: info,
+                          ),
+                        ),
+                      );
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Details copied')),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('Copy details'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('about.server.more'),
+                    onPressed: () => unawaited(
+                      context.push(Routes.settingsAccount(account)),
+                    ),
+                    icon: const Icon(Icons.tune_rounded),
+                    label: const Text('All server details'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A label above its value on a narrow card, side by side on a wide one.
+class _ServerLine extends StatelessWidget {
+  const _ServerLine(this.label, this.value, {super.key});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final labelText = Text(
+      label,
+      style: theme.textTheme.bodyMedium?.copyWith(color: context.oxi.muted),
+    );
+    final valueText = SelectableText(value, style: theme.textTheme.bodyMedium);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 400
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [labelText, const SizedBox(height: 1), valueText],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: 150, child: labelText),
+                  Expanded(child: valueText),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+const _slidingSync = 'org.matrix.simplified_msc3575';
+const _delayedEvents = 'org.matrix.msc4140';
+
+bool? _feature(ServerInfo? info, String id) {
+  if (info == null || !info.versionsKnown) return null;
+  for (final feature in info.unstableFeatures) {
+    if (feature.id == id) return feature.enabled;
+  }
+  return false;
+}
+
+/// The lines of About's server card as (label, value, key): the homeserver, then calls.
+/// [services] are the call services the homeserver offers; [seen] the media server the
+/// last call connected to (only a join tells its version).
+List<(String, String, String)> aboutServerLines({
+  required ServerInfo? info,
+  required bool serverFailed,
+  required List<String>? services,
+  required bool servicesFailed,
+  required CallServerSeen? seen,
+  DateTime? now,
+}) {
+  final unknown = serverFailed ? 'Can’t load' : 'Checking…';
+  final slidingSync = _feature(info, _slidingSync);
+  final delayed = _feature(info, _delayedEvents);
+  final lines = <(String, String, String)>[
+    ('Homeserver', info == null ? unknown : serverAddress(info), 'address'),
+    (
+      'Software',
+      info == null ? unknown : info.software?.label ?? 'Not published',
+      'software',
+    ),
+    (
+      'Matrix version',
+      info == null ? unknown : info.newestSpecVersion ?? 'Unknown',
+      'matrixVersion',
+    ),
+    (
+      'Sliding sync',
+      switch (slidingSync) {
+        null => info == null ? unknown : 'Unknown',
+        true => 'Supported',
+        false => 'Not advertised (OxiTalk needs it)',
+      },
+      'slidingSync',
+    ),
+    (
+      'Federation',
+      info == null ? unknown : federationLabel(info.federation),
+      'federation',
+    ),
+    if (info?.uploadLimitBytes case final bytes?)
+      ('Upload limit', fileSize(bytes), 'uploadLimit'),
+  ];
+  lines.add((
+    'Voice and video calls',
+    switch (services) {
+      null => servicesFailed ? 'Can’t check' : 'Checking…',
+      [] => 'Not offered by this server',
+      _ => 'Supported, end-to-end encrypted',
+    },
+    'calls',
+  ));
+  if (services != null && services.isNotEmpty) {
+    lines.add((
+      services.length == 1 ? 'Call service' : 'Call services',
+      [for (final url in services) '$url (lk-jwt-service)'].join('\n'),
+      'callService',
+    ));
+  }
+  if (services == null || services.isNotEmpty) {
+    lines.add((
+      'Media server',
+      switch (seen) {
+        null => 'Shown after the first call',
+        final seen => [
+          'LiveKit ${seen.version ?? '(version not told)'}'
+              '${seen.region == null || seen.region!.isEmpty ? '' : ', region ${seen.region}'}',
+          seen.url,
+          'Seen in a call ${_when(seen.seenAt.toLocal(), now)}',
+        ].join('\n'),
+      },
+      'mediaServer',
+    ));
+    if (delayed != null) {
+      lines.add((
+        'Call clean-up',
+        delayed
+            ? 'By the server (delayed events)'
+            : 'By the app only (no delayed events)',
+        'callCleanup',
+      ));
+    }
+  }
+  return lines;
+}
+
+String _when(DateTime time, DateTime? now) {
+  final day = dayLabel(time, now: now);
+  return '${day == 'Today' || day == 'Yesterday' ? day.toLowerCase() : 'on $day'}'
+      ' at ${clockTime(time)}';
+}
+
+/// About's details as plain text, for a support request: the app, then the server lines,
+/// then the full server details when they are known.
+String aboutDetailsText({
+  required AppVersion version,
+  required List<(String, String, String)> lines,
+  required ServerInfo? info,
+}) => [
+  'OxiTalk ${version.label.replaceFirst('Version ', '')}',
+  for (final (label, value, _) in lines)
+    '$label: ${value.replaceAll('\n', ' · ')}',
+  if (info != null) ...['', serverDetailsText(info)],
+].join('\n');

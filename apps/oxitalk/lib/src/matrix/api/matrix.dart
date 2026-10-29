@@ -143,6 +143,10 @@ abstract interface class MatrixSession {
   /// doesn't answer is left unknown; this fails only when the session is gone.
   Future<ServerInfo> serverInfo();
 
+  /// The call services (LiveKit authorisation services, `livekit_service_url`) the
+  /// homeserver offers, asked now; empty when it offers none, so calls can't start.
+  Future<List<String>> callServices();
+
   /// The user's profile (empty until it is fetched), then every change made here.
   Stream<Profile> get profile;
 

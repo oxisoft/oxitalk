@@ -1770,6 +1770,95 @@ final class ServerInfoFamily extends $Family
   String toString() => r'serverInfoProvider';
 }
 
+/// The call services [account]'s homeserver offers (empty: calls can't start there), asked
+/// when watched and when invalidated; a failure isn't retried by itself.
+
+@ProviderFor(callServices)
+final callServicesProvider = CallServicesFamily._();
+
+/// The call services [account]'s homeserver offers (empty: calls can't start there), asked
+/// when watched and when invalidated; a failure isn't retried by itself.
+
+final class CallServicesProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<String>>,
+          List<String>,
+          FutureOr<List<String>>
+        >
+    with $FutureModifier<List<String>>, $FutureProvider<List<String>> {
+  /// The call services [account]'s homeserver offers (empty: calls can't start there), asked
+  /// when watched and when invalidated; a failure isn't retried by itself.
+  CallServicesProvider._({
+    required CallServicesFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: _noRetry,
+         name: r'callServicesProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$callServicesHash();
+
+  @override
+  String toString() {
+    return r'callServicesProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<List<String>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<String>> create(Ref ref) {
+    final argument = this.argument as String;
+    return callServices(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is CallServicesProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$callServicesHash() => r'82b2beccc6551c50fa555b036fecc538da1a177d';
+
+/// The call services [account]'s homeserver offers (empty: calls can't start there), asked
+/// when watched and when invalidated; a failure isn't retried by itself.
+
+final class CallServicesFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<List<String>>, String> {
+  CallServicesFamily._()
+    : super(
+        retry: _noRetry,
+        name: r'callServicesProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The call services [account]'s homeserver offers (empty: calls can't start there), asked
+  /// when watched and when invalidated; a failure isn't retried by itself.
+
+  CallServicesProvider call(String account) =>
+      CallServicesProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'callServicesProvider';
+}
+
 /// The account's devices, this one first; follows every change while it is watched.
 
 @ProviderFor(AccountDevices)

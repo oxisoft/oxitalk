@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/ui_prefs.dart';
 import '../../matrix/api/matrix.dart';
 import '../../util/log.dart';
 import '../chat/voice/audio_io.dart';
@@ -168,7 +169,7 @@ final class CallController extends Notifier<ActiveCallState?> {
         }, onError: (Object _) {}),
       );
     state = state?.copyWith(phase: CallPhase.inCall);
-    await _connect(joined, media, camera: intent == CallIntent.video);
+    await _connect(account, joined, media, camera: intent == CallIntent.video);
   }
 
   /// How often a failed media connect is tried again, each time with a new token, and the
@@ -180,6 +181,7 @@ final class CallController extends Notifier<ActiveCallState?> {
   /// LiveKit's departure timeout runs, e.g. a call started again right after the last one
   /// ended: "requested room does not exist"); asking for a token again makes the room again.
   Future<void> _connect(
+    String account,
     JoinedCall joined,
     CallMedia media, {
     required bool camera,
@@ -189,6 +191,7 @@ final class CallController extends Notifier<ActiveCallState?> {
     for (var attempt = 0; ; attempt++) {
       try {
         await media.connect(url: url, token: token, camera: camera);
+        _remember(account, url, media.state);
         return;
       } on Object catch (error) {
         appLog(LogLevel.warn, 'calls', 'media failed: $error');
@@ -212,6 +215,29 @@ final class CallController extends Notifier<ActiveCallState?> {
         phase: CallPhase.failed,
         error: 'The call’s media couldn’t connect.',
       );
+    }
+  }
+
+  /// Keeps the media server the call connected to, for About (only a join tells its
+  /// version).
+  void _remember(String account, String url, CallMediaState media) {
+    try {
+      unawaited(
+        ref
+            .read(uiPrefsProvider)
+            .setCallServer(
+              account,
+              CallServerSeen(
+                url: url,
+                seenAt: DateTime.now(),
+                version: media.serverVersion,
+                region: media.serverRegion,
+              ),
+            )
+            .catchError((Object _) {}),
+      );
+    } on Object catch (error) {
+      appLog(LogLevel.warn, 'calls', 'call server not kept: $error');
     }
   }
 
