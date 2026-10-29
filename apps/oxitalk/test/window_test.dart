@@ -334,7 +334,7 @@ void main() {
 
       await pickFromAccountMenu(tester, 'accountMenu.about');
       expect(find.byKey(const Key('about')), findsOneWidget);
-      expect(find.text('Version 0.1.32'), findsOneWidget);
+      expect(find.text('Version 0.1.33'), findsOneWidget);
       await tester.tap(find.byKey(const Key('about.back')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('about')), findsNothing);
@@ -362,7 +362,7 @@ void main() {
       await tester.tap(find.byKey(const Key('rail.about')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('about')), findsOneWidget);
-      expect(find.text('Version 0.1.32'), findsOneWidget);
+      expect(find.text('Version 0.1.33'), findsOneWidget);
       await tester.tap(find.byKey(const Key('about.back')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('about')), findsNothing);

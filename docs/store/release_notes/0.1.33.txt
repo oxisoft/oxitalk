@@ -1,0 +1,1 @@
+Settings has a new Server tab for each account: the homeserver's address, software and Matrix version, sliding sync, federation, sign-in methods and upload limit, and its voice and video calls: whether they are available, the call service and the LiveKit media server version seen in your last call. About links to it.
