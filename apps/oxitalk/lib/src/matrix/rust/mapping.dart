@@ -14,6 +14,7 @@ import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/room_settings.dart' as rust;
 import '../../rust/api/search.dart' as search_api;
 import '../../rust/api/server_info.dart' as server_api;
+import '../../rust/api/server_updates.dart' as updates_api;
 import '../../rust/api/sections.dart' as rust;
 import '../../rust/api/threads.dart' as thread_api;
 import '../../rust/api/timeline.dart' as rust;
@@ -888,3 +889,16 @@ IncomingCallUpdate incomingCallUpdateOf(calls_api.IncomingCallUpdate update) =>
           },
         ),
     };
+
+ReleaseCheck releaseCheckOf(updates_api.ReleaseCheck check) => ReleaseCheck(
+  project: check.project,
+  latest: check.latest,
+  url: check.url,
+  status: switch (check.status) {
+    updates_api.ReleaseStatus.upToDate => ReleaseStatus.upToDate,
+    updates_api.ReleaseStatus.outdated => ReleaseStatus.outdated,
+    updates_api.ReleaseStatus.unknown => ReleaseStatus.unknown,
+    updates_api.ReleaseStatus.discontinued => ReleaseStatus.discontinued,
+  },
+  note: check.note,
+);

@@ -46,6 +46,10 @@ abstract interface class UiPrefs {
   /// The call media server [account] last connected to, if it ever did.
   CallServerSeen? callServer(String account);
 
+  /// Whether a server admin's [account] compares its server's versions with the latest
+  /// releases; on unless turned off.
+  bool serverUpdateCheck(String account);
+
   Future<void> setNarrowList({required bool narrow});
   Future<void> setRailHidden({required bool hidden});
 
@@ -64,6 +68,7 @@ abstract interface class UiPrefs {
   Future<void> setNotificationSound({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
   Future<void> setCallServer(String account, CallServerSeen server);
+  Future<void> setServerUpdateCheck(String account, {required bool on});
 }
 
 /// The LiveKit server a call connected to: its address, and the version and region it
@@ -239,6 +244,21 @@ final class FileUiPrefs implements UiPrefs {
   });
 
   @override
+  bool serverUpdateCheck(String account) => switch (_json['serverUpdatesOff']) {
+    final List<Object?> off => !off.contains(account),
+    _ => true,
+  };
+
+  @override
+  Future<void> setServerUpdateCheck(String account, {required bool on}) =>
+      _save(() {
+        final off = <Object?>[...?(_json['serverUpdatesOff'] as List<Object?>?)]
+          ..remove(account);
+        if (!on) off.add(account);
+        _json['serverUpdatesOff'] = off;
+      });
+
+  @override
   Future<void> setCallServer(String account, CallServerSeen server) =>
       _save(() {
         final servers = switch (_json['callServers']) {
@@ -322,6 +342,21 @@ final class MemoryUiPrefs implements UiPrefs {
 
   @override
   CallServerSeen? callServer(String account) => callServers[account];
+
+  /// The accounts whose server update check is off.
+  final Set<String> serverUpdatesOff = {};
+
+  @override
+  bool serverUpdateCheck(String account) => !serverUpdatesOff.contains(account);
+
+  @override
+  Future<void> setServerUpdateCheck(String account, {required bool on}) async {
+    if (on) {
+      serverUpdatesOff.remove(account);
+    } else {
+      serverUpdatesOff.add(account);
+    }
+  }
 
   @override
   Future<void> setCallServer(String account, CallServerSeen server) async =>

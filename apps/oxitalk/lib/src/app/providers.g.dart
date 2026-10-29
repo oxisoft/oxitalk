@@ -1770,6 +1770,294 @@ final class ServerInfoFamily extends $Family
   String toString() => r'serverInfoProvider';
 }
 
+/// Whether [account] administers its homeserver; asks only the homeserver.
+
+@ProviderFor(serverAdmin)
+final serverAdminProvider = ServerAdminFamily._();
+
+/// Whether [account] administers its homeserver; asks only the homeserver.
+
+final class ServerAdminProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether [account] administers its homeserver; asks only the homeserver.
+  ServerAdminProvider._({
+    required ServerAdminFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: _noRetry,
+         name: r'serverAdminProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$serverAdminHash();
+
+  @override
+  String toString() {
+    return r'serverAdminProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    final argument = this.argument as String;
+    return serverAdmin(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ServerAdminProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$serverAdminHash() => r'1831866df4a8df78a0d74a6a5a1d3dce97a877d2';
+
+/// Whether [account] administers its homeserver; asks only the homeserver.
+
+final class ServerAdminFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<bool>, String> {
+  ServerAdminFamily._()
+    : super(
+        retry: _noRetry,
+        name: r'serverAdminProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether [account] administers its homeserver; asks only the homeserver.
+
+  ServerAdminProvider call(String account) =>
+      ServerAdminProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'serverAdminProvider';
+}
+
+/// Whether [account], when it administers its server, compares the server's versions
+/// with the latest releases; on unless turned off, kept per account on this device.
+
+@ProviderFor(ServerUpdateCheck)
+final serverUpdateCheckProvider = ServerUpdateCheckFamily._();
+
+/// Whether [account], when it administers its server, compares the server's versions
+/// with the latest releases; on unless turned off, kept per account on this device.
+final class ServerUpdateCheckProvider
+    extends $NotifierProvider<ServerUpdateCheck, bool> {
+  /// Whether [account], when it administers its server, compares the server's versions
+  /// with the latest releases; on unless turned off, kept per account on this device.
+  ServerUpdateCheckProvider._({
+    required ServerUpdateCheckFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'serverUpdateCheckProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$serverUpdateCheckHash();
+
+  @override
+  String toString() {
+    return r'serverUpdateCheckProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  ServerUpdateCheck create() => ServerUpdateCheck();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ServerUpdateCheckProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$serverUpdateCheckHash() => r'02e8f7b56fa253fe24d57a28623402022200130f';
+
+/// Whether [account], when it administers its server, compares the server's versions
+/// with the latest releases; on unless turned off, kept per account on this device.
+
+final class ServerUpdateCheckFamily extends $Family
+    with $ClassFamilyOverride<ServerUpdateCheck, bool, bool, bool, String> {
+  ServerUpdateCheckFamily._()
+    : super(
+        retry: null,
+        name: r'serverUpdateCheckProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether [account], when it administers its server, compares the server's versions
+  /// with the latest releases; on unless turned off, kept per account on this device.
+
+  ServerUpdateCheckProvider call(String account) =>
+      ServerUpdateCheckProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'serverUpdateCheckProvider';
+}
+
+/// Whether [account], when it administers its server, compares the server's versions
+/// with the latest releases; on unless turned off, kept per account on this device.
+
+abstract class _$ServerUpdateCheck extends $Notifier<bool> {
+  late final _$args = ref.$arg as String;
+  String get account => _$args;
+
+  bool build(String account);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
+/// The latest release of [project] for [account]'s server, with [installed] compared;
+/// `null` unless the account administers the server and has the check on, so other users
+/// never contact the release pages. Kept for an hour.
+
+@ProviderFor(releaseCheck)
+final releaseCheckProvider = ReleaseCheckFamily._();
+
+/// The latest release of [project] for [account]'s server, with [installed] compared;
+/// `null` unless the account administers the server and has the check on, so other users
+/// never contact the release pages. Kept for an hour.
+
+final class ReleaseCheckProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ReleaseCheck?>,
+          ReleaseCheck?,
+          FutureOr<ReleaseCheck?>
+        >
+    with $FutureModifier<ReleaseCheck?>, $FutureProvider<ReleaseCheck?> {
+  /// The latest release of [project] for [account]'s server, with [installed] compared;
+  /// `null` unless the account administers the server and has the check on, so other users
+  /// never contact the release pages. Kept for an hour.
+  ReleaseCheckProvider._({
+    required ReleaseCheckFamily super.from,
+    required (String, String, String?) super.argument,
+  }) : super(
+         retry: _noRetry,
+         name: r'releaseCheckProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$releaseCheckHash();
+
+  @override
+  String toString() {
+    return r'releaseCheckProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<ReleaseCheck?> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<ReleaseCheck?> create(Ref ref) {
+    final argument = this.argument as (String, String, String?);
+    return releaseCheck(ref, argument.$1, argument.$2, argument.$3);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ReleaseCheckProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$releaseCheckHash() => r'80efc6063a94e62eb75fcda814b6ed3d44cc51c8';
+
+/// The latest release of [project] for [account]'s server, with [installed] compared;
+/// `null` unless the account administers the server and has the check on, so other users
+/// never contact the release pages. Kept for an hour.
+
+final class ReleaseCheckFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<ReleaseCheck?>,
+          (String, String, String?)
+        > {
+  ReleaseCheckFamily._()
+    : super(
+        retry: _noRetry,
+        name: r'releaseCheckProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The latest release of [project] for [account]'s server, with [installed] compared;
+  /// `null` unless the account administers the server and has the check on, so other users
+  /// never contact the release pages. Kept for an hour.
+
+  ReleaseCheckProvider call(
+    String account,
+    String project,
+    String? installed,
+  ) => ReleaseCheckProvider._(
+    argument: (account, project, installed),
+    from: this,
+  );
+
+  @override
+  String toString() => r'releaseCheckProvider';
+}
+
 /// The call services [account]'s homeserver offers (empty: calls can't start there), asked
 /// when watched and when invalidated; a failure isn't retried by itself.
 

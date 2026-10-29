@@ -113,7 +113,7 @@ void main() {
         ..server = _oxisoft
         ..serverInfoGate = gate;
       await _open(tester, [session]);
-      await _scrollTo(tester, find.byKey(const Key('settings.server')));
+      await _scrollTo(tester, find.byKey(const Key('server.group')));
 
       expect(find.text('Server'), findsWidgets);
       expect(find.byKey(const Key('server.loading')), findsOneWidget);
@@ -173,7 +173,7 @@ void main() {
       ..server = _oxisoft
       ..serverInfoFailure = const MatrixFailure(FailureKind.network);
     await _open(tester, [session]);
-    await _scrollTo(tester, find.byKey(const Key('settings.server')));
+    await _scrollTo(tester, find.byKey(const Key('server.group')));
     await tester.pumpAndSettle();
 
     expect(find.text('Can’t load the server details.'), findsOneWidget);
@@ -244,7 +244,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Server details copied'), findsOneWidget);
-      expect(copied, serverDetailsText(_oxisoft));
+      // The server, then its calls (this fake server offers none).
+      expect(
+        copied,
+        '${serverDetailsText(_oxisoft)}\nCalls\n'
+        'Voice and video calls: Not offered by this server',
+      );
       expect(copied, contains('Address: https://chat.oxisoft.net\n'));
       expect(
         copied,
@@ -266,7 +271,7 @@ void main() {
         ..server = _oxisoft;
       final picked = FakeSession(userId: _work, rooms: const []);
       await _open(tester, [active, picked], user: _work);
-      await _scrollTo(tester, find.byKey(const Key('settings.server')));
+      await _scrollTo(tester, find.byKey(const Key('server.group')));
       await tester.pumpAndSettle();
 
       expect(_line('address', 'https://work.example'), findsOneWidget);
@@ -277,7 +282,7 @@ void main() {
       // Picking the other account shows its server.
       _container(tester).read(routerProvider).go(Routes.settingsServer(_me));
       await tester.pumpAndSettle();
-      await _scrollTo(tester, find.byKey(const Key('settings.server')));
+      await _scrollTo(tester, find.byKey(const Key('server.group')));
       await tester.pumpAndSettle();
       expect(_line('address', 'https://chat.oxisoft.net'), findsOneWidget);
       expect(_line('software', 'Tuwunel 1.9.4'), findsOneWidget);
@@ -302,5 +307,101 @@ void main() {
     expect(value.dy, greaterThan(label.dy));
     expect(value.dx, label.dx);
     expect(tester.takeException(), isNull);
+  });
+
+  group('server updates', () {
+    const outdated = ReleaseCheck(
+      project: 'Tuwunel',
+      latest: '1.10.0',
+      url: 'https://github.com/matrix-construct/tuwunel/releases/tag/v1.10.0',
+      status: ReleaseStatus.outdated,
+    );
+    const latest = ReleaseCheck(
+      project: 'Tuwunel',
+      latest: '1.9.4',
+      status: ReleaseStatus.upToDate,
+    );
+
+    testWidgets('an admin sees a newer release in green after the red '
+        'version, and a red banner above the accounts', (tester) async {
+      final session = FakeSession(userId: _me, rooms: const [])
+        ..server = _oxisoft
+        ..serverAdmin = true
+        ..releases = {'tuwunel': outdated};
+      await _open(tester, [session]);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('server.software')),
+          matching: find.byKey(const Key('release.newer')),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('→ 1.10.0'), findsOneWidget);
+      expect(find.byKey(const Key('settings.serverUpdate')), findsOneWidget);
+      expect(
+        find.text('Tuwunel 1.10.0 is out; this server runs 1.9.4.'),
+        findsOneWidget,
+      );
+      expect(session.releaseCalls, contains('Tuwunel'));
+    });
+
+    testWidgets('the latest release gets a green check and no banner', (
+      tester,
+    ) async {
+      final session = FakeSession(userId: _me, rooms: const [])
+        ..server = _oxisoft
+        ..serverAdmin = true
+        ..releases = {'tuwunel': latest};
+      await _open(tester, [session]);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('release.latest')), findsOneWidget);
+      expect(find.byKey(const Key('settings.serverUpdate')), findsNothing);
+    });
+
+    testWidgets('a user who isn’t a server admin never makes the release '
+        'pages be asked', (tester) async {
+      final session = FakeSession(userId: _me, rooms: const [])
+        ..server = _oxisoft
+        ..releases = {'tuwunel': outdated};
+      await _open(tester, [session]);
+      await tester.pumpAndSettle();
+
+      expect(session.releaseCalls, isEmpty);
+      expect(find.byKey(const Key('release.newer')), findsNothing);
+      expect(find.byKey(const Key('settings.serverUpdate')), findsNothing);
+    });
+
+    testWidgets('an admin can turn the check off in Account; then nothing '
+        'is asked', (tester) async {
+      final session = FakeSession(userId: _me, rooms: const [])
+        ..server = _oxisoft
+        ..serverAdmin = true
+        ..releases = {'tuwunel': outdated};
+      await pumpApp(
+        tester,
+        FakeMatrixClientFactory(saved: [session], active: _me),
+        size: _wide,
+      );
+      _container(tester).read(routerProvider).go(Routes.settingsAccount(_me));
+      await tester.pumpAndSettle();
+      // The banner shows in Account too, above the accounts.
+      expect(find.byKey(const Key('settings.serverUpdate')), findsOneWidget);
+
+      final toggle = find.byKey(const Key('settings.serverUpdates'));
+      await _scrollTo(tester, toggle);
+      expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+
+      session.releaseCalls.clear();
+      _container(tester).read(routerProvider).go(Routes.settingsServer(_me));
+      await tester.pumpAndSettle();
+      expect(session.releaseCalls, isEmpty);
+      expect(find.byKey(const Key('release.newer')), findsNothing);
+    });
   });
 }

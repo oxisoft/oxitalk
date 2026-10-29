@@ -451,6 +451,21 @@ final class RustMatrixSession implements MatrixSession {
   Future<List<String>> callServices() => guarded(_session.callServices);
 
   @override
+  Future<bool> isServerAdmin() => guarded(_session.isServerAdmin);
+
+  @override
+  Future<ReleaseCheck?> latestRelease(
+    String project,
+    String? installed,
+  ) async => switch (await _session.latestRelease(
+    project: project,
+    installed: installed,
+  )) {
+    final check? => releaseCheckOf(check),
+    null => null,
+  };
+
+  @override
   Future<List<Device>> devices() async => [
     for (final device in await guarded(_session.devices)) deviceOf(device),
   ];

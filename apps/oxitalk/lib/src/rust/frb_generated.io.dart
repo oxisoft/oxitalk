@@ -26,6 +26,7 @@ import 'api/rooms.dart';
 import 'api/search.dart';
 import 'api/sections.dart';
 import 'api/server_info.dart';
+import 'api/server_updates.dart';
 import 'api/session.dart';
 import 'api/sync.dart';
 import 'api/threads.dart';
@@ -320,6 +321,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NewRoom dco_decode_box_autoadd_new_room(dynamic raw);
 
   @protected
+  ReleaseCheck dco_decode_box_autoadd_release_check(dynamic raw);
+
+  @protected
   ReplyQuote dco_decode_box_autoadd_reply_quote(dynamic raw);
 
   @protected
@@ -604,6 +608,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MediaKind? dco_decode_opt_box_autoadd_media_kind(dynamic raw);
 
   @protected
+  ReleaseCheck? dco_decode_opt_box_autoadd_release_check(dynamic raw);
+
+  @protected
   ReplyQuote? dco_decode_opt_box_autoadd_reply_quote(dynamic raw);
 
   @protected
@@ -678,6 +685,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecoveryStatus dco_decode_recovery_status(dynamic raw);
+
+  @protected
+  ReleaseCheck dco_decode_release_check(dynamic raw);
+
+  @protected
+  ReleaseStatus dco_decode_release_status(dynamic raw);
 
   @protected
   ReplyQuote dco_decode_reply_quote(dynamic raw);
@@ -1096,6 +1109,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NewRoom sse_decode_box_autoadd_new_room(SseDeserializer deserializer);
 
   @protected
+  ReleaseCheck sse_decode_box_autoadd_release_check(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ReplyQuote sse_decode_box_autoadd_reply_quote(SseDeserializer deserializer);
 
   @protected
@@ -1426,6 +1444,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ReleaseCheck? sse_decode_opt_box_autoadd_release_check(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ReplyQuote? sse_decode_opt_box_autoadd_reply_quote(
     SseDeserializer deserializer,
   );
@@ -1518,6 +1541,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecoveryStatus sse_decode_recovery_status(SseDeserializer deserializer);
+
+  @protected
+  ReleaseCheck sse_decode_release_check(SseDeserializer deserializer);
+
+  @protected
+  ReleaseStatus sse_decode_release_status(SseDeserializer deserializer);
 
   @protected
   ReplyQuote sse_decode_reply_quote(SseDeserializer deserializer);
@@ -2012,6 +2041,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_new_room(NewRoom self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_release_check(
+    ReleaseCheck self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_reply_quote(
     ReplyQuote self,
     SseSerializer serializer,
@@ -2456,6 +2491,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_release_check(
+    ReleaseCheck? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_reply_quote(
     ReplyQuote? self,
     SseSerializer serializer,
@@ -2574,6 +2615,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     RecoveryStatus self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_release_check(ReleaseCheck self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_release_status(ReleaseStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_reply_quote(ReplyQuote self, SseSerializer serializer);

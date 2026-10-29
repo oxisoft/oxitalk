@@ -27,6 +27,7 @@ import 'rooms.dart';
 import 'search.dart';
 import 'sections.dart';
 import 'server_info.dart';
+import 'server_updates.dart';
 import 'sync.dart';
 import 'threads.dart';
 import 'timeline.dart';
@@ -256,6 +257,16 @@ abstract class Session implements RustOpaqueInterface {
   /// As the server answers.
   Future<bool> isLastDevice();
 
+  /// Whether this account administers its homeserver: Synapse's admin API says so, or
+  /// the account is in the server's admin room `#admins:<server>` (Tuwunel,
+  /// Continuwuity, conduwuit, Conduit). Asks only the homeserver.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::SessionExpired`] if the session has been logged out; a server that
+  /// doesn't answer counts as not admin.
+  Future<bool> isServerAdmin();
+
   /// Joins a room, typically one the user was invited to.
   ///
   /// # Errors
@@ -294,6 +305,15 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// Only if the store can't be read.
   Future<List<Person>> knownPeople({required int limit});
+
+  /// The latest release of [project] (a homeserver software name as it reports it, or
+  /// `livekit` / `lk-jwt-service`) and how [installed] compares; `None` for a project
+  /// not followed or a release page that doesn't answer. Asks the project's release
+  /// page, so the app calls it only for server admins who have the check on.
+  Future<ReleaseCheck?> latestRelease({
+    required String project,
+    String? installed,
+  });
 
   /// Leaves the room, or declines the invitation to it (which forgets it too). It drops
   /// out of the room list.

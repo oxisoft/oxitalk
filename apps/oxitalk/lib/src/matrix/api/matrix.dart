@@ -6,6 +6,7 @@ import 'models.dart';
 import 'pins.dart';
 import 'search.dart';
 import 'server_info.dart';
+import 'server_updates.dart';
 
 export 'calls.dart';
 export 'membership.dart';
@@ -14,6 +15,7 @@ export 'notices.dart';
 export 'pins.dart';
 export 'search.dart';
 export 'server_info.dart';
+export 'server_updates.dart';
 
 enum FailureKind {
   invalidServer,
@@ -146,6 +148,16 @@ abstract interface class MatrixSession {
   /// The call services (LiveKit authorisation services, `livekit_service_url`) the
   /// homeserver offers, asked now; empty when it offers none, so calls can't start.
   Future<List<String>> callServices();
+
+  /// Whether the account administers its homeserver (Synapse's admin API, or a member of
+  /// `#admins:<server>`); asks only the homeserver.
+  Future<bool> isServerAdmin();
+
+  /// The latest release of [project] (a homeserver software name, `livekit` or
+  /// `lk-jwt-service`) and how [installed] compares; `null` when it isn't followed or its
+  /// release page doesn't answer. Asks the project's release page (GitHub, GitLab,
+  /// Forgejo): only for server admins who have the check on.
+  Future<ReleaseCheck?> latestRelease(String project, String? installed);
 
   /// The user's profile (empty until it is fetched), then every change made here.
   Stream<Profile> get profile;

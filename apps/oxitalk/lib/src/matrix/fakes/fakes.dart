@@ -162,6 +162,15 @@ final class FakeSession implements MatrixSession {
   /// What [callServices] answers.
   var callServiceUrls = <String>[];
 
+  /// What [isServerAdmin] answers.
+  var serverAdmin = false;
+
+  /// What [latestRelease] answers, by project (lower case).
+  var releases = <String, ReleaseCheck>{};
+
+  /// The projects [latestRelease] was asked about, in order.
+  final releaseCalls = <String>[];
+
   /// The password [signOutDevices] wants; with `null` the server asks for none.
   String? accountPassword = 'the password';
 
@@ -272,6 +281,15 @@ final class FakeSession implements MatrixSession {
 
   @override
   Future<List<String>> callServices() async => callServiceUrls;
+
+  @override
+  Future<bool> isServerAdmin() async => serverAdmin;
+
+  @override
+  Future<ReleaseCheck?> latestRelease(String project, String? installed) async {
+    releaseCalls.add(project);
+    return releases[project.toLowerCase()];
+  }
 
   @override
   Future<List<Device>> devices() async => deviceList.value;

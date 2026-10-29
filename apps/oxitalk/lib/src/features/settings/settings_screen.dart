@@ -430,6 +430,7 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ServerUpdateBanner(account: account),
           const SettingsHeading('Accounts'),
           SettingsAccountSwitcher(selected: account),
           divider,
@@ -459,6 +460,7 @@ class _AccountSettingsState extends ConsumerState<_AccountSettings> {
             account: account,
           ),
           divider,
+          ServerUpdateCheckSetting(account: account),
           const DeviceNotificationSettings(),
           divider,
           _LogOut(key: ValueKey(('logout', account)), account: account),
@@ -481,6 +483,7 @@ class _ServerSettings extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        ServerUpdateBanner(account: account),
         const SettingsHeading('Accounts'),
         SettingsAccountSwitcher(
           selected: account,

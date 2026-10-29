@@ -61,7 +61,7 @@ class AccountServerSettings extends ConsumerWidget {
       seen: seen,
     );
     return Column(
-      key: const Key('settings.server'),
+      key: const Key('server.group'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SettingsHeading(
@@ -69,7 +69,7 @@ class AccountServerSettings extends ConsumerWidget {
           subtitle: 'The homeserver this account uses.',
         ),
         if (info != null) ...[
-          _ServerLines(info: info),
+          _ServerLines(account: account, info: info),
           if (server.hasError && !server.isLoading)
             _ErrorLine(
               text: 'Can’t refresh the server details.',
@@ -122,7 +122,25 @@ class AccountServerSettings extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final (label, value, key) in calls)
-              _InfoLine(label, value, key: Key('calls.$key')),
+              switch (key) {
+                'mediaServer' when seen != null => _VersionLine(
+                  label,
+                  value,
+                  account: account,
+                  project: 'livekit',
+                  installed: seen.version,
+                  key: Key('calls.$key'),
+                ),
+                'service' => _VersionLine(
+                  label,
+                  value,
+                  account: account,
+                  project: 'lk-jwt-service',
+                  installed: null,
+                  key: Key('calls.$key'),
+                ),
+                _ => _InfoLine(label, value, key: Key('calls.$key')),
+              },
           ],
         ),
       ],
@@ -150,8 +168,9 @@ class _ErrorLine extends StatelessWidget {
 
 /// The key lines, shown at once.
 class _ServerLines extends StatelessWidget {
-  const _ServerLines({required this.info});
+  const _ServerLines({required this.account, required this.info});
 
+  final String account;
   final ServerInfo info;
 
   @override
@@ -163,9 +182,12 @@ class _ServerLines extends StatelessWidget {
         serverAddress(info),
         key: const Key('server.address'),
       ),
-      _InfoLine(
+      _VersionLine(
         'Software',
         info.software?.label ?? 'Unknown',
+        account: account,
+        project: info.software?.name,
+        installed: info.software?.version,
         key: const Key('server.software'),
       ),
       _InfoLine(
@@ -198,10 +220,20 @@ class _ServerLines extends StatelessWidget {
 
 /// One label and its value: side by side on a wide pane, the label above on a narrow one.
 class _InfoLine extends StatelessWidget {
-  const _InfoLine(this.label, this.value, {super.key});
+  const _InfoLine(
+    this.label,
+    this.value, {
+    this.valueColor,
+    this.trailing,
+    super.key,
+  });
 
   final String label;
   final String value;
+  final Color? valueColor;
+
+  /// After the value, e.g. whether it is the latest release.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +242,21 @@ class _InfoLine extends StatelessWidget {
       label,
       style: theme.textTheme.bodyMedium?.copyWith(color: context.oxi.muted),
     );
-    final valueText = SelectableText(value, style: theme.textTheme.bodyMedium);
+    final text = SelectableText(
+      value,
+      style: theme.textTheme.bodyMedium?.copyWith(color: valueColor),
+    );
+    final Widget valueText = switch (trailing) {
+      null => text,
+      final trailing => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(child: text),
+          const SizedBox(width: 10),
+          trailing,
+        ],
+      ),
+    };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: LayoutBuilder(
@@ -604,4 +650,222 @@ String _when(DateTime time, DateTime? now) {
   final day = dayLabel(time, now: now);
   return '${day == 'Today' || day == 'Yesterday' ? day.toLowerCase() : 'on $day'}'
       ' at ${clockTime(time)}';
+}
+
+/// Green for "the latest release", in the theme's brightness.
+Color releaseGreen(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? const Color(0xFF3DDC84)
+    : const Color(0xFF1B873F);
+
+/// Red for "out of date", in the theme's brightness.
+Color releaseRed(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? OxiBrand.red
+    : const Color(0xFFD50032);
+
+/// A line whose value is a version of [project]: for a server admin with the check on, a
+/// green check when it is the latest release; red with the latest version in green after
+/// it when it is not. For everyone else, the plain line.
+class _VersionLine extends ConsumerWidget {
+  const _VersionLine(
+    this.label,
+    this.value, {
+    required this.account,
+    required this.project,
+    required this.installed,
+    super.key,
+  });
+
+  final String label;
+  final String value;
+  final String account;
+  final String? project;
+  final String? installed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final project = this.project;
+    final check = project == null
+        ? null
+        : ref.watch(releaseCheckProvider(account, project, installed)).value;
+    final green = releaseGreen(context);
+    final red = releaseRed(context);
+    final style = Theme.of(context).textTheme.bodyMedium;
+    return switch (check) {
+      null => _InfoLine(label, value),
+      ReleaseCheck(status: ReleaseStatus.upToDate) => _InfoLine(
+        label,
+        value,
+        trailing: Tooltip(
+          message: 'The latest ${check.project} release',
+          child: Icon(
+            Icons.check_circle_rounded,
+            key: const Key('release.latest'),
+            size: 18,
+            color: green,
+          ),
+        ),
+      ),
+      ReleaseCheck(status: ReleaseStatus.outdated) => _InfoLine(
+        label,
+        value,
+        valueColor: red,
+        trailing: Text(
+          '→ ${check.latest}',
+          key: const Key('release.newer'),
+          style: style?.copyWith(color: green, fontWeight: FontWeight.w700),
+        ),
+      ),
+      ReleaseCheck(status: ReleaseStatus.discontinued) => _InfoLine(
+        label,
+        value,
+        valueColor: red,
+        trailing: Text(
+          'Discontinued',
+          key: const Key('release.discontinued'),
+          style: style?.copyWith(color: red, fontWeight: FontWeight.w700),
+        ),
+      ),
+      ReleaseCheck(status: ReleaseStatus.unknown) => _InfoLine(
+        label,
+        value,
+        trailing: Text(
+          'Latest ${check.latest}',
+          key: const Key('release.latestKnown'),
+          style: style?.copyWith(color: context.oxi.muted),
+        ),
+      ),
+    };
+  }
+}
+
+/// What a server admin should update, as (project, installed, check): the homeserver
+/// software and the call media server, each when a newer release is out or it was
+/// discontinued. Empty for everyone else.
+List<(String, String?, ReleaseCheck)> serverUpdates(
+  WidgetRef ref,
+  String account,
+) {
+  final info = ref.watch(serverInfoProvider(account)).value;
+  final seen = ref.watch(uiPrefsProvider).callServer(account);
+  final wanted = <(String, String?)>[
+    if (info?.software?.name case final name?) (name, info?.software?.version),
+    if (seen?.version case final version?) ('livekit', version),
+  ];
+  return [
+    for (final (project, installed) in wanted)
+      if (ref.watch(releaseCheckProvider(account, project, installed)).value
+          case final check?
+          when check.status == ReleaseStatus.outdated ||
+              check.status == ReleaseStatus.discontinued)
+        (project, installed, check),
+  ];
+}
+
+/// For a server admin with the check on, in red above the account picker: the server
+/// software to update, and to which version. Tapping it opens the release notes.
+class ServerUpdateBanner extends ConsumerWidget {
+  const ServerUpdateBanner({required this.account, super.key});
+
+  final String account;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final updates = serverUpdates(ref, account);
+    if (updates.isEmpty) return const SizedBox.shrink();
+    final red = releaseRed(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Material(
+        key: const Key('settings.serverUpdate'),
+        color: red,
+        shape: const BeveledRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(8),
+            bottomRight: Radius.circular(8),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: switch (updates.first.$3.url) {
+            '' => null,
+            final url => () => unawaited(
+              ref.read(fileActionsProvider).launch(Uri.parse(url)),
+            ),
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.system_update_alt_rounded,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Server update',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      for (final (_, installed, check) in updates)
+                        Text(switch (check.status) {
+                          ReleaseStatus.discontinued =>
+                            check.note ?? '${check.project} is discontinued.',
+                          _ =>
+                            '${check.project} ${check.latest} is out; this '
+                                'server runs ${installed ?? 'an older one'}.',
+                        }, style: const TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// In Account, for a server admin only: whether OxiTalk compares the server's versions
+/// with the latest releases (on by default). Off, the release pages are never asked.
+class ServerUpdateCheckSetting extends ConsumerWidget {
+  const ServerUpdateCheckSetting({required this.account, super.key});
+
+  final String account;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(serverAdminProvider(account)).value != true) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsHeading(
+          'Server updates',
+          subtitle: 'You administer this account’s server.',
+        ),
+        SwitchListTile(
+          key: const Key('settings.serverUpdates'),
+          title: const Text('Check for server updates'),
+          subtitle: const Text(
+            'Compares the server’s software with its latest release on '
+            'GitHub, GitLab or Forgejo. Off: those sites are never asked.',
+          ),
+          value: ref.watch(serverUpdateCheckProvider(account)),
+          onChanged: (on) =>
+              ref.read(serverUpdateCheckProvider(account).notifier).set(on: on),
+        ),
+        const Divider(height: 33, indent: 16, endIndent: 16),
+      ],
+    );
+  }
 }

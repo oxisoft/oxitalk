@@ -396,6 +396,49 @@ Future<ServerInfo> serverInfo(Ref ref, String account) async {
 
 Duration? _noRetry(int retryCount, Object error) => null;
 
+/// Whether [account] administers its homeserver; asks only the homeserver.
+@Riverpod(retry: _noRetry)
+Future<bool> serverAdmin(Ref ref, String account) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.isServerAdmin();
+}
+
+/// Whether [account], when it administers its server, compares the server's versions
+/// with the latest releases; on unless turned off, kept per account on this device.
+@riverpod
+class ServerUpdateCheck extends _$ServerUpdateCheck {
+  @override
+  bool build(String account) =>
+      ref.watch(uiPrefsProvider).serverUpdateCheck(account);
+
+  void set({required bool on}) {
+    state = on;
+    unawaited(ref.read(uiPrefsProvider).setServerUpdateCheck(account, on: on));
+  }
+}
+
+/// The latest release of [project] for [account]'s server, with [installed] compared;
+/// `null` unless the account administers the server and has the check on, so other users
+/// never contact the release pages. Kept for an hour.
+@Riverpod(retry: _noRetry)
+Future<ReleaseCheck?> releaseCheck(
+  Ref ref,
+  String account,
+  String project,
+  String? installed,
+) async {
+  if (!ref.watch(serverUpdateCheckProvider(account))) return null;
+  if (!await ref.watch(serverAdminProvider(account).future)) return null;
+  final session = _session(ref, account);
+  if (session == null) return null;
+  final check = await session.latestRelease(project, installed);
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(hours: 1), link.close);
+  ref.onDispose(timer.cancel);
+  return check;
+}
+
 /// The call services [account]'s homeserver offers (empty: calls can't start there), asked
 /// when watched and when invalidated; a failure isn't retried by itself.
 @Riverpod(retry: _noRetry)
