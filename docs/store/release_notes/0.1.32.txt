@@ -1,0 +1,1 @@
+About shows the server you are on: the homeserver's address, software and Matrix version, sliding sync and federation, and whether voice and video calls are available, with the call service and the LiveKit media server version seen in your last call. Copy details puts it all on the clipboard for a support request.
