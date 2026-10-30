@@ -1,0 +1,1 @@
+A thread opened a second time keeps its latest reply readable instead of showing it as unable to decrypt.
