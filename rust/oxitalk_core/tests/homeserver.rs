@@ -30,6 +30,8 @@ mod search;
 #[path = "homeserver/server_info.rs"]
 mod server_info;
 mod support;
+#[path = "homeserver/threads.rs"]
+mod threads;
 
 use std::{
     error::Error,

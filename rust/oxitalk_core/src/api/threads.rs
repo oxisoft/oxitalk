@@ -5,6 +5,12 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
+use matrix_sdk::{
+    Client,
+    cross_process_lock::MappedCrossProcessLockState,
+    linked_chunk::{ChunkIdentifier, LinkedChunkId, Update},
+    ruma::{EventId, RoomId},
+};
 use matrix_sdk_ui::timeline::{
     RoomExt,
     thread_list_service::{ThreadListItem, ThreadListItemEvent, ThreadListPaginationState},
@@ -118,6 +124,55 @@ impl Drop for ThreadList {
             task.abort();
         }
     }
+}
+
+/// Writes the first, empty chunk of a thread's cached events to the store if the store has
+/// none, before the thread's cache is built from it.
+///
+/// Works around matrix-rust-sdk (a39665d): a thread cache built from an empty store creates its
+/// first chunk only in memory, to be written with its first events. Until then, the
+/// redecryptor resolving any late-decrypted event of the room drops the pending write
+/// (`ThreadEventCache::replace_in_memory_utds`, event_cache/caches/thread/mod.rs:368-377, drains
+/// the store updates whether or not it replaced anything). Its events then go to a chunk the
+/// store doesn't have: the thread's back-pagination fails (`FOREIGN KEY constraint failed`) and
+/// the thread stayed empty, and a new reply in it failed the sync. In an encrypted room this is
+/// the usual case after a restart, as the automatic back-pagination loads older events before
+/// their keys arrive. A cache built from a stored chunk has nothing pending, so nothing is lost.
+/// Test: homeserver `a_thread_answered_while_the_app_was_closed_shows_its_replies`.
+pub(crate) async fn persist_thread_head(
+    client: &Client,
+    room_id: &RoomId,
+    thread_id: &EventId,
+) -> Result<(), CoreError> {
+    let store = match client
+        .event_cache_store()
+        .lock()
+        .await
+        .map_err(|error| CoreError::internal(&error))?
+    {
+        MappedCrossProcessLockState::Clean(store) | MappedCrossProcessLockState::Dirty(store) => {
+            store
+        }
+    };
+    let chunks = LinkedChunkId::Thread(room_id, thread_id);
+    let (last, _) = store
+        .load_last_chunk(chunks)
+        .await
+        .map_err(|error| CoreError::internal(&error))?;
+    if last.is_none() {
+        store
+            .handle_linked_chunk_updates(
+                chunks,
+                vec![Update::NewItemsChunk {
+                    previous: None,
+                    new: ChunkIdentifier::new(0),
+                    next: None,
+                }],
+            )
+            .await
+            .map_err(|error| CoreError::internal(&error))?;
+    }
+    Ok(())
 }
 
 fn summaries(items: &[ThreadListItem]) -> Vec<ThreadSummary> {

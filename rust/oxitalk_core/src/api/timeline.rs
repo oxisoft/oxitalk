@@ -39,6 +39,7 @@ use super::{
     notices::{RoomNotice, notice},
     rich_text::{RichBlock, plain_line, rich_text},
     session::Session,
+    threads::persist_thread_head,
     voice::WAVEFORM_MAX,
 };
 use crate::frb_generated::StreamSink;
@@ -265,6 +266,11 @@ impl Session {
         root_event_id: String,
     ) -> Result<Timeline, CoreError> {
         let thread_id: OwnedEventId = parse_id(&root_event_id)?;
+        let room: OwnedRoomId = parse_id(&room_id)?;
+        // Not fatal: the thread opens as the SDK has it.
+        if let Err(error) = persist_thread_head(&self.client, &room, &thread_id).await {
+            tracing::warn!(?error, "couldn't store the thread's first chunk");
+        }
         self.focused_timeline(room_id, TimelineFocus::Thread { thread_id })
             .await
     }
