@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart'
     show FailureKind, MessageEntry, SyncStatus, UndecryptableEntry;
+import 'package:oxitalk/src/matrix/api/models.dart' as app;
 import 'package:oxitalk/src/matrix/rust/diffs.dart';
 import 'package:oxitalk/src/matrix/rust/mapping.dart';
 import 'package:oxitalk/src/matrix/rust/sync_supervisor.dart';
@@ -14,7 +15,11 @@ import 'package:oxitalk/src/rust/api/timeline.dart';
 
 // The bridge's plain data classes need no Rust library, so these run without it.
 
-RoomSummary _room(String id, {bool isOneToOne = false}) => RoomSummary(
+RoomSummary _room(
+  String id, {
+  bool isOneToOne = false,
+  int joinedMembers = 2,
+}) => RoomSummary(
   roomId: id,
   name: id,
   membership: Membership.joined,
@@ -24,11 +29,17 @@ RoomSummary _room(String id, {bool isOneToOne = false}) => RoomSummary(
   markedUnread: false,
   defaultNotificationMode: RoomNotificationMode.allMessages,
   isOneToOne: isOneToOne,
+  joinedMembers: joinedMembers,
   isDm: false,
   isEncrypted: false,
 );
 
-EventInfo _event({bool isOwn = false}) => EventInfo(
+EventInfo _event({
+  bool isOwn = false,
+  String? eventId,
+  List<ReadReceipt> readBy = const [],
+}) => EventInfo(
+  eventId: eventId,
   sender: '@bob:example.org',
   timestampMs: 1760000000000,
   isOwn: isOwn,
@@ -36,12 +47,62 @@ EventInfo _event({bool isOwn = false}) => EventInfo(
   reactions: const [],
   isEdited: false,
   isEditable: false,
+  readBy: readBy,
+);
+
+ReadReceipt _receipt(String user, int ms) => ReadReceipt(
+  userId: user,
+  displayName: user.substring(1, 4),
+  timestampMs: ms,
 );
 
 void main() {
   test('a room says whether its default is the direct chat one', () {
     expect(roomOf(_room('a', isOneToOne: true)).isOneToOne, isTrue);
     expect(roomOf(_room('b')).isOneToOne, isFalse);
+  });
+
+  test('a chat of two shows ticks, a group pictures, a chat alone nothing', () {
+    expect(roomOf(_room('a')).readReceiptStyle, app.ReadReceiptStyle.ticks);
+    expect(
+      roomOf(_room('b', joinedMembers: 3)).readReceiptStyle,
+      app.ReadReceiptStyle.avatars,
+    );
+    expect(
+      roomOf(_room('c', joinedMembers: 1)).readReceiptStyle,
+      app.ReadReceiptStyle.none,
+    );
+  });
+
+  test('receipts map newest first, and those on hidden events count for the '
+      'message before', () {
+    final entries = entriesOf([
+      TimelineItem(
+        id: '1',
+        content: TimelineItemContent.message(
+          event: _event(eventId: r'$1', readBy: [_receipt('@carol:x', 200)]),
+          body: 'one',
+        ),
+      ),
+      TimelineItem(
+        id: '2',
+        content: TimelineItemContent.otherEvent(
+          event: _event(readBy: [_receipt('@dave:x', 300)]),
+        ),
+      ),
+      TimelineItem(
+        id: '3',
+        content: TimelineItemContent.message(
+          event: _event(eventId: r'$3'),
+          body: 'two',
+        ),
+      ),
+    ]);
+    final one = entries.first as MessageEntry;
+    expect(one.meta.readBy.map((r) => r.userId), ['@dave:x', '@carol:x']);
+    expect(one.meta.readBy.last.displayName, 'car');
+    expect(one.meta.readBy.last.time, DateTime.fromMillisecondsSinceEpoch(200));
+    expect((entries.last as MessageEntry).meta.readBy, isEmpty);
   });
 
   test('room list diffs apply in order', () {

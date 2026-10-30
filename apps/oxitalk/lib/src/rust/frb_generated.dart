@@ -8013,8 +8013,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventInfo dco_decode_event_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 14)
-      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
     return EventInfo(
       eventId: dco_decode_opt_String(arr[0]),
       transactionId: dco_decode_opt_String(arr[1]),
@@ -8030,6 +8030,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       thread: dco_decode_opt_box_autoadd_thread_info(arr[11]),
       isEdited: dco_decode_bool(arr[12]),
       isEditable: dco_decode_bool(arr[13]),
+      readBy: dco_decode_list_read_receipt(arr[14]),
     );
   }
 
@@ -8264,6 +8265,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<Reaction> dco_decode_list_reaction(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_reaction).toList();
+  }
+
+  @protected
+  List<ReadReceipt> dco_decode_list_read_receipt(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_read_receipt).toList();
   }
 
   @protected
@@ -8748,6 +8755,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ReadReceipt dco_decode_read_receipt(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ReadReceipt(
+      userId: dco_decode_String(arr[0]),
+      displayName: dco_decode_opt_String(arr[1]),
+      avatarUrl: dco_decode_opt_String(arr[2]),
+      timestampMs: dco_decode_opt_box_autoadd_i_64(arr[3]),
+    );
+  }
+
+  @protected
   RecoveryProgress dco_decode_recovery_progress(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -9097,8 +9118,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RoomSummary dco_decode_room_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return RoomSummary(
       roomId: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -9115,8 +9136,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ),
       defaultNotificationMode: dco_decode_room_notification_mode(arr[11]),
       isOneToOne: dco_decode_bool(arr[12]),
-      isDm: dco_decode_bool(arr[13]),
-      isEncrypted: dco_decode_bool(arr[14]),
+      joinedMembers: dco_decode_u_32(arr[13]),
+      isDm: dco_decode_bool(arr[14]),
+      isEncrypted: dco_decode_bool(arr[15]),
     );
   }
 
@@ -10482,6 +10504,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_thread = sse_decode_opt_box_autoadd_thread_info(deserializer);
     var var_isEdited = sse_decode_bool(deserializer);
     var var_isEditable = sse_decode_bool(deserializer);
+    var var_readBy = sse_decode_list_read_receipt(deserializer);
     return EventInfo(
       eventId: var_eventId,
       transactionId: var_transactionId,
@@ -10497,6 +10520,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       thread: var_thread,
       isEdited: var_isEdited,
       isEditable: var_isEditable,
+      readBy: var_readBy,
     );
   }
 
@@ -10843,6 +10867,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <Reaction>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_reaction(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ReadReceipt> sse_decode_list_read_receipt(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ReadReceipt>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_read_receipt(deserializer));
     }
     return ans_;
   }
@@ -11603,6 +11639,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ReadReceipt sse_decode_read_receipt(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_userId = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_opt_String(deserializer);
+    var var_avatarUrl = sse_decode_opt_String(deserializer);
+    var var_timestampMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    return ReadReceipt(
+      userId: var_userId,
+      displayName: var_displayName,
+      avatarUrl: var_avatarUrl,
+      timestampMs: var_timestampMs,
+    );
+  }
+
+  @protected
   RecoveryProgress sse_decode_recovery_progress(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -12030,6 +12081,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_isOneToOne = sse_decode_bool(deserializer);
+    var var_joinedMembers = sse_decode_u_32(deserializer);
     var var_isDm = sse_decode_bool(deserializer);
     var var_isEncrypted = sse_decode_bool(deserializer);
     return RoomSummary(
@@ -12046,6 +12098,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       notificationMode: var_notificationMode,
       defaultNotificationMode: var_defaultNotificationMode,
       isOneToOne: var_isOneToOne,
+      joinedMembers: var_joinedMembers,
       isDm: var_isDm,
       isEncrypted: var_isEncrypted,
     );
@@ -13652,6 +13705,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_thread_info(self.thread, serializer);
     sse_encode_bool(self.isEdited, serializer);
     sse_encode_bool(self.isEditable, serializer);
+    sse_encode_list_read_receipt(self.readBy, serializer);
   }
 
   @protected
@@ -13969,6 +14023,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_reaction(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_read_receipt(
+    List<ReadReceipt> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_read_receipt(item, serializer);
     }
   }
 
@@ -14636,6 +14702,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_read_receipt(ReadReceipt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.userId, serializer);
+    sse_encode_opt_String(self.displayName, serializer);
+    sse_encode_opt_String(self.avatarUrl, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.timestampMs, serializer);
+  }
+
+  @protected
   void sse_encode_recovery_progress(
     RecoveryProgress self,
     SseSerializer serializer,
@@ -14971,6 +15046,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     sse_encode_room_notification_mode(self.defaultNotificationMode, serializer);
     sse_encode_bool(self.isOneToOne, serializer);
+    sse_encode_u_32(self.joinedMembers, serializer);
     sse_encode_bool(self.isDm, serializer);
     sse_encode_bool(self.isEncrypted, serializer);
   }

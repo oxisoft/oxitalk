@@ -36,6 +36,7 @@ import 'message_actions.dart';
 import 'message_sheet.dart';
 import 'notice_line.dart';
 import 'pins.dart';
+import 'read_receipts.dart';
 import 'send_files.dart';
 import 'video/video_message.dart';
 import 'voice/audio_io.dart';
@@ -213,6 +214,7 @@ class ChatPane extends ConsumerWidget {
                   account: account,
                   roomId: roomId,
                   showSenders: !(room?.isDm ?? false),
+                  readReceipts: room?.readReceiptStyle ?? ReadReceiptStyle.none,
                 ),
               ),
               Composer(account: account, roomId: roomId),
@@ -246,11 +248,15 @@ class TimelineView extends ConsumerStatefulWidget {
     required this.roomId,
     required this.showSenders,
     this.thread,
+    this.readReceipts = ReadReceiptStyle.none,
     super.key,
   });
 
   final String account;
   final String roomId;
+
+  /// How the chat shows who read its messages: ticks in a chat of two, pictures in a group.
+  final ReadReceiptStyle readReceipts;
 
   /// The thread's first event ID, to show that thread instead of the chat.
   final String? thread;
@@ -653,6 +659,10 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     required bool canRedactOthers,
   }) {
     final runStarts = noticeRunStarts(entries);
+    // With one other member, every message up to the newest one they read is read.
+    final readTo = widget.readReceipts == ReadReceiptStyle.ticks
+        ? readUpTo(entries)
+        : null;
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ListView.builder(
@@ -677,7 +687,14 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           final next = position < entries.length - 1
               ? entries[position + 1]
               : null;
-          return _bubble(entry, previous, next, entries, canRedactOthers);
+          return _bubble(
+            entry,
+            previous,
+            next,
+            entries,
+            canRedactOthers,
+            read: readTo != null && position <= readTo,
+          );
         },
       ),
     );
@@ -731,8 +748,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     TimelineEntry? previous,
     TimelineEntry? next,
     List<TimelineEntry> entries,
-    bool canRedactOthers,
-  ) {
+    bool canRedactOthers, {
+    required bool read,
+  }) {
     final fields = eventFields(entry)!;
     final meta = fields.meta;
     final quote = meta.inReplyTo;
@@ -778,6 +796,16 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       avatar: _senderAvatar(entry.id, fields, next),
       time: fields.time,
       sendState: fields.sendState,
+      read: read,
+      readers:
+          widget.readReceipts == ReadReceiptStyle.avatars &&
+              meta.readBy.isNotEmpty
+          ? ReadAvatars(
+              key: Key('readers.${entry.id}'),
+              account: widget.account,
+              readers: meta.readBy,
+            )
+          : null,
       edited: meta.isEdited,
       quote: quote == null
           ? null
@@ -1099,6 +1127,8 @@ class MessageBubble extends StatefulWidget {
     this.sender,
     this.avatar,
     this.sendState,
+    this.read = false,
+    this.readers,
     this.edited = false,
     this.plain = false,
     this.quote,
@@ -1121,6 +1151,14 @@ class MessageBubble extends StatefulWidget {
   final Widget? avatar;
   final DateTime time;
   final SendState? sendState;
+
+  /// The user's own message, sent, and the other person in a chat of two has read up to it
+  /// or further: two ticks instead of one.
+  final bool read;
+
+  /// Under the message, at the chat's end edge as Element shows them: who has read up to
+  /// here, in a group.
+  final Widget? readers;
   final Widget child;
   final bool edited;
 
@@ -1257,7 +1295,8 @@ class _MessageBubbleState extends State<MessageBubble> {
             child: hoverActions,
           );
     final avatar = widget.avatar;
-    return MouseRegion(
+    final readers = widget.readers;
+    final row = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Align(
@@ -1283,6 +1322,15 @@ class _MessageBubbleState extends State<MessageBubble> {
           ],
         ),
       ),
+    );
+    if (readers == null) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        Align(alignment: AlignmentDirectional.centerEnd, child: readers),
+      ],
     );
   }
 
@@ -1331,8 +1379,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                     Text(clockTime(widget.time), style: meta),
                     if (isOwn && widget.sendState != null) ...[
                       const SizedBox(width: 3),
-                      _SendStateIcon(
+                      SendStateIcon(
                         state: widget.sendState!,
+                        read: widget.read,
                         color: meta?.color,
                       ),
                     ],
@@ -1496,10 +1545,22 @@ class _ToolbarPosition extends SingleChildLayoutDelegate {
       slot != oldDelegate.slot || bounds != oldDelegate.bounds;
 }
 
-class _SendStateIcon extends StatelessWidget {
-  const _SendStateIcon({required this.state, this.color});
+/// The status of the user's own message, as Telegram shows it: a clock while it is sent,
+/// one tick once the server has it, two (in the brand yellow) once the other person in a
+/// chat of two has read it. Matrix tells nothing of delivery, so there is no grey second
+/// tick.
+class SendStateIcon extends StatelessWidget {
+  const SendStateIcon({
+    required this.state,
+    this.read = false,
+    this.color,
+    super.key,
+  });
 
   final SendState state;
+
+  /// Read by the other person; only for a sent message.
+  final bool read;
 
   /// The message time's colour.
   final Color? color;
@@ -1508,18 +1569,28 @@ class _SendStateIcon extends StatelessWidget {
   Widget build(BuildContext context) => switch (state) {
     SendState.sending => Icon(
       Icons.schedule_rounded,
+      key: const Key('message.sending'),
       size: 14,
       color: color,
       semanticLabel: 'Sending',
     ),
+    SendState.sent when read => Icon(
+      Icons.done_all_rounded,
+      key: const Key('message.read'),
+      size: 15,
+      color: context.oxi.readTick,
+      semanticLabel: 'Read',
+    ),
     SendState.sent => Icon(
       Icons.done_rounded,
+      key: const Key('message.sent'),
       size: 14,
       color: color,
       semanticLabel: 'Sent',
     ),
     SendState.failed => Icon(
       Icons.error_outline_rounded,
+      key: const Key('message.failed'),
       size: 14,
       color: Theme.of(context).colorScheme.error,
       semanticLabel: 'Not sent',

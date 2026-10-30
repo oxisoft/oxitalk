@@ -2,7 +2,7 @@
 //! and sending.
 
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex, PoisonError},
 };
 
@@ -12,7 +12,7 @@ use matrix_sdk::{
     attachment::{AttachmentInfo, BaseAudioInfo, BaseImageInfo, BaseVideoInfo, Thumbnail},
     room::edit::EditedContent,
     ruma::{
-        OwnedEventId, OwnedRoomId, UInt, UserId,
+        OwnedEventId, OwnedRoomId, OwnedUserId, UInt, UserId,
         api::client::receipt::create_receipt::v3::ReceiptType,
         events::room::{
             MediaSource,
@@ -28,7 +28,7 @@ use matrix_sdk_ui::{
     timeline::{
         self, AttachmentConfig, AttachmentSource, EmbeddedEvent, EventSendState, EventTimelineItem,
         InReplyToDetails, Profile, RoomExt, SendTarget, TimelineDetails, TimelineEventItemId,
-        TimelineFocus, TimelineItemKind, VirtualTimelineItem,
+        TimelineFocus, TimelineItemKind, TimelineReadReceiptTracking, VirtualTimelineItem,
     },
 };
 use tokio::task::AbortHandle;
@@ -118,6 +118,23 @@ pub struct EventInfo {
     pub is_edited: bool,
     /// Whether the user can edit it: their own text message or caption.
     pub is_editable: bool,
+    /// The other members whose latest read receipt is on this event: they have read up to
+    /// here. Newest first; never the user. A receipt on an event the timeline doesn't show
+    /// (a reaction, an edit) counts for the visible event before it. Empty for local echoes
+    /// and in timelines that don't track receipts (pinned messages).
+    pub read_by: Vec<ReadReceipt>,
+}
+
+/// Someone who has read a room up to an event, from their read receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadReceipt {
+    pub user_id: String,
+    /// `None` if the member has none, or isn't known yet.
+    pub display_name: Option<String>,
+    /// An `mxc://` URI.
+    pub avatar_url: Option<String>,
+    /// When they read it, in milliseconds since the Unix epoch, if the server said.
+    pub timestamp_ms: Option<i64>,
 }
 
 /// One emoji (or other key) given to a message, by whom.
@@ -262,7 +279,18 @@ impl Session {
             .client
             .get_room(&id)
             .ok_or(CoreError::RoomNotFound { room_id })?;
-        let timeline = room.timeline_builder().with_focus(focus).build().await?;
+        // Read receipts on messages, as Element X tracks them; the pinned messages show none.
+        let tracking = if matches!(focus, TimelineFocus::PinnedEvents) {
+            TimelineReadReceiptTracking::Disabled
+        } else {
+            TimelineReadReceiptTracking::MessageLikeEvents
+        };
+        let timeline = room
+            .timeline_builder()
+            .with_focus(focus)
+            .track_read_marker_and_receipts(tracking)
+            .build()
+            .await?;
         Ok(Timeline::new(Arc::new(timeline), Mutex::default()))
     }
 }
@@ -298,10 +326,14 @@ impl Timeline {
         let inner = self.inner.clone();
         let mut fetching = HashSet::new();
         fetch_missing_replies(&inner, items.iter(), &mut fetching);
-        let first = vec![TimelineDiff::Reset {
-            values: items.iter().map(|i| item(i, &own)).collect(),
-        }];
         let handle = tokio::spawn(async move {
+            // The names and pictures of the members whose read receipts show, looked up once
+            // per timeline before the items that need them go out.
+            let mut readers = Readers::default();
+            readers.resolve(inner.room(), items.iter()).await;
+            let first = vec![TimelineDiff::Reset {
+                values: items.iter().map(|i| item(i, &own, &readers)).collect(),
+            }];
             if !emit(first) {
                 return;
             }
@@ -311,17 +343,23 @@ impl Timeline {
                     match diff {
                         VectorDiff::Append { values } | VectorDiff::Reset { values } => {
                             fetch_missing_replies(&inner, values.iter(), &mut fetching);
+                            readers.resolve(inner.room(), values.iter()).await;
                         }
                         VectorDiff::PushFront { value }
                         | VectorDiff::PushBack { value }
                         | VectorDiff::Insert { value, .. }
                         | VectorDiff::Set { value, .. } => {
                             fetch_missing_replies(&inner, [value], &mut fetching);
+                            readers.resolve(inner.room(), [value]).await;
                         }
                         _ => {}
                     }
                 }
-                if !emit(diffs.into_iter().map(|d| timeline_diff(d, &own)).collect()) {
+                let batch = diffs
+                    .into_iter()
+                    .map(|d| timeline_diff(d, &own, &readers))
+                    .collect();
+                if !emit(batch) {
                     break;
                 }
             }
@@ -698,6 +736,78 @@ impl Drop for Timeline {
     }
 }
 
+/// How long the items wait for the room's members from the server, for the names of readers
+/// the store doesn't know; after that they show by user ID.
+const MEMBERS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// The profiles of the members whose read receipts an item carries, by user ID; `None` for a
+/// member the room doesn't know.
+#[frb(ignore)]
+#[derive(Debug, Default)]
+pub(crate) struct Readers(HashMap<OwnedUserId, Option<ReaderProfile>>);
+
+/// A reader's display name and `mxc://` avatar URI.
+type ReaderProfile = (Option<String>, Option<String>);
+
+impl Readers {
+    /// Looks up the readers of `items` not looked up yet: in the store, else from the server
+    /// (once per room, when the members were never loaded).
+    async fn resolve<'a>(
+        &mut self,
+        room: &matrix_sdk::Room,
+        items: impl IntoIterator<Item = &'a Arc<timeline::TimelineItem>>,
+    ) {
+        let missing: Vec<OwnedUserId> = items
+            .into_iter()
+            .filter_map(|item| item.as_event())
+            .flat_map(|event| event.read_receipts().keys())
+            .filter(|user| !self.0.contains_key(*user))
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        for user in missing {
+            let member = match room.get_member_no_sync(&user).await {
+                Ok(Some(member)) => Some(member),
+                // Not while the server doesn't answer: the items wait for this.
+                _ => tokio::time::timeout(MEMBERS_TIMEOUT, room.get_member(&user))
+                    .await
+                    .ok()
+                    .and_then(Result::ok)
+                    .flatten(),
+            };
+            let profile = member.map(|member| {
+                (
+                    member.display_name().map(ToOwned::to_owned),
+                    member.avatar_url().map(ToString::to_string),
+                )
+            });
+            self.0.insert(user, profile);
+        }
+    }
+
+    /// The receipts on `event`, newest first, without the user's own.
+    fn read_by(&self, event: &EventTimelineItem, own: &UserId) -> Vec<ReadReceipt> {
+        let mut read_by: Vec<ReadReceipt> = event
+            .read_receipts()
+            .iter()
+            .filter(|(user, _)| *user != own)
+            .map(|(user, receipt)| {
+                let profile = self.0.get(user).cloned().flatten();
+                let (display_name, avatar_url) = profile.unwrap_or_default();
+                ReadReceipt {
+                    user_id: user.to_string(),
+                    display_name,
+                    avatar_url,
+                    timestamp_ms: receipt.ts.map(|ts| ts.0.into()),
+                }
+            })
+            .collect();
+        read_by.sort_by_key(|receipt| std::cmp::Reverse(receipt.timestamp_ms));
+        read_by
+    }
+}
+
 /// Asks the server for the originals of replies that show without them; each once.
 fn fetch_missing_replies<'a>(
     timeline: &Arc<timeline::Timeline>,
@@ -722,8 +832,12 @@ fn fetch_missing_replies<'a>(
     }
 }
 
-fn timeline_diff(diff: VectorDiff<Arc<timeline::TimelineItem>>, own: &UserId) -> TimelineDiff {
-    let item = |value: &timeline::TimelineItem| item(value, own);
+fn timeline_diff(
+    diff: VectorDiff<Arc<timeline::TimelineItem>>,
+    own: &UserId,
+    readers: &Readers,
+) -> TimelineDiff {
+    let item = |value: &timeline::TimelineItem| item(value, own, readers);
     let items = |values: matrix_sdk_ui::eyeball_im::Vector<Arc<timeline::TimelineItem>>| {
         values.iter().map(|i| item(i)).collect()
     };
@@ -766,9 +880,9 @@ pub(crate) fn dart_int(value: usize) -> u32 {
     u32::try_from(value).unwrap_or(u32::MAX)
 }
 
-pub(crate) fn item(item: &timeline::TimelineItem, own: &UserId) -> TimelineItem {
+pub(crate) fn item(item: &timeline::TimelineItem, own: &UserId, readers: &Readers) -> TimelineItem {
     let content = match item.kind() {
-        TimelineItemKind::Event(event) => event_content(event, own),
+        TimelineItemKind::Event(event) => event_content(event, own, readers),
         TimelineItemKind::Virtual(VirtualTimelineItem::DateDivider(timestamp)) => {
             TimelineItemContent::DateDivider {
                 timestamp_ms: timestamp.0.into(),
@@ -787,7 +901,11 @@ pub(crate) fn item(item: &timeline::TimelineItem, own: &UserId) -> TimelineItem 
     }
 }
 
-fn event_content(event: &EventTimelineItem, own: &UserId) -> TimelineItemContent {
+fn event_content(
+    event: &EventTimelineItem,
+    own: &UserId,
+    readers: &Readers,
+) -> TimelineItemContent {
     let content = event.content();
     let info = EventInfo {
         event_id: event.event_id().map(ToString::to_string),
@@ -838,6 +956,7 @@ fn event_content(event: &EventTimelineItem, own: &UserId) -> TimelineItemContent
             .as_message()
             .is_some_and(timeline::Message::is_edited),
         is_editable: event.is_editable(),
+        read_by: readers.read_by(event, own),
     };
     if content.is_redacted() {
         TimelineItemContent::Redacted { event: info }

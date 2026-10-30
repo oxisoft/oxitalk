@@ -19,8 +19,8 @@ use super::{
     mentions::MessagePart,
     session::Session,
     timeline::{
-        EventInfo, SendState, Timeline, TimelineItem, TimelineItemContent, formatted_text, item,
-        media_message,
+        EventInfo, Readers, SendState, Timeline, TimelineItem, TimelineItemContent, formatted_text,
+        item, media_message,
     },
 };
 
@@ -140,7 +140,7 @@ impl Timeline {
                 .is_some_and(|event| event == id)
         });
         if let Some(found) = found {
-            return Ok(Some(item(found, &own)));
+            return Ok(Some(item(found, &own, &Readers::default())));
         }
         if !reply {
             return Ok(None);
@@ -178,6 +178,7 @@ fn embedded_item(event: &EmbeddedEvent, id: &EventId, own: &UserId) -> Option<Ti
         thread: None,
         is_edited: message.is_edited(),
         is_editable: false,
+        read_by: Vec::new(),
     };
     let content = match media_message(message.msgtype()) {
         Some(media) => TimelineItemContent::Media { event: info, media },

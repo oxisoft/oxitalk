@@ -1346,6 +1346,25 @@ final class FakeTimeline implements RoomTimeline {
   @override
   Future<void> markAsRead() async => readMarks++;
 
+  /// [receipt]'s reader has read up to the message [eventId], as another member's read
+  /// receipt arriving: their receipt moves there from wherever it was.
+  void markReadBy(String eventId, ReadReceipt receipt) => entryList = [
+    for (final entry in entryList)
+      switch (entryMeta(entry)) {
+        final meta? => withMeta(
+          entry,
+          meta.copyWith(
+            readBy: [
+              if (meta.eventId == eventId) receipt,
+              for (final other in meta.readBy)
+                if (other.userId != receipt.userId) other,
+            ],
+          ),
+        ),
+        null => entry,
+      },
+  ];
+
   /// What [setTyping] was told, in order.
   final typingSent = <bool>[];
 
@@ -1430,6 +1449,7 @@ final class FakeTimeline implements RoomTimeline {
                   eventId: entry.meta.eventId,
                   reactions: _toggled(entry.meta.reactions, key),
                   isEditable: entry.meta.isEditable,
+                  readBy: entry.meta.readBy,
                 ),
               )
             : entry,

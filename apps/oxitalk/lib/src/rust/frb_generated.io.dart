@@ -506,6 +506,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Reaction> dco_decode_list_reaction(dynamic raw);
 
   @protected
+  List<ReadReceipt> dco_decode_list_read_receipt(dynamic raw);
+
+  @protected
   List<RichBlock> dco_decode_list_rich_block(dynamic raw);
 
   @protected
@@ -679,6 +682,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Reaction dco_decode_reaction(dynamic raw);
+
+  @protected
+  ReadReceipt dco_decode_read_receipt(dynamic raw);
 
   @protected
   RecoveryProgress dco_decode_recovery_progress(dynamic raw);
@@ -1320,6 +1326,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Reaction> sse_decode_list_reaction(SseDeserializer deserializer);
 
   @protected
+  List<ReadReceipt> sse_decode_list_read_receipt(SseDeserializer deserializer);
+
+  @protected
   List<RichBlock> sse_decode_list_rich_block(SseDeserializer deserializer);
 
   @protected
@@ -1535,6 +1544,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Reaction sse_decode_reaction(SseDeserializer deserializer);
+
+  @protected
+  ReadReceipt sse_decode_read_receipt(SseDeserializer deserializer);
 
   @protected
   RecoveryProgress sse_decode_recovery_progress(SseDeserializer deserializer);
@@ -2332,6 +2344,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_reaction(List<Reaction> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_read_receipt(
+    List<ReadReceipt> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_rich_block(
     List<RichBlock> self,
     SseSerializer serializer,
@@ -2603,6 +2621,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_reaction(Reaction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_read_receipt(ReadReceipt self, SseSerializer serializer);
 
   @protected
   void sse_encode_recovery_progress(

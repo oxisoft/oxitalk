@@ -84,6 +84,10 @@ class RoomSummary {
   /// Whether that default is the one for direct chats: the room has exactly two members (the
   /// SDK's and Element X's rule), which a room's `is_dm` flag needn't match.
   final bool isOneToOne;
+
+  /// How many members have joined; with exactly two, a chat shows whether the other has
+  /// read the user's messages (ticks) rather than who read each message.
+  final int joinedMembers;
   final bool isDm;
   final bool isEncrypted;
 
@@ -101,6 +105,7 @@ class RoomSummary {
     this.notificationMode,
     required this.defaultNotificationMode,
     required this.isOneToOne,
+    required this.joinedMembers,
     required this.isDm,
     required this.isEncrypted,
   });
@@ -120,6 +125,7 @@ class RoomSummary {
       notificationMode.hashCode ^
       defaultNotificationMode.hashCode ^
       isOneToOne.hashCode ^
+      joinedMembers.hashCode ^
       isDm.hashCode ^
       isEncrypted.hashCode;
 
@@ -141,6 +147,7 @@ class RoomSummary {
           notificationMode == other.notificationMode &&
           defaultNotificationMode == other.defaultNotificationMode &&
           isOneToOne == other.isOneToOne &&
+          joinedMembers == other.joinedMembers &&
           isDm == other.isDm &&
           isEncrypted == other.isEncrypted;
 }

@@ -10442,6 +10442,7 @@ impl SseDecode for crate::api::timeline::EventInfo {
         let mut var_thread = <Option<crate::api::timeline::ThreadInfo>>::sse_decode(deserializer);
         let mut var_isEdited = <bool>::sse_decode(deserializer);
         let mut var_isEditable = <bool>::sse_decode(deserializer);
+        let mut var_readBy = <Vec<crate::api::timeline::ReadReceipt>>::sse_decode(deserializer);
         return crate::api::timeline::EventInfo {
             event_id: var_eventId,
             transaction_id: var_transactionId,
@@ -10457,6 +10458,7 @@ impl SseDecode for crate::api::timeline::EventInfo {
             thread: var_thread,
             is_edited: var_isEdited,
             is_editable: var_isEditable,
+            read_by: var_readBy,
         };
     }
 }
@@ -10832,6 +10834,20 @@ impl SseDecode for Vec<crate::api::timeline::Reaction> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::timeline::Reaction>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::timeline::ReadReceipt> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::timeline::ReadReceipt>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -11669,6 +11685,22 @@ impl SseDecode for crate::api::timeline::Reaction {
     }
 }
 
+impl SseDecode for crate::api::timeline::ReadReceipt {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_userId = <String>::sse_decode(deserializer);
+        let mut var_displayName = <Option<String>>::sse_decode(deserializer);
+        let mut var_avatarUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_timestampMs = <Option<i64>>::sse_decode(deserializer);
+        return crate::api::timeline::ReadReceipt {
+            user_id: var_userId,
+            display_name: var_displayName,
+            avatar_url: var_avatarUrl,
+            timestamp_ms: var_timestampMs,
+        };
+    }
+}
+
 impl SseDecode for crate::api::recovery::RecoveryProgress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12210,6 +12242,7 @@ impl SseDecode for crate::api::room_list::RoomSummary {
         let mut var_defaultNotificationMode =
             <crate::api::notifications::RoomNotificationMode>::sse_decode(deserializer);
         let mut var_isOneToOne = <bool>::sse_decode(deserializer);
+        let mut var_joinedMembers = <u32>::sse_decode(deserializer);
         let mut var_isDm = <bool>::sse_decode(deserializer);
         let mut var_isEncrypted = <bool>::sse_decode(deserializer);
         return crate::api::room_list::RoomSummary {
@@ -12226,6 +12259,7 @@ impl SseDecode for crate::api::room_list::RoomSummary {
             notification_mode: var_notificationMode,
             default_notification_mode: var_defaultNotificationMode,
             is_one_to_one: var_isOneToOne,
+            joined_members: var_joinedMembers,
             is_dm: var_isDm,
             is_encrypted: var_isEncrypted,
         };
@@ -14027,6 +14061,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::timeline::EventInfo {
             self.thread.into_into_dart().into_dart(),
             self.is_edited.into_into_dart().into_dart(),
             self.is_editable.into_into_dart().into_dart(),
+            self.read_by.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14739,6 +14774,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::timeline::Reaction>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::timeline::ReadReceipt {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.user_id.into_into_dart().into_dart(),
+            self.display_name.into_into_dart().into_dart(),
+            self.avatar_url.into_into_dart().into_dart(),
+            self.timestamp_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::timeline::ReadReceipt
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::timeline::ReadReceipt>
+    for crate::api::timeline::ReadReceipt
+{
+    fn into_into_dart(self) -> crate::api::timeline::ReadReceipt {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::recovery::RecoveryProgress {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -15332,6 +15390,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::room_list::RoomSummary {
             self.notification_mode.into_into_dart().into_dart(),
             self.default_notification_mode.into_into_dart().into_dart(),
             self.is_one_to_one.into_into_dart().into_dart(),
+            self.joined_members.into_into_dart().into_dart(),
             self.is_dm.into_into_dart().into_dart(),
             self.is_encrypted.into_into_dart().into_dart(),
         ]
@@ -16732,6 +16791,7 @@ impl SseEncode for crate::api::timeline::EventInfo {
         <Option<crate::api::timeline::ThreadInfo>>::sse_encode(self.thread, serializer);
         <bool>::sse_encode(self.is_edited, serializer);
         <bool>::sse_encode(self.is_editable, serializer);
+        <Vec<crate::api::timeline::ReadReceipt>>::sse_encode(self.read_by, serializer);
     }
 }
 
@@ -17048,6 +17108,16 @@ impl SseEncode for Vec<crate::api::timeline::Reaction> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::timeline::Reaction>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::timeline::ReadReceipt> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::timeline::ReadReceipt>::sse_encode(item, serializer);
         }
     }
 }
@@ -17728,6 +17798,16 @@ impl SseEncode for crate::api::timeline::Reaction {
     }
 }
 
+impl SseEncode for crate::api::timeline::ReadReceipt {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.user_id, serializer);
+        <Option<String>>::sse_encode(self.display_name, serializer);
+        <Option<String>>::sse_encode(self.avatar_url, serializer);
+        <Option<i64>>::sse_encode(self.timestamp_ms, serializer);
+    }
+}
+
 impl SseEncode for crate::api::recovery::RecoveryProgress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18171,6 +18251,7 @@ impl SseEncode for crate::api::room_list::RoomSummary {
             serializer,
         );
         <bool>::sse_encode(self.is_one_to_one, serializer);
+        <u32>::sse_encode(self.joined_members, serializer);
         <bool>::sse_encode(self.is_dm, serializer);
         <bool>::sse_encode(self.is_encrypted, serializer);
     }

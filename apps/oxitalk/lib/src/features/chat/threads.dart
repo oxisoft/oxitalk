@@ -160,6 +160,7 @@ class _ThreadPaneState extends ConsumerState<ThreadPane>
                 roomId: roomId,
                 thread: widget.rootEventId,
                 showSenders: !(room?.isDm ?? false),
+                readReceipts: room?.readReceiptStyle ?? ReadReceiptStyle.none,
               ),
             ),
             Composer(

@@ -131,6 +131,7 @@ Room roomOf(rust.RoomSummary summary) => Room(
   },
   defaultNotificationMode: notificationModeOf(summary.defaultNotificationMode),
   isOneToOne: summary.isOneToOne,
+  joinedMembers: summary.joinedMembers,
   isDm: summary.isDm,
   isEncrypted: summary.isEncrypted,
 );
@@ -162,10 +163,51 @@ NotificationSettings notificationSettingsOf(
   inconsistent: state.inconsistent.isNotEmpty,
 );
 
-/// The visible entries of a timeline; events M0 doesn't show are left out.
-List<TimelineEntry> entriesOf(Iterable<rust.TimelineItem> items) => [
-  for (final item in items) ?entryOf(item),
-];
+/// The visible entries of a timeline; events M0 doesn't show are left out. The read
+/// receipts of a notice or of an event left out count for the message before it, as the
+/// SDK does for the events it hides: who read a later event read that message too.
+List<TimelineEntry> entriesOf(Iterable<rust.TimelineItem> items) {
+  final entries = <TimelineEntry>[];
+  int? lastMessage;
+  for (final item in items) {
+    final entry = entryOf(item);
+    if (entry != null && entryMeta(entry) != null) lastMessage = entries.length;
+    if (entry != null) entries.add(entry);
+    final readers = switch (item.content) {
+      rust.TimelineItemContent_Notice(:final event) ||
+      rust.TimelineItemContent_OtherEvent(:final event) => event.readBy,
+      _ => const <rust.ReadReceipt>[],
+    };
+    if (readers.isEmpty || lastMessage == null) continue;
+    final message = entries[lastMessage];
+    final meta = entryMeta(message)!;
+    entries[lastMessage] = withMeta(
+      message,
+      meta.copyWith(
+        readBy: [...meta.readBy, ...readers.map(readReceiptOf)]
+          ..sort(_newestFirst),
+      ),
+    );
+  }
+  return entries;
+}
+
+int _newestFirst(ReadReceipt a, ReadReceipt b) => switch ((a.time, b.time)) {
+  (final a?, final b?) => b.compareTo(a),
+  (null, _?) => 1,
+  (_?, null) => -1,
+  (null, null) => 0,
+};
+
+ReadReceipt readReceiptOf(rust.ReadReceipt receipt) => ReadReceipt(
+  userId: receipt.userId,
+  displayName: receipt.displayName,
+  avatarUrl: receipt.avatarUrl,
+  time: switch (receipt.timestampMs) {
+    final ms? => DateTime.fromMillisecondsSinceEpoch(ms),
+    null => null,
+  },
+);
 
 TimelineEntry? entryOf(rust.TimelineItem item) => switch (item.content) {
   rust.TimelineItemContent_Message(
@@ -546,6 +588,7 @@ EventMeta metaOf(rust.EventInfo event) => EventMeta(
   isEdited: event.isEdited,
   isEditable: event.isEditable,
   uploadPercent: event.uploadPercent,
+  readBy: [for (final receipt in event.readBy) readReceiptOf(receipt)],
 );
 
 ThreadEvent threadEventOf(rust.ThreadEvent event) => ThreadEvent(

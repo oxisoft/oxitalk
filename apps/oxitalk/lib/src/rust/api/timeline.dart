@@ -15,9 +15,11 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'rich_text.dart';
 part 'timeline.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `duration`, `edit_item`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `inner`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `reply_quote`, `rich_html`, `room`, `send_attachment`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `content_text`, `dart_int`, `duration`, `edit_item`, `embedded_thread_event`, `event_content`, `fetch_missing_replies`, `focused_timeline`, `formatted_text`, `inner`, `int`, `item_id`, `item`, `media_message`, `millis`, `msgtype_preview`, `new`, `preview_text`, `read_by`, `reply_quote`, `resolve`, `rich_html`, `room`, `send_attachment`, `small`, `source_json`, `text_content`, `thread_event`, `timeline_diff`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Readers`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `item_updates`
+// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Timeline>>
 abstract class Timeline implements RustOpaqueInterface {
@@ -263,6 +265,12 @@ class EventInfo {
   /// Whether the user can edit it: their own text message or caption.
   final bool isEditable;
 
+  /// The other members whose latest read receipt is on this event: they have read up to
+  /// here. Newest first; never the user. A receipt on an event the timeline doesn't show
+  /// (a reaction, an edit) counts for the visible event before it. Empty for local echoes
+  /// and in timelines that don't track receipts (pinned messages).
+  final List<ReadReceipt> readBy;
+
   const EventInfo({
     this.eventId,
     this.transactionId,
@@ -278,6 +286,7 @@ class EventInfo {
     this.thread,
     required this.isEdited,
     required this.isEditable,
+    required this.readBy,
   });
 
   @override
@@ -295,7 +304,8 @@ class EventInfo {
       inReplyTo.hashCode ^
       thread.hashCode ^
       isEdited.hashCode ^
-      isEditable.hashCode;
+      isEditable.hashCode ^
+      readBy.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -315,7 +325,8 @@ class EventInfo {
           inReplyTo == other.inReplyTo &&
           thread == other.thread &&
           isEdited == other.isEdited &&
-          isEditable == other.isEditable;
+          isEditable == other.isEditable &&
+          readBy == other.readBy;
 }
 
 enum MediaKind { image, video, audio, file }
@@ -429,6 +440,44 @@ class Reaction {
           key == other.key &&
           senders == other.senders &&
           mine == other.mine;
+}
+
+/// Someone who has read a room up to an event, from their read receipt.
+class ReadReceipt {
+  final String userId;
+
+  /// `None` if the member has none, or isn't known yet.
+  final String? displayName;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+
+  /// When they read it, in milliseconds since the Unix epoch, if the server said.
+  final PlatformInt64? timestampMs;
+
+  const ReadReceipt({
+    required this.userId,
+    this.displayName,
+    this.avatarUrl,
+    this.timestampMs,
+  });
+
+  @override
+  int get hashCode =>
+      userId.hashCode ^
+      displayName.hashCode ^
+      avatarUrl.hashCode ^
+      timestampMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReadReceipt &&
+          runtimeType == other.runtimeType &&
+          userId == other.userId &&
+          displayName == other.displayName &&
+          avatarUrl == other.avatarUrl &&
+          timestampMs == other.timestampMs;
 }
 
 /// What a reply shows of the message it answers.

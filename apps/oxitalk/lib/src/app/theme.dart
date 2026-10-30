@@ -59,6 +59,7 @@ class OxiPalette extends ThemeExtension<OxiPalette> {
     required this.ownText,
     required this.ownMeta,
     required this.ownStrip,
+    required this.readTick,
     required this.selectedRow,
     required this.threadLink,
     required this.quoteBar,
@@ -78,6 +79,7 @@ class OxiPalette extends ThemeExtension<OxiPalette> {
     ownText: OxiBrand.ink,
     ownMeta: Color(0xFF7A7330),
     ownStrip: null,
+    readTick: readTickOnLight,
     selectedRow: Color(0xFFF3F1DC),
     threadLink: Color(0xFF8A7F00),
     quoteBar: OxiBrand.ink,
@@ -97,6 +99,7 @@ class OxiPalette extends ThemeExtension<OxiPalette> {
     ownText: Color(0xFFF2F2F5),
     ownMeta: Color(0xFF9C9878),
     ownStrip: OxiBrand.yellow,
+    readTick: OxiBrand.yellow,
     selectedRow: Color(0xFF1A1A20),
     threadLink: Color(0xFFD9CE3A),
     quoteBar: OxiBrand.yellow,
@@ -128,6 +131,13 @@ class OxiPalette extends ThemeExtension<OxiPalette> {
 
   /// A thin strip inside the right edge of the user's own messages, if any.
   final Color? ownStrip;
+
+  /// The double tick of a message the other person has read: the brand yellow on dark; on
+  /// light a darker amber, as yellow on the pale yellow bubble can't be seen (1.1:1, this is
+  /// 4.5:1).
+  final Color readTick;
+
+  static const readTickOnLight = Color(0xFFA35F00);
 
   /// The open chat in the list; a yellow bar marks its left edge.
   final Color selectedRow;

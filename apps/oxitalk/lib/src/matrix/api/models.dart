@@ -37,6 +37,7 @@ final class Room {
     this.notificationMode,
     this.defaultNotificationMode = NotificationMode.allMessages,
     this.isOneToOne = false,
+    this.joinedMembers = 0,
     this.isDm = false,
     this.isEncrypted = false,
   });
@@ -74,8 +75,19 @@ final class Room {
   /// Whether [defaultNotificationMode] is the default for direct chats: the room has exactly
   /// two members, the rule of the SDK and Element X, which [isDm] needn't match.
   final bool isOneToOne;
+
+  /// How many members have joined.
+  final int joinedMembers;
   final bool isDm;
   final bool isEncrypted;
+
+  /// How the user's messages show who read them: ticks with exactly one other member,
+  /// the readers' pictures with more.
+  ReadReceiptStyle get readReceiptStyle => switch (joinedMembers) {
+    2 => ReadReceiptStyle.ticks,
+    > 2 => ReadReceiptStyle.avatars,
+    _ => ReadReceiptStyle.none,
+  };
 
   /// The mode the room notifies by.
   NotificationMode get effectiveNotificationMode =>
@@ -128,9 +140,24 @@ final class Room {
     defaultNotificationMode:
         defaultNotificationMode ?? this.defaultNotificationMode,
     isOneToOne: isOneToOne,
+    joinedMembers: joinedMembers,
     isDm: isDm,
     isEncrypted: isEncrypted,
   );
+}
+
+/// How a chat shows that its messages were read.
+enum ReadReceiptStyle {
+  /// Nothing: no one else is in the chat (yet).
+  none,
+
+  /// With one other member, Telegram's ticks on the user's own messages: one when the
+  /// server has it, two once the other has read up to it or further.
+  ticks,
+
+  /// In a group, the pictures of the members who read up to each message, under it, as
+  /// Element shows them.
+  avatars,
 }
 
 /// The account's notification settings, kept on the server and shared with Element.
@@ -380,8 +407,29 @@ final class RoomThread {
   final int replyCount;
 }
 
+/// Someone who has read a chat up to a message, from their read receipt.
+final class ReadReceipt {
+  const ReadReceipt({
+    required this.userId,
+    this.displayName,
+    this.avatarUrl,
+    this.time,
+  });
+
+  final String userId;
+  final String? displayName;
+
+  /// An `mxc://` URI.
+  final String? avatarUrl;
+
+  /// When they read it, if the server said.
+  final DateTime? time;
+
+  String get name => displayName ?? userId;
+}
+
 /// What every message has besides its content: how to name it for actions, its reactions,
-/// what it answers, its thread, and whether it was edited.
+/// what it answers, its thread, whether it was edited, and who has read up to it.
 final class EventMeta {
   const EventMeta({
     this.eventId,
@@ -392,6 +440,7 @@ final class EventMeta {
     this.isEdited = false,
     this.isEditable = false,
     this.uploadPercent,
+    this.readBy = const [],
   });
 
   /// `null` until the server has accepted a local echo.
@@ -412,8 +461,24 @@ final class EventMeta {
   /// While an attachment uploads, 0–100.
   final int? uploadPercent;
 
+  /// The other members whose latest read receipt is on this message (or on an event after
+  /// it that the chat doesn't show), newest first; never the user.
+  final List<ReadReceipt> readBy;
+
   /// What names the message in the timeline's actions.
   String? get ref => eventId ?? transactionId;
+
+  EventMeta copyWith({List<ReadReceipt>? readBy}) => EventMeta(
+    eventId: eventId,
+    transactionId: transactionId,
+    reactions: reactions,
+    inReplyTo: inReplyTo,
+    thread: thread,
+    isEdited: isEdited,
+    isEditable: isEditable,
+    uploadPercent: uploadPercent,
+    readBy: readBy ?? this.readBy,
+  );
 }
 
 /// One visible line of a timeline, oldest first.
@@ -612,6 +677,61 @@ final class NoticeEntry extends TimelineEntry {
   final String? eventId;
   final RoomNotice notice;
 }
+
+/// The meta of a message entry of any kind; `null` for notices and day dividers.
+EventMeta? entryMeta(TimelineEntry entry) => switch (entry) {
+  MessageEntry(:final meta) ||
+  MediaEntry(:final meta) ||
+  UndecryptableEntry(:final meta) ||
+  RedactedEntry(:final meta) => meta,
+  NoticeEntry() || DayDivider() => null,
+};
+
+/// [entry], a message of any kind, with [meta] instead of its own; others as they are.
+TimelineEntry withMeta(TimelineEntry entry, EventMeta meta) => switch (entry) {
+  MessageEntry() => MessageEntry(
+    id: entry.id,
+    sender: entry.sender,
+    time: entry.time,
+    body: entry.body,
+    formatted: entry.formatted,
+    senderName: entry.senderName,
+    senderAvatarUrl: entry.senderAvatarUrl,
+    isOwn: entry.isOwn,
+    sendState: entry.sendState,
+    meta: meta,
+  ),
+  MediaEntry() => MediaEntry(
+    id: entry.id,
+    sender: entry.sender,
+    time: entry.time,
+    media: entry.media,
+    senderName: entry.senderName,
+    senderAvatarUrl: entry.senderAvatarUrl,
+    isOwn: entry.isOwn,
+    sendState: entry.sendState,
+    meta: meta,
+  ),
+  UndecryptableEntry() => UndecryptableEntry(
+    id: entry.id,
+    sender: entry.sender,
+    time: entry.time,
+    senderName: entry.senderName,
+    senderAvatarUrl: entry.senderAvatarUrl,
+    isOwn: entry.isOwn,
+    meta: meta,
+  ),
+  RedactedEntry() => RedactedEntry(
+    id: entry.id,
+    sender: entry.sender,
+    time: entry.time,
+    senderName: entry.senderName,
+    senderAvatarUrl: entry.senderAvatarUrl,
+    isOwn: entry.isOwn,
+    meta: meta,
+  ),
+  NoticeEntry() || DayDivider() => entry,
+};
 
 final class DayDivider extends TimelineEntry {
   const DayDivider({required String id, required this.day}) : super(id);

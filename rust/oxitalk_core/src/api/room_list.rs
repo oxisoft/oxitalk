@@ -65,6 +65,9 @@ pub struct RoomSummary {
     /// Whether that default is the one for direct chats: the room has exactly two members (the
     /// SDK's and Element X's rule), which a room's `is_dm` flag needn't match.
     pub is_one_to_one: bool,
+    /// How many members have joined; with exactly two, a chat shows whether the other has
+    /// read the user's messages (ticks) rather than who read each message.
+    pub joined_members: u32,
     pub is_dm: bool,
     pub is_encrypted: bool,
 }
@@ -394,6 +397,7 @@ async fn summary(settings: &NotificationSettings, room: RoomListItem) -> RoomSum
         notification_mode: modes.user_defined,
         default_notification_mode: modes.default,
         is_one_to_one: modes.one_to_one,
+        joined_members: count(room.joined_members_count()),
         is_dm,
         is_encrypted: room.encryption_state().is_encrypted(),
     }
@@ -422,6 +426,7 @@ mod tests {
             notification_mode: None,
             default_notification_mode: RoomNotificationMode::AllMessages,
             is_one_to_one: false,
+            joined_members: 0,
             is_dm: false,
             is_encrypted: false,
         }

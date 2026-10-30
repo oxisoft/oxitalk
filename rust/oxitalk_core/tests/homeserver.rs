@@ -19,6 +19,8 @@ mod mentions;
 mod multi_device;
 #[path = "homeserver/pins.rs"]
 mod pins;
+#[path = "homeserver/receipts.rs"]
+mod receipts;
 #[path = "homeserver/recovery.rs"]
 mod recovery;
 #[path = "homeserver/room_settings.rs"]
