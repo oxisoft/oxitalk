@@ -506,31 +506,33 @@ class ReactionChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.oxi;
-    return Padding(
-      padding: const EdgeInsets.only(top: 2, bottom: 4),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: [
-          for (final reaction in reactions)
-            Tooltip(
-              message: reaction.senders.join('\n'),
-              child: Material(
-                key: Key('reactionChip.${reaction.key}'),
-                color: palette.reaction,
-                shape: OxiShapes.cut(5),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => onToggle(reaction.key),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 1, 7, 1),
-                    child: _ReactionLabel(reaction: reaction),
-                  ),
+    // Across the bubble's bottom edge: each chip ringed in the chat's colour, so it stands
+    // off the bubble behind it.
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final reaction in reactions)
+          Tooltip(
+            message: reaction.senders.join('\n'),
+            child: Material(
+              key: Key('reactionChip.${reaction.key}'),
+              color: palette.reaction,
+              shape: OxiShapes.cut(
+                5,
+                side: BorderSide(color: palette.wallpaper, width: 2),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onToggle(reaction.key),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 3, 9, 3),
+                  child: _ReactionLabel(reaction: reaction),
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

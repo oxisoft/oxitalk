@@ -54,57 +54,62 @@ class ReadAvatars extends StatelessWidget {
         child: Semantics(
           button: true,
           label: 'Read by $names',
-          child: InkWell(
-            key: const Key('message.readers'),
-            customBorder: OxiShapes.small,
-            onTap: () =>
-                showReaders(context, account: account, readers: readers),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: step * (shown.length - 1) + radius * 2,
-                    height: radius * 2,
-                    child: Stack(
-                      children: [
-                        // The newest reader in front, at the right.
-                        for (final (i, reader)
-                            in shown.indexed.toList().reversed)
-                          PositionedDirectional(
-                            end: step * i,
-                            child: DecoratedBox(
-                              key: Key('message.reader.${reader.userId}'),
-                              decoration: ShapeDecoration(
-                                shape: avatarShape(radius + 1),
-                                color: palette.wallpaper,
-                              ),
-                              child: MatrixAvatar(
-                                account: account,
-                                url: reader.avatarUrl,
-                                name: reader.name,
-                                seed: reader.userId,
-                                radius: radius,
+          // A small tag in the chat's colour across the bubble's bottom edge.
+          child: Material(
+            color: palette.wallpaper,
+            shape: OxiShapes.cut(4),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: const Key('message.readers'),
+              onTap: () =>
+                  showReaders(context, account: account, readers: readers),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: step * (shown.length - 1) + radius * 2,
+                      height: radius * 2,
+                      child: Stack(
+                        children: [
+                          // The newest reader in front, at the right.
+                          for (final (i, reader)
+                              in shown.indexed.toList().reversed)
+                            PositionedDirectional(
+                              end: step * i,
+                              child: DecoratedBox(
+                                key: Key('message.reader.${reader.userId}'),
+                                decoration: ShapeDecoration(
+                                  shape: avatarShape(radius + 1),
+                                  color: palette.wallpaper,
+                                ),
+                                child: MatrixAvatar(
+                                  account: account,
+                                  url: reader.avatarUrl,
+                                  name: reader.name,
+                                  seed: reader.userId,
+                                  radius: radius,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (more > 0) ...[
-                    const SizedBox(width: 3),
-                    Text(
-                      '+$more',
-                      key: const Key('message.readers.more'),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: palette.muted,
+                        ],
                       ),
                     ),
+                    if (more > 0) ...[
+                      const SizedBox(width: 3),
+                      Text(
+                        '+$more',
+                        key: const Key('message.readers.more'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: palette.muted,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

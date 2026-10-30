@@ -22,6 +22,7 @@ import '../calls/call_controller.dart';
 import '../calls/call_ui.dart';
 import '../chats/badges.dart';
 import 'chat_search.dart';
+import 'bubble_attachments.dart';
 import 'drafts.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
@@ -1156,8 +1157,8 @@ class MessageBubble extends StatefulWidget {
   /// or further: two ticks instead of one.
   final bool read;
 
-  /// Under the message, at the chat's end edge as Element shows them: who has read up to
-  /// here, in a group.
+  /// Who has read up to here, in a group: across the bubble's bottom edge at its end
+  /// corner.
   final Widget? readers;
   final Widget child;
   final bool edited;
@@ -1171,7 +1172,7 @@ class MessageBubble extends StatefulWidget {
   /// Under the content: upload progress, or what to do with a failed message.
   final List<Widget> footer;
 
-  /// Under the bubble.
+  /// Across the bubble's bottom edge at its start corner, as part of the message.
   final Widget? reactions;
 
   /// The thread that starts at this message: the bubble's last row, or under big emojis.
@@ -1263,13 +1264,16 @@ class _MessageBubbleState extends State<MessageBubble> {
       ),
     );
     final reactions = widget.reactions;
-    final column = Column(
-      crossAxisAlignment: isOwn
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [bubble, ?reactions],
-    );
+    final readers = widget.readers;
+    final column = reactions == null && readers == null
+        ? bubble
+        : BubbleAttachments(
+            alignEnd: isOwn,
+            overlap: !widget.plain,
+            bubble: bubble,
+            start: reactions,
+            end: readers,
+          );
     final onTap = widget.onTap;
     final content = onTap == null
         ? column
@@ -1295,8 +1299,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             child: hoverActions,
           );
     final avatar = widget.avatar;
-    final readers = widget.readers;
-    final row = MouseRegion(
+    return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Align(
@@ -1322,15 +1325,6 @@ class _MessageBubbleState extends State<MessageBubble> {
           ],
         ),
       ),
-    );
-    if (readers == null) return row;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        row,
-        Align(alignment: AlignmentDirectional.centerEnd, child: readers),
-      ],
     );
   }
 
