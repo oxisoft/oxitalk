@@ -1,0 +1,1 @@
+Reactions and read receipts now sit on the edge of the message they belong to, not in a separate row.
