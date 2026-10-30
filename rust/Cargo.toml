@@ -17,16 +17,16 @@ futures-util = { version = "0.3.34", default-features = false, features = ["std"
 getrandom = "0.4.3"
 # D5: a rev of main, bumped every 2 weeks. Default features off: TLS is rustls + ring (P1), not aws-lc-rs.
 # All matrix-rust-sdk crates stay on the same rev.
-matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false, features = ["automatic-room-key-forwarding", "bundled-sqlite", "e2e-encryption", "experimental-element-recent-emojis", "experimental-send-custom-to-device", "markdown"] }
-matrix-sdk-sqlite = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false }
-matrix-sdk-ui = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "f06f62654e155be50be091ffef5304025b5928da", default-features = false }
+matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "a39665d63d052919defc4a9da76fa5e190fac5fe", default-features = false, features = ["automatic-room-key-forwarding", "bundled-sqlite", "e2e-encryption", "experimental-element-recent-emojis", "experimental-send-custom-to-device", "markdown"] }
+matrix-sdk-sqlite = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "a39665d63d052919defc4a9da76fa5e190fac5fe", default-features = false }
+matrix-sdk-ui = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "a39665d63d052919defc4a9da76fa5e190fac5fe", default-features = false }
 image = { version = "0.25.10", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
 mime = "0.3.17"
 # Voice messages as Element sends them, Ogg Opus, in pure Rust: no C toolchain for any target.
 ogg = "0.9.2"
 opus-rs = "0.1.39"
 # Only for its Matrix HTML model (feature html-matrix); the same rev as matrix-rust-sdk's.
-ruma = { git = "https://github.com/ruma/ruma", rev = "caf1ac05a9fd347158b60505ef8546a2ff18ae7c", default-features = false, features = ["html-matrix"] }
+ruma = { git = "https://github.com/ruma/ruma", rev = "e03080c0790ba7b24ea37f9fd11794678cc975b0", default-features = false, features = ["html-matrix"] }
 rustls = { version = "0.23.45", default-features = false, features = ["ring"] }
 serde_json = "1.0.151"
 tempfile = "3.27.0"

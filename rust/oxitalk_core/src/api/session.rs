@@ -168,6 +168,14 @@ async fn build_client(
         // crypto store every 50 ms while the sync runs: ~4 MB/s of disk writes when idle
         // with three accounts on btrfs.
         .cross_process_store_config(CrossProcessLockConfig::SingleProcess)
+        // The room list syncs one event per room, so a device back after a gap gets only each
+        // room's newest event behind a gap. The SDK counts unread events and looks for the
+        // latest event only in what it has loaded: a gap ending in a reaction or an edit left
+        // a stale preview and place in the list and wrong unread counts, unlike the account's
+        // other devices. The SDK's background back-pagination (off by default) fills the gap
+        // until the read receipt and a suitable latest event are found. Element X iOS turns it
+        // on too. Test: homeserver multi_device.
+        .with_enable_automatic_back_pagination(true)
         .build()
         .await?)
 }

@@ -15,6 +15,8 @@ mod drafts;
 mod membership;
 #[path = "homeserver/mentions.rs"]
 mod mentions;
+#[path = "homeserver/multi_device.rs"]
+mod multi_device;
 #[path = "homeserver/pins.rs"]
 mod pins;
 #[path = "homeserver/recovery.rs"]
