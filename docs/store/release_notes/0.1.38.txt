@@ -1,0 +1,1 @@
+Threads open with all their replies again after the app was closed, instead of an empty pane.
