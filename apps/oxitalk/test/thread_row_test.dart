@@ -112,11 +112,10 @@ void main() {
           bar.top,
           greaterThan(tester.getRect(find.text('lunch?')).bottom),
         );
-        // Reactions stay under the bubble.
-        expect(
-          tester.getRect(find.byKey(const Key('reactions'))).top,
-          greaterThanOrEqualTo(bubble.bottom),
-        );
+        // Reactions sit across the bubble's bottom edge, under the thread's row.
+        final reactions = tester.getRect(find.byKey(const Key('reactions')));
+        expect(reactions.top, lessThan(bubble.bottom));
+        expect(reactions.bottom, greaterThan(bubble.bottom));
         expect(
           find.descendant(of: find.byKey(_bar), matching: find.byType(Divider)),
           findsOneWidget,
