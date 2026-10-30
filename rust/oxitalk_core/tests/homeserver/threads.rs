@@ -6,8 +6,8 @@ use matrix_sdk::ruma::{OwnedRoomId, events::room::message::RoomMessageEventConte
 use oxitalk_core::api::{
     room_list::Membership,
     rooms::NewRoom,
-    session::restore,
-    timeline::{Timeline, TimelineDiff, TimelineItem},
+    session::{Session, restore},
+    timeline::{Timeline, TimelineDiff, TimelineItem, TimelineItemContent},
 };
 
 use super::{PASSPHRASE, TestResult, TestUser, event_of, watch_rooms, watch_timeline};
@@ -151,4 +151,191 @@ async fn a_thread_answered_while_the_app_was_closed_shows_its_replies() -> TestR
             && REPLIES.iter().all(|r| event_of(items, r).is_some())
     })
     .await
+}
+
+/// Whether `items` shows the thread's first message and every reply as text, and nothing it
+/// can't decrypt.
+fn all_replies_readable(items: &[TimelineItem]) -> bool {
+    event_of(items, "who's in for lunch?").is_some()
+        && REPLIES.iter().all(|r| event_of(items, r).is_some())
+        && !items
+            .iter()
+            .any(|i| matches!(i.content, TimelineItemContent::UnableToDecrypt { .. }))
+}
+
+/// A new encrypted group of `creator` and `members`, all joined.
+async fn encrypted_group(
+    creator: &Session,
+    members: [&Session; 2],
+) -> Result<String, Box<dyn Error>> {
+    let room_id = creator
+        .create_room(NewRoom {
+            name: "Team".to_owned(),
+            topic: None,
+            public: false,
+            alias: None,
+            encrypted: true,
+            avatar: None,
+        })
+        .await?;
+    for other in members {
+        creator.invite(room_id.clone(), other.user_id()).await?;
+        let mut rooms = watch_rooms(other).await?;
+        rooms
+            .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+            .await?;
+        other.join(room_id.clone()).await?;
+        rooms
+            .wait_until(|rooms| {
+                rooms
+                    .iter()
+                    .any(|r| r.room_id == room_id && r.membership == Membership::Joined)
+            })
+            .await?;
+    }
+    Ok(room_id)
+}
+
+/// Writes the keys `user` encrypted their messages in the room `room_id` with to a file in
+/// `dir`, for another device to import.
+async fn export_own_keys(
+    user: &Session,
+    room_id: &str,
+    dir: &std::path::Path,
+) -> Result<std::path::PathBuf, Box<dyn Error>> {
+    let room_id: OwnedRoomId = room_id.try_into()?;
+    let own = user
+        .sdk()
+        .encryption()
+        .curve25519_key()
+        .await
+        .ok_or("no identity key")?;
+    let path = dir.join(format!("{}.keys", user.user_id()));
+    user.sdk()
+        .encryption()
+        .export_room_keys(path.clone(), KEYS_PASSPHRASE, |session| {
+            session.room_id() == room_id && session.sender_key() == own
+        })
+        .await?;
+    Ok(path)
+}
+
+/// Protects the exported keys of [`export_own_keys`].
+const KEYS_PASSPHRASE: &str = "test keys";
+
+/// An encrypted group of Alice, Bob and Carol: Carol writes a message and Bob answers it in a
+/// thread. Alice signs in on a new device, which has Carol's key (imported) but not yet Bob's
+/// when it loads the message: the message comes with its latest reply, which it can't decrypt
+/// yet. Then Bob's key comes (imported) and the replies decrypt. Alice opens the thread, closes
+/// it and opens it again: every reply shows as text, also a while later. The second time, the
+/// latest reply once showed as "unable to decrypt" (see `threads::restore_latest_reply`).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn a_thread_opened_again_still_shows_its_replies() -> TestResult {
+    let users = [
+        TestUser::register().await?,
+        TestUser::register().await?,
+        TestUser::register().await?,
+    ];
+    let stores = [
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+    ];
+    let alice = users[0].login(&stores[0].path().to_string_lossy()).await?;
+    let bob = users[1].login(&stores[1].path().to_string_lossy()).await?;
+    let carol = users[2].login(&stores[2].path().to_string_lossy()).await?;
+    for session in [&alice, &bob, &carol] {
+        session.start_sync().await;
+    }
+    let room_id = encrypted_group(&alice, [&bob, &carol]).await?;
+    // Alice's first device goes, without any key of what follows.
+    alice.stop_sync().await;
+    drop(alice);
+
+    // Carol writes, and Bob answers her in a thread, more than once.
+    let id: OwnedRoomId = room_id.as_str().try_into()?;
+    let carol_room = carol.sdk().get_room(&id).ok_or("Carol has no room")?;
+    let root = carol_room
+        .send(RoomMessageEventContent::text_plain("who's in for lunch?"))
+        .await?
+        .response
+        .event_id
+        .to_string();
+    let bob_timeline = bob.timeline(room_id.clone()).await?;
+    let mut bob_items = watch_timeline(&bob_timeline).await;
+    bob_items
+        .wait_paging(&bob_timeline, |items| {
+            event_of(items, "who's in for lunch?").is_some()
+        })
+        .await?;
+    let bob_thread = bob.thread_timeline(room_id.clone(), root.clone()).await?;
+    for reply in REPLIES {
+        bob_thread.send_text(reply.to_owned(), false).await?;
+    }
+    // Until the server has them all: his main timeline shows them under the message.
+    bob_items
+        .wait_paging(&bob_timeline, |items| {
+            event_of(items, "who's in for lunch?").is_some_and(|e| {
+                e.thread
+                    .as_ref()
+                    .is_some_and(|t| usize::try_from(t.reply_count) == Ok(REPLIES.len()))
+            })
+        })
+        .await?;
+    carol_room
+        .send(RoomMessageEventContent::text_plain("anyone else?"))
+        .await?;
+    let keys = tempfile::tempdir()?;
+    let carol_keys = export_own_keys(&carol, &room_id, keys.path()).await?;
+    let bob_keys = export_own_keys(&bob, &room_id, keys.path()).await?;
+
+    // Alice's new device, with Carol's key: her chat loads Carol's message.
+    let alice = users[0].login(&stores[3].path().to_string_lossy()).await?;
+    alice
+        .sdk()
+        .encryption()
+        .import_room_keys(carol_keys, KEYS_PASSPHRASE)
+        .await?;
+    alice.start_sync().await;
+    watch_rooms(&alice)
+        .await?
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let mut alice_items = watch_timeline(&alice_timeline).await;
+    alice_items
+        .wait_paging(&alice_timeline, |items| {
+            event_of(items, "who's in for lunch?").is_some()
+        })
+        .await?;
+    // Bob's key comes.
+    alice
+        .sdk()
+        .encryption()
+        .import_room_keys(bob_keys, KEYS_PASSPHRASE)
+        .await?;
+
+    // She opens the thread, reads it, closes it, and opens it again.
+    for opened in ["first", "second"] {
+        let thread = alice.thread_timeline(room_id.clone(), root.clone()).await?;
+        let mut thread_items = watch_timeline(&thread).await;
+        wait_as_the_pane(&mut thread_items, &thread, all_replies_readable)
+            .await
+            .map_err(|e| format!("the thread opened the {opened} time: {e}"))?;
+        // And it stays so.
+        if thread_items
+            .holds_within(Duration::from_secs(5), |items| !all_replies_readable(items))
+            .await?
+        {
+            return Err(format!(
+                "the thread opened the {opened} time lost a reply: {:?}",
+                thread_items.items
+            )
+            .into());
+        }
+        drop((thread_items, thread));
+    }
+    Ok(())
 }

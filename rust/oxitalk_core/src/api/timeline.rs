@@ -39,7 +39,7 @@ use super::{
     notices::{RoomNotice, notice},
     rich_text::{RichBlock, plain_line, rich_text},
     session::Session,
-    threads::persist_thread_head,
+    threads::{persist_thread_head, restore_latest_reply},
     voice::WAVEFORM_MAX,
 };
 use crate::frb_generated::StreamSink;
@@ -50,6 +50,8 @@ use crate::frb_generated::StreamSink;
 pub struct Timeline {
     inner: Arc<timeline::Timeline>,
     tasks: Mutex<Vec<AbortHandle>>,
+    /// The thread's first message, for a thread's timeline.
+    thread_root: Option<OwnedEventId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -271,8 +273,16 @@ impl Session {
         if let Err(error) = persist_thread_head(&self.client, &room, &thread_id).await {
             tracing::warn!(?error, "couldn't store the thread's first chunk");
         }
-        self.focused_timeline(room_id, TimelineFocus::Thread { thread_id })
-            .await
+        let mut timeline = self
+            .focused_timeline(
+                room_id,
+                TimelineFocus::Thread {
+                    thread_id: thread_id.clone(),
+                },
+            )
+            .await?;
+        timeline.thread_root = Some(thread_id);
+        Ok(timeline)
     }
 
     pub(crate) async fn focused_timeline(
@@ -313,7 +323,11 @@ impl Timeline {
     }
 
     pub(crate) fn new(inner: Arc<timeline::Timeline>, tasks: Mutex<Vec<AbortHandle>>) -> Self {
-        Self { inner, tasks }
+        Self {
+            inner,
+            tasks,
+            thread_root: None,
+        }
     }
 
     /// Sends the items as batches of diffs. The first batch is a `Reset` with every item
@@ -382,7 +396,13 @@ impl Timeline {
     ///
     /// As the server answers.
     pub async fn paginate_back(&self, count: u16) -> Result<bool, CoreError> {
-        Ok(self.inner.paginate_backwards(count).await?)
+        let reached_start = self.inner.paginate_backwards(count).await?;
+        if let Some(root) = &self.thread_root
+            && let Err(error) = restore_latest_reply(self.inner.room(), root).await
+        {
+            tracing::warn!(?error, "couldn't restore the thread's latest reply");
+        }
+        Ok(reached_start)
     }
 
     /// Marks the room read up to its latest event: a read receipt, which the room's other

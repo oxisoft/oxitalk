@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex, PoisonError};
 use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
 use matrix_sdk::{
-    Client,
+    Client, Room,
     cross_process_lock::MappedCrossProcessLockState,
     linked_chunk::{ChunkIdentifier, LinkedChunkId, Update},
-    ruma::{EventId, RoomId},
+    ruma::{EventId, RoomId, events::room::encrypted::OriginalSyncRoomEncryptedEvent},
 };
 use matrix_sdk_ui::timeline::{
     RoomExt,
@@ -173,6 +173,71 @@ pub(crate) async fn persist_thread_head(
             .map_err(|error| CoreError::internal(&error))?;
     }
     Ok(())
+}
+
+/// Puts the decrypted copy of a thread's latest reply back in the store, if the SDK has just
+/// saved an "unable to decrypt" copy over it.
+///
+/// Works around matrix-rust-sdk (a39665d): when the thread's back-pagination reaches its first
+/// message, the thread cache saves that message's bundled latest reply to the store
+/// (`post_process_upserted_events`, event_cache/caches/thread/state.rs:483-489), over the
+/// decrypted copy it has just stored. It takes the first message from the room's cache, as the
+/// room's (automatic) back-pagination loaded it: if the reply's key came after that, its bundled
+/// copy says "unable to decrypt, missing key", which the SDK doesn't try again
+/// (`redecryptor::try_decrypt_in_place` only tries copies it never tried), and the redecryptor
+/// doesn't either, as the room's cache has the reply decrypted. The open thread keeps its
+/// decrypted copy in memory; once it is closed the SDK reloads the thread from the store, so
+/// the thread opened again showed its latest reply as "unable to decrypt". Called after each
+/// back-pagination of a thread.
+/// Test: homeserver `a_thread_opened_again_still_shows_its_replies`.
+pub(crate) async fn restore_latest_reply(
+    room: &Room,
+    thread_id: &EventId,
+) -> Result<(), CoreError> {
+    let client = room.client();
+    let Some(event_cache) = client.event_cache() else {
+        return Ok(());
+    };
+    let (room_cache, _handles) = event_cache
+        .room(room.room_id())
+        .await
+        .map_err(|error| CoreError::internal(&error))?;
+    let Some(latest) = room_cache
+        .find_event(thread_id)
+        .await
+        .map_err(|error| CoreError::internal(&error))?
+        .and_then(|root| root.bundled_latest_thread_event())
+        .filter(|latest| latest.kind.is_utd())
+    else {
+        return Ok(());
+    };
+    let decrypted = room
+        .decrypt_event(
+            latest
+                .raw()
+                .cast_ref_unchecked::<OriginalSyncRoomEncryptedEvent>(),
+            None,
+        )
+        .await
+        .map_err(|error| CoreError::internal(&error))?;
+    // Without the key the reply itself is undecryptable too; the SDK decrypts both when it comes.
+    if decrypted.kind.is_utd() {
+        return Ok(());
+    }
+    let store = match client
+        .event_cache_store()
+        .lock()
+        .await
+        .map_err(|error| CoreError::internal(&error))?
+    {
+        MappedCrossProcessLockState::Clean(store) | MappedCrossProcessLockState::Dirty(store) => {
+            store
+        }
+    };
+    store
+        .save_event(room.room_id(), decrypted)
+        .await
+        .map_err(|error| CoreError::internal(&error))
 }
 
 fn summaries(items: &[ThreadListItem]) -> Vec<ThreadSummary> {
