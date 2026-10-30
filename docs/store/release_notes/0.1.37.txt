@@ -1,0 +1,1 @@
+Reactions and read receipts sit on the edge of the message they belong to; hovering the readers names the first three.
