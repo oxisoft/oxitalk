@@ -1,0 +1,1 @@
+Message status: in a chat of two your messages show one tick when sent and a yellow double tick once read; in groups small pictures show who has read up to each message. Your devices now agree on chat order and unread messages after one of them was away.
