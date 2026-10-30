@@ -48,9 +48,16 @@ class ReadAvatars extends StatelessWidget {
     final more = readers.length - shown.length;
     final palette = context.oxi;
     final names = readers.map((r) => r.name).join(', ');
+    // The hint names the first three, one per line; a tap lists everyone.
+    final rest = readers.length - 3;
+    final hint = [
+      'Read by',
+      for (final reader in readers.take(3)) reader.name,
+      if (rest > 0) 'and $rest more',
+    ].join('\n');
     return SelectionContainer.disabled(
       child: Tooltip(
-        message: 'Read by $names',
+        message: hint,
         child: Semantics(
           button: true,
           label: 'Read by $names',
