@@ -9,6 +9,15 @@ rust-version = "1.99"
 license = "MIT"
 repository = "https://github.com/oxisoft/oxitalk"
 
+# The app's size: the Flutter build hook builds the core with --release. Without this the core was
+# 122 MB on x86_64 Linux (no LTO, symbols kept); with it 37.5 MB, at opt-level "s" ("z" saved only
+# 0.5 MB more, 3 gave 61 MB).
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "s"
+strip = "symbols"
+
 [workspace.dependencies]
 # Calls: the media keys as Element Call sends them (standard base64) and made from OS randomness.
 base64 = "0.22.1"
