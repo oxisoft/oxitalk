@@ -11,12 +11,71 @@ repository = "https://github.com/oxisoft/oxitalk"
 
 # The app's size: the Flutter build hook builds the core with --release. Without this the core was
 # 122 MB on x86_64 Linux (no LTO, symbols kept); with it 37.5 MB, at opt-level "s" ("z" saved only
-# 0.5 MB more, 3 gave 61 MB).
+# 0.5 MB more, 3 gave 61 MB). Debug app builds and flutter test turn off LTO, the single codegen unit
+# and stripping (apps/oxitalk/hook/build.dart).
 [profile.release]
 codegen-units = 1
 lto = "fat"
 opt-level = "s"
 strip = "symbols"
+
+# Full speed where the time goes: Matrix crypto, key derivation, image decoding, voice messages and
+# sqlite. 1.5 MB more than "s" for all of them (39.0 MB on x86_64 Linux).
+[profile.release.package.aes]
+opt-level = 3
+[profile.release.package.blake3]
+opt-level = 3
+[profile.release.package.chacha20]
+opt-level = 3
+[profile.release.package.chacha20poly1305]
+opt-level = 3
+[profile.release.package.ctr]
+opt-level = 3
+[profile.release.package.curve25519-dalek]
+opt-level = 3
+[profile.release.package.ed25519-dalek]
+opt-level = 3
+[profile.release.package.fdeflate]
+opt-level = 3
+[profile.release.package.gif]
+opt-level = 3
+[profile.release.package.hkdf]
+opt-level = 3
+[profile.release.package.hmac]
+opt-level = 3
+[profile.release.package.image]
+opt-level = 3
+[profile.release.package.image-webp]
+opt-level = 3
+[profile.release.package.libsqlite3-sys]
+opt-level = 3
+[profile.release.package.miniz_oxide]
+opt-level = 3
+[profile.release.package.opus-rs]
+opt-level = 3
+[profile.release.package.pbkdf2]
+opt-level = 3
+[profile.release.package.png]
+opt-level = 3
+[profile.release.package.poly1305]
+opt-level = 3
+[profile.release.package.ring]
+opt-level = 3
+[profile.release.package.sha2]
+opt-level = 3
+[profile.release.package.vodozemac]
+opt-level = 3
+[profile.release.package.x25519-dalek]
+opt-level = 3
+[profile.release.package.zune-jpeg]
+opt-level = 3
+
+# Day-to-day builds and tests: dependencies without debug info (rust/target/debug had grown to
+# 41 GB) and lightly optimised, so crypto and sqlite aren't crawling in the homeserver tests. The
+# core itself keeps full debug info.
+[profile.dev.package."*"]
+debug = false
+opt-level = 1
 
 [workspace.dependencies]
 # Calls: the media keys as Element Call sends them (standard base64) and made from OS randomness.

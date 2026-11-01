@@ -52,8 +52,10 @@ step() { printf '\n== %s\n' "$*"; }
 tail_log() { echo "-- $1 failed, last 60 lines:"; tail -60 "$out/$1.log"; exit 1; }
 
 cd "$app"
+# Obfuscated Dart (written into Generated.xcconfig for the archive); its symbols
+# (build/debug-info) are not kept, so Dart stack traces from store builds stay unsymbolised.
 step "flutter build $platform --config-only ($(sed -n 's/^version: *//p' pubspec.yaml))"
-flutter build "$platform" --release --config-only
+flutter build "$platform" --release --config-only --obfuscate --split-debug-info=build/debug-info
 
 step "archive (unsigned)"
 xcodebuild -workspace "$workspace" -scheme Runner -configuration Release \

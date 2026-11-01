@@ -118,9 +118,11 @@ jobs:
             echo "keyPassword=$KEY_PASSWORD"
           } >"$RUNNER_TEMP/sign/key.properties"
 
+      # Obfuscated Dart; its symbols (build/debug-info) are not kept, so Dart stack traces from
+      # store builds stay unsymbolised.
       - name: Build the app bundle
         working-directory: apps/oxitalk
-        run: ANDROID_KEY_PROPERTIES="$RUNNER_TEMP/sign/key.properties" flutter build appbundle --release
+        run: ANDROID_KEY_PROPERTIES="$RUNNER_TEMP/sign/key.properties" flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info
 
       - name: Check the bundle
         working-directory: apps/oxitalk
