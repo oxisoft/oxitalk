@@ -1,0 +1,1 @@
+Encryption, pictures and voice messages run on faster code, while the app stays small.
