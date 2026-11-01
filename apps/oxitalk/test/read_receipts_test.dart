@@ -160,10 +160,12 @@ void main() {
         matching: find.byType(Scrollable),
       ),
     );
+    // The list puts the day before the clock time against today's date, so only the clock part is
+    // fixed.
     expect(
       find.descendant(
         of: _key('readers.@user0:acme.com'),
-        matching: find.text('13:59'),
+        matching: find.textContaining('13:59'),
       ),
       findsOneWidget,
     );
