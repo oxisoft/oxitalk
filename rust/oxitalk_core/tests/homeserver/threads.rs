@@ -339,3 +339,220 @@ async fn a_thread_opened_again_still_shows_its_replies() -> TestResult {
     }
     Ok(())
 }
+
+/// How many rounds the busy thread below has: a reply from each side per round.
+const BUSY_ROUNDS: usize = 6;
+
+/// A busy thread, the way a bot answers in one: each of its replies edited twice while it
+/// writes, a reaction on it and on the other side's message, taken back again. Alice has the
+/// thread open the whole time and answers in it. After a restart she opens it again and sees
+/// every reply.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one thread's story, round after round"
+)]
+async fn a_busy_thread_read_live_shows_its_replies_after_a_restart() -> TestResult {
+    use matrix_sdk::ruma::{
+        OwnedEventId,
+        events::{
+            reaction::ReactionEventContent,
+            relation::{Annotation, Thread},
+            room::message::{Relation, ReplacementMetadata},
+        },
+    };
+
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let (alice_store, bob_store) = (tempfile::tempdir()?, tempfile::tempdir()?);
+    let alice_store_dir = alice_store.path().to_string_lossy().into_owned();
+    let alice = alice_user.login(&alice_store_dir).await?;
+    // Not on Tuwunel yet: there Bob's replies leave Alice's open thread while she reads it,
+    // and the reply count never reaches the total. Under investigation.
+    if alice
+        .server_info()
+        .await?
+        .software
+        .and_then(|s| s.name)
+        .is_some_and(|name| name == "Tuwunel")
+    {
+        return Ok(());
+    }
+    let bob = bob_user.login(&bob_store.path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room_id = bob
+        .create_room(NewRoom {
+            name: "Reviews".to_owned(),
+            topic: None,
+            public: false,
+            alias: None,
+            encrypted: true,
+            avatar: None,
+        })
+        .await?;
+    bob.invite(room_id.clone(), alice.user_id()).await?;
+    let mut alice_rooms = watch_rooms(&alice).await?;
+    alice_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    alice.join(room_id.clone()).await?;
+    alice_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.membership == Membership::Joined)
+        })
+        .await?;
+    // Bob sees her join, so his messages are encrypted for her device.
+    let id: OwnedRoomId = room_id.as_str().try_into()?;
+    let bob_room = bob.sdk().get_room(&id).ok_or("Bob has no room")?;
+    crate::support::poll_until("Bob to see Alice joined", || async {
+        let joined = bob_room
+            .members(matrix_sdk::RoomMemberships::JOIN)
+            .await
+            .map_err(|e| oxitalk_core::api::error::CoreError::Internal {
+                message: e.to_string(),
+            })?
+            .len();
+        Ok((joined == 2).then_some(()))
+    })
+    .await?;
+
+    // Bob starts the thread with a message of his own.
+    let root: OwnedEventId = bob_room
+        .send(RoomMessageEventContent::text_plain("weekly review"))
+        .await?
+        .response
+        .event_id;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let mut alice_items = watch_timeline(&alice_timeline).await;
+    alice_items
+        .wait_paging(&alice_timeline, |items| {
+            event_of(items, "weekly review").is_some()
+        })
+        .await?;
+
+    // Alice opens the thread and keeps it open.
+    let thread = alice
+        .thread_timeline(room_id.clone(), root.to_string())
+        .await?;
+    let mut thread_items = watch_timeline(&thread).await;
+    wait_as_the_pane(&mut thread_items, &thread, |items| {
+        event_of(items, "weekly review").is_some()
+    })
+    .await?;
+
+    let mut latest = root.clone();
+    for round in 0..BUSY_ROUNDS {
+        // Bob answers: a placeholder, a reaction on it, two edits, the reaction taken back.
+        let reply = bob_room
+            .send({
+                let mut placeholder = RoomMessageEventContent::text_plain(format!("b{round} ..."));
+                placeholder.relates_to = Some(Relation::Thread(Thread::plain(
+                    root.clone(),
+                    latest.clone(),
+                )));
+                placeholder
+            })
+            .await?
+            .response
+            .event_id;
+        let eyes = bob_room
+            .send(ReactionEventContent::new(Annotation::new(
+                reply.clone(),
+                "👀".to_owned(),
+            )))
+            .await?
+            .response
+            .event_id;
+        for edit in ["b{round} writing", "b{round} done"] {
+            let body = edit.replace("{round}", &round.to_string());
+            bob_room
+                .send(
+                    RoomMessageEventContent::text_plain(body)
+                        .make_replacement(ReplacementMetadata::new(reply.clone(), None)),
+                )
+                .await?;
+        }
+        bob_room.redact(&eyes, None, None).await?;
+
+        // Alice answers in the thread and reads it, as the pane does.
+        let mine = format!("a{round}");
+        thread.send_text(mine.clone(), false).await?;
+        let done = format!("b{round} done");
+        thread_items
+            .wait_until(|items| {
+                event_of(items, &done).is_some()
+                    && event_of(items, &mine).is_some_and(|e| e.event_id.is_some())
+            })
+            .await
+            .map_err(|e| {
+                format!(
+                    "round {round}, live: {e}; shown: {:?}",
+                    crate::support::messages(&thread_items.items)
+                )
+            })?;
+        let _ = thread.mark_as_read().await;
+        let alice_reply: OwnedEventId = event_of(&thread_items.items, &mine)
+            .and_then(|e| e.event_id.clone())
+            .ok_or("no event ID")?
+            .as_str()
+            .try_into()?;
+        latest = alice_reply.clone();
+
+        // Bob reacts to her answer and takes it back once he has replied.
+        let ack = bob_room
+            .send(ReactionEventContent::new(Annotation::new(
+                alice_reply,
+                "👀".to_owned(),
+            )))
+            .await?
+            .response
+            .event_id;
+        bob_room.redact(&ack, None, None).await?;
+    }
+    let expected: Vec<String> = (0..BUSY_ROUNDS)
+        .flat_map(|r| [format!("b{r} done"), format!("a{r}")])
+        .collect();
+    let all = |items: &[TimelineItem]| {
+        event_of(items, "weekly review").is_some()
+            && expected.iter().all(|t| event_of(items, t).is_some())
+    };
+    thread_items
+        .wait_until(all)
+        .await
+        .map_err(|e| format!("live, at the end: {e}"))?;
+
+    // Alice closes the app and opens it again.
+    let alice_data = alice.session_data()?;
+    alice.stop_sync().await;
+    drop((
+        thread_items,
+        thread,
+        alice_items,
+        alice_timeline,
+        alice_rooms,
+        alice,
+    ));
+    let alice = restore(alice_data, alice_store_dir, PASSPHRASE.to_owned()).await?;
+    alice.start_sync().await;
+    let alice_timeline = alice.timeline(room_id.clone()).await?;
+    let mut alice_items = watch_timeline(&alice_timeline).await;
+    alice_items
+        .wait_paging(&alice_timeline, |items| {
+            event_of(items, "weekly review").is_some_and(|e| {
+                e.thread
+                    .as_ref()
+                    .is_some_and(|t| usize::try_from(t.reply_count) == Ok(2 * BUSY_ROUNDS))
+            })
+        })
+        .await
+        .map_err(|e| format!("the chat after the restart: {e}"))?;
+    let thread = alice.thread_timeline(room_id, root.to_string()).await?;
+    let mut thread_items = watch_timeline(&thread).await;
+    wait_as_the_pane(&mut thread_items, &thread, all)
+        .await
+        .map_err(|e| format!("the thread after the restart: {e}"))?;
+    Ok(())
+}

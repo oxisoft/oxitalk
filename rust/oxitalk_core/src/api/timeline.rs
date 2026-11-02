@@ -396,10 +396,30 @@ impl Timeline {
     ///
     /// As the server answers.
     pub async fn paginate_back(&self, count: u16) -> Result<bool, CoreError> {
-        let reached_start = self.inner.paginate_backwards(count).await?;
-        if let Some(root) = &self.thread_root
-            && let Err(error) = restore_latest_reply(self.inner.room(), root).await
-        {
+        let Some(root) = &self.thread_root else {
+            return Ok(self.inner.paginate_backwards(count).await?);
+        };
+        // A thread's store can hold a gap before each event that came with a sync, and one
+        // round loads a single chunk from it: often an edit, a reaction or a redaction, which
+        // adds no item. The pane asks for more only when what it shows changes, so a round
+        // that adds nothing left the thread empty for good. Rounds go on until something new
+        // shows or the start is reached.
+        //
+        // Works around matrix-rust-sdk (a39665d): the thread cache keeps every sync's
+        // previous-batch token as a gap (`ThreadEventCacheStateLockWriteGuard::handle_sync`,
+        // event_cache/caches/thread/state.rs:424-443), where the room cache drops it for a
+        // timeline that isn't limited (room/state.rs:611-615). Resolving such a gap brings
+        // nothing new, but each takes a round.
+        // Test: homeserver `a_busy_thread_read_live_shows_its_replies_after_a_restart`.
+        let shown = self.inner.items().await.len();
+        let mut reached_start = false;
+        for _ in 0..MAX_THREAD_ROUNDS {
+            reached_start = self.inner.paginate_backwards(count).await?;
+            if reached_start || self.inner.items().await.len() > shown {
+                break;
+            }
+        }
+        if let Err(error) = restore_latest_reply(self.inner.room(), root).await {
             tracing::warn!(?error, "couldn't restore the thread's latest reply");
         }
         Ok(reached_start)
@@ -765,6 +785,11 @@ impl Drop for Timeline {
 /// How long the items wait for the room's members from the server, for the names of readers
 /// the store doesn't know; after that they show by user ID.
 const MEMBERS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How many rounds one back-pagination of a thread may take before it gives up for now and
+/// lets the pane ask again (see [`Timeline::paginate_back`]): each round is one store chunk or
+/// one request, and a busy thread has a chunk per sync it came with.
+const MAX_THREAD_ROUNDS: usize = 200;
 
 /// The profiles of the members whose read receipts an item carries, by user ID; `None` for a
 /// member the room doesn't know.
