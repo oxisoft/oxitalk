@@ -149,6 +149,10 @@ abstract interface class MatrixSession {
   /// homeserver offers, asked now; empty when it offers none, so calls can't start.
   Future<List<String>> callServices();
 
+  /// The Jitsi server the homeserver names for group calls (its `.well-known`, as Element
+  /// reads it), e.g. `meet.example.org`; `null` when it names none. Asked once per session.
+  Future<String?> jitsiDomain();
+
   /// Whether the account administers its homeserver (Synapse's admin API, or a member of
   /// `#admins:<server>`); asks only the homeserver.
   Future<bool> isServerAdmin();
@@ -436,6 +440,25 @@ abstract interface class MatrixSession {
     required CallIntent intent,
     CallNotify notify = CallNotify.none,
   });
+
+  /// The room's Jitsi conferences (Element widgets), newest first, then after every change.
+  Stream<List<JitsiConference>> jitsiConferences(String roomId);
+
+  /// Whether the user may start a Jitsi conference in the room (add a widget: usually
+  /// moderators only).
+  Future<bool> canStartJitsiConference(String roomId);
+
+  /// Starts a Jitsi conference in the room as Element does, on the server's Jitsi
+  /// ([jitsiDomain]), or returns the one going on. Throws [MatrixFailure]:
+  /// [FailureKind.forbidden] when the room doesn't let the user.
+  Future<JitsiConference> startJitsiConference(
+    String roomId, {
+    required bool audioOnly,
+  });
+
+  /// The link that joins [conference] in the browser or the Jitsi Meet app; where the Jitsi
+  /// server wants a Matrix sign-in ([JitsiConference.needsSignIn]) it carries one, made now.
+  Future<String> jitsiJoinUrl(JitsiConference conference);
 
   /// Declines the ring [notificationEventId], for all the user's devices and the caller.
   Future<void> declineCall(String roomId, String notificationEventId);

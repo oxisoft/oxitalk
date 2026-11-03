@@ -80,6 +80,57 @@ void main() {
     expect(_byKey(lines)['supported'], 'Not offered by this server');
   });
 
+  test(
+    'a server with only Jitsi names its Jitsi server (chat.securium.ch)',
+    () {
+      final lines = callLines(
+        info: _info,
+        services: const [],
+        servicesFailed: false,
+        jitsiDomain: 'jitsi.securium.ch',
+        seen: null,
+      );
+      expect(_byKey(lines), {
+        'supported': 'Jitsi group calls (jitsi.securium.ch)',
+        'jitsi':
+            'jitsi.securium.ch\nJoined in the browser or the Jitsi Meet app',
+      });
+    },
+  );
+
+  test('a server with LiveKit and Jitsi names both', () {
+    final lines = _byKey(
+      callLines(
+        info: _info,
+        services: const ['https://rtc.oxisoft.net/livekit/jwt'],
+        servicesFailed: false,
+        jitsiDomain: 'meet.oxisoft.net',
+        seen: null,
+      ),
+    );
+    expect(lines['supported'], 'Supported, end-to-end encrypted');
+    expect(
+      lines['jitsi'],
+      'meet.oxisoft.net\nJoined in the browser or the Jitsi Meet app',
+    );
+    expect(lines['service'], contains('lk-jwt-service'));
+  });
+
+  test('no LiveKit: still checking until the Jitsi answer is in', () {
+    expect(
+      _byKey(
+        callLines(
+          info: _info,
+          services: const [],
+          servicesFailed: false,
+          jitsiChecked: false,
+          seen: null,
+        ),
+      )['supported'],
+      'Checking…',
+    );
+  });
+
   test('before the call services answer, and when they fail', () {
     expect(
       _byKey(

@@ -8,6 +8,7 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
+import '../../util/log.dart';
 import 'call_controller.dart';
 import 'call_media.dart';
 
@@ -21,6 +22,168 @@ final roomCallProvider = StreamProvider.autoDispose
       if (session == null) return const Stream.empty();
       return session.roomCall(roomId);
     });
+
+/// The room's Jitsi conferences (Element widgets), newest first.
+final roomJitsiProvider = StreamProvider.autoDispose
+    .family<List<JitsiConference>, (String, String)>((ref, key) {
+      final (account, roomId) = key;
+      final session = ref.watch(
+        accountsProvider.select((accounts) => accounts.value?.byId(account)),
+      );
+      if (session == null) return const Stream.empty();
+      return session.jitsiConferences(roomId);
+    });
+
+/// How the call buttons call on an account's server.
+enum CallRoute {
+  /// MatrixRTC with LiveKit, OxiTalk's own calls.
+  matrixRtc,
+
+  /// A Jitsi conference as Element starts one, joined in the browser or the Jitsi Meet app.
+  jitsi,
+}
+
+/// MatrixRTC when the server offers a call service, or before that is known; Jitsi when it
+/// offers none but names a Jitsi server ([jitsiDomain]).
+CallRoute callRouteOf({
+  required List<String>? services,
+  required String? jitsiDomain,
+}) => services != null && services.isEmpty && jitsiDomain != null
+    ? CallRoute.jitsi
+    : CallRoute.matrixRtc;
+
+Future<CallRoute> _callRoute(WidgetRef ref, String account) async {
+  List<String>? services;
+  String? jitsi;
+  try {
+    final offered = await ref.read(callServicesProvider(account).future);
+    services = offered;
+    if (offered.isEmpty) {
+      jitsi = await ref.read(jitsiDomainProvider(account).future);
+    }
+  } on Object catch (error) {
+    appLog(LogLevel.warn, 'calls', 'call services unknown: $error');
+  }
+  return callRouteOf(services: services, jitsiDomain: jitsi);
+}
+
+/// What a call button does: OxiTalk's own call, or a Jitsi conference where the server only
+/// has Jitsi (see [callRouteOf]).
+Future<void> placeCall(
+  BuildContext context,
+  WidgetRef ref, {
+  required String account,
+  required String roomId,
+  required CallIntent intent,
+}) async {
+  if (await _callRoute(ref, account) == CallRoute.jitsi) {
+    if (!context.mounted) return;
+    return startJitsiCall(
+      context,
+      ref,
+      account: account,
+      roomId: roomId,
+      audioOnly: intent == CallIntent.audio,
+    );
+  }
+  return startCall(ref, account: account, roomId: roomId, intent: intent);
+}
+
+/// Opens [conference] outside the app: the browser, or the Jitsi Meet app where it takes the
+/// link; signed in with [account] where the Jitsi server wants it.
+Future<void> openJitsi(
+  WidgetRef ref,
+  ScaffoldMessengerState? messenger,
+  String account,
+  JitsiConference conference,
+) async {
+  final session = ref.read(accountsProvider).value?.byId(account);
+  if (session == null) return;
+  final String link;
+  try {
+    link = await session.jitsiJoinUrl(conference);
+  } on MatrixFailure catch (failure) {
+    appLog(LogLevel.warn, 'calls', 'Jitsi sign-in failed: $failure');
+    messenger?.showSnackBar(
+      const SnackBar(content: Text('Couldn’t sign in to the group call.')),
+    );
+    return;
+  }
+  var opened = false;
+  try {
+    opened = await ref.read(fileActionsProvider).launch(Uri.parse(link));
+  } on Object catch (error) {
+    appLog(LogLevel.warn, 'calls', 'opening Jitsi failed: $error');
+  }
+  if (!opened) {
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Can’t open ${conference.joinUrl}')),
+    );
+  }
+}
+
+/// Starts a Jitsi conference in the room as Element does and opens it, or opens the one going
+/// on. Without the right to add one (usually moderators only) it says so.
+Future<void> startJitsiCall(
+  BuildContext context,
+  WidgetRef ref, {
+  required String account,
+  required String roomId,
+  required bool audioOnly,
+}) async {
+  final session = ref.read(accountsProvider).value?.byId(account);
+  if (session == null) return;
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final going = ref
+      .read(roomJitsiProvider((account, roomId)))
+      .value
+      ?.firstOrNull;
+  if (going != null) return openJitsi(ref, messenger, account, going);
+  try {
+    if (!await session.canStartJitsiConference(roomId)) {
+      if (context.mounted) await _cantStartJitsi(context);
+      return;
+    }
+    final conference = await session.startJitsiConference(
+      roomId,
+      audioOnly: audioOnly,
+    );
+    await openJitsi(ref, messenger, account, conference);
+  } on MatrixFailure catch (failure) {
+    appLog(LogLevel.warn, 'calls', 'starting Jitsi failed: $failure');
+    if (failure.kind == FailureKind.forbidden && context.mounted) {
+      await _cantStartJitsi(context);
+      return;
+    }
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(switch (failure.kind) {
+          FailureKind.network => 'The server can’t be reached.',
+          _ => 'Couldn’t start the group call.',
+        }),
+      ),
+    );
+  }
+}
+
+Future<void> _cantStartJitsi(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    key: const Key('jitsi.cantStart'),
+    title: const Text('Can’t start a group call here'),
+    content: const Text(
+      'This server has group calls through Jitsi, and in this chat only '
+      'moderators may start one. Once someone has, join it from the bar above '
+      'the messages.',
+    ),
+    actions: [
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('OK'),
+      ),
+    ],
+  ),
+);
 
 Room? _roomOf(WidgetRef ref, String account, String roomId) => ref
     .watch(roomsProvider(account))
@@ -60,7 +223,8 @@ Future<void> startCall(
       );
 }
 
-/// The voice and video call buttons of a chat's header.
+/// The voice and video call buttons of a chat's header: OxiTalk's own calls, or Jitsi group
+/// calls on a server that only has those.
 class CallButtons extends ConsumerWidget {
   const CallButtons({required this.account, required this.roomId, super.key});
 
@@ -71,40 +235,125 @@ class CallButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final active = ref.watch(callControllerProvider);
     final here = active?.roomId == roomId && active?.account == account;
+    final route = callRouteOf(
+      services: ref.watch(callServicesProvider(account)).value,
+      jitsiDomain: ref.watch(jitsiDomainProvider(account)).value,
+    );
+    final jitsi = route == CallRoute.jitsi;
+    final going =
+        jitsi &&
+        (ref.watch(roomJitsiProvider((account, roomId))).value?.isNotEmpty ??
+            false);
+    String tip(String kind) => here
+        ? 'In this call'
+        : going
+        ? 'Join the group call (Jitsi)'
+        : jitsi
+        ? '$kind (Jitsi)'
+        : kind;
+    void call(CallIntent intent) => unawaited(
+      placeCall(context, ref, account: account, roomId: roomId, intent: intent),
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
           key: const Key('chat.voiceCall'),
-          tooltip: here ? 'In this call' : 'Voice call',
+          tooltip: tip('Voice call'),
           icon: const Icon(Icons.call_outlined),
-          onPressed: here
-              ? null
-              : () => unawaited(
-                  startCall(
-                    ref,
-                    account: account,
-                    roomId: roomId,
-                    intent: CallIntent.audio,
-                  ),
-                ),
+          onPressed: here ? null : () => call(CallIntent.audio),
         ),
         IconButton(
           key: const Key('chat.videoCall'),
-          tooltip: here ? 'In this call' : 'Video call',
+          tooltip: tip('Video call'),
           icon: const Icon(Icons.videocam_outlined),
-          onPressed: here
-              ? null
-              : () => unawaited(
-                  startCall(
-                    ref,
-                    account: account,
-                    roomId: roomId,
-                    intent: CallIntent.video,
-                  ),
-                ),
+          onPressed: here ? null : () => call(CallIntent.video),
         ),
       ],
+    );
+  }
+}
+
+/// "Group call (Jitsi)" over a chat with a Jitsi conference going on (an Element widget), with
+/// Join, which opens it in the browser or the Jitsi Meet app.
+class JitsiBanner extends ConsumerWidget {
+  const JitsiBanner({required this.account, required this.roomId, super.key});
+
+  final String account;
+  final String roomId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final conference = ref
+        .watch(roomJitsiProvider((account, roomId)))
+        .value
+        ?.firstOrNull;
+    if (conference == null) return const SizedBox.shrink();
+    final oxi = context.oxi;
+    final who = conference.creatorUserId == account
+        ? 'you'
+        : conference.creator;
+    final details = [
+      if (conference.audioOnly) 'Voice',
+      'Started by $who',
+      conference.domain,
+    ].join(' · ');
+    return Material(
+      key: const Key('jitsi.banner'),
+      color: oxi.panel,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: const BorderSide(color: OxiBrand.yellow, width: 3),
+            bottom: BorderSide(color: oxi.line),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
+        child: Row(
+          children: [
+            Icon(Icons.groups_rounded, size: 20, color: oxi.text),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Group call (Jitsi)',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    details,
+                    key: const Key('jitsi.details'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: oxi.muted, fontSize: 12.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message:
+                  'Opens ${conference.domain} in the browser or the Jitsi '
+                  'Meet app',
+              child: FilledButton.icon(
+                key: const Key('jitsi.join'),
+                onPressed: () => unawaited(
+                  openJitsi(
+                    ref,
+                    ScaffoldMessenger.maybeOf(context),
+                    account,
+                    conference,
+                  ),
+                ),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Join'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

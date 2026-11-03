@@ -153,3 +153,42 @@ abstract interface class JoinedCall {
 
   Future<void> leave();
 }
+
+/// A Jitsi group call going on in a room, as Element Web and Desktop start them (a room
+/// widget). OxiTalk joins it outside the app: [joinUrl] opens in the browser, or in the Jitsi
+/// Meet app where it takes such links.
+final class JitsiConference {
+  const JitsiConference({
+    required this.roomId,
+    required this.widgetId,
+    required this.domain,
+    required this.conferenceId,
+    required this.creatorUserId,
+    required this.startedAt,
+    required this.joinUrl,
+    this.audioOnly = false,
+    this.creatorName,
+    this.needsSignIn = false,
+  });
+
+  final String roomId;
+  final String widgetId;
+
+  /// The Jitsi server, e.g. `meet.example.org`.
+  final String domain;
+  final String conferenceId;
+
+  /// Started as a voice call.
+  final bool audioOnly;
+  final String creatorUserId;
+  final String? creatorName;
+  final DateTime startedAt;
+
+  /// `https://<domain>/<conference>`, without a sign-in.
+  final String joinUrl;
+
+  /// The Jitsi server wants a Matrix sign-in: join with `MatrixSession.jitsiJoinUrl`.
+  final bool needsSignIn;
+
+  String get creator => creatorName ?? creatorUserId;
+}

@@ -2147,6 +2147,89 @@ final class CallServicesFamily extends $Family
   String toString() => r'callServicesProvider';
 }
 
+/// The Jitsi server [account]'s homeserver names for group calls (`null`: none), asked when
+/// watched and when invalidated; the core asks the server once per session.
+
+@ProviderFor(jitsiDomain)
+final jitsiDomainProvider = JitsiDomainFamily._();
+
+/// The Jitsi server [account]'s homeserver names for group calls (`null`: none), asked when
+/// watched and when invalidated; the core asks the server once per session.
+
+final class JitsiDomainProvider
+    extends $FunctionalProvider<AsyncValue<String?>, String?, FutureOr<String?>>
+    with $FutureModifier<String?>, $FutureProvider<String?> {
+  /// The Jitsi server [account]'s homeserver names for group calls (`null`: none), asked when
+  /// watched and when invalidated; the core asks the server once per session.
+  JitsiDomainProvider._({
+    required JitsiDomainFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: _noRetry,
+         name: r'jitsiDomainProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$jitsiDomainHash();
+
+  @override
+  String toString() {
+    return r'jitsiDomainProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<String?> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<String?> create(Ref ref) {
+    final argument = this.argument as String;
+    return jitsiDomain(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is JitsiDomainProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$jitsiDomainHash() => r'300c25fcd015198ce113c7b8bfb7a0f9a4ae8e2c';
+
+/// The Jitsi server [account]'s homeserver names for group calls (`null`: none), asked when
+/// watched and when invalidated; the core asks the server once per session.
+
+final class JitsiDomainFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<String?>, String> {
+  JitsiDomainFamily._()
+    : super(
+        retry: _noRetry,
+        name: r'jitsiDomainProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The Jitsi server [account]'s homeserver names for group calls (`null`: none), asked when
+  /// watched and when invalidated; the core asks the server once per session.
+
+  JitsiDomainProvider call(String account) =>
+      JitsiDomainProvider._(argument: account, from: this);
+
+  @override
+  String toString() => r'jitsiDomainProvider';
+}
+
 /// The account's devices, this one first; follows every change while it is watched.
 
 @ProviderFor(AccountDevices)

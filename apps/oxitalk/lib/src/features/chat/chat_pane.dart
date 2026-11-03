@@ -212,6 +212,7 @@ class ChatPane extends ConsumerWidget {
                 SearchShortcut(account: account, roomId: roomId),
               PinnedBanner(account: account, roomId: roomId),
               CallBanner(account: account, roomId: roomId),
+              JitsiBanner(account: account, roomId: roomId),
               Expanded(
                 child: TimelineView(
                   account: account,

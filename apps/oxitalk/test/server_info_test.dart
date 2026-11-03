@@ -166,6 +166,26 @@ void main() {
     },
   );
 
+  testWidgets('a server with only Jitsi shows its Jitsi group calls', (
+    tester,
+  ) async {
+    final session = FakeSession(userId: _me, rooms: const [])
+      ..server = _oxisoft
+      ..jitsiServer = 'jitsi.securium.ch';
+    await _open(tester, [session]);
+    await _scrollTo(tester, find.byKey(const Key('settings.calls')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('calls.supported')),
+        matching: find.text('Jitsi group calls (jitsi.securium.ch)'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('calls.jitsi')), findsOneWidget);
+    expect(find.text('Not offered by this server'), findsNothing);
+  });
+
   testWidgets('a server that can’t be asked shows an error with Try again', (
     tester,
   ) async {

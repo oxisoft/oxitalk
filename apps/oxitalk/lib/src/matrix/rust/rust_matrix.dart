@@ -452,6 +452,9 @@ final class RustMatrixSession implements MatrixSession {
   Future<List<String>> callServices() => guarded(_session.callServices);
 
   @override
+  Future<String?> jitsiDomain() => guarded(_session.jitsiDomain);
+
+  @override
   Future<bool> isServerAdmin() => guarded(_session.isServerAdmin);
 
   @override
@@ -1030,6 +1033,40 @@ final class RustMatrixSession implements MatrixSession {
         intent: rustCallIntent(intent),
         notify: rustCallNotify(notify),
       ),
+    ),
+  );
+
+  @override
+  Stream<List<JitsiConference>> jitsiConferences(String roomId) => _session
+      .subscribeJitsiConferences(roomId: roomId)
+      .map(jitsiConferencesOf)
+      .handleError(
+        (Object error) => throw failure(error as CoreError),
+        test: (error) => error is CoreError,
+      );
+
+  @override
+  Future<bool> canStartJitsiConference(String roomId) =>
+      guarded(() => _session.canStartJitsiConference(roomId: roomId));
+
+  @override
+  Future<JitsiConference> startJitsiConference(
+    String roomId, {
+    required bool audioOnly,
+  }) async => jitsiConferenceOf(
+    await guarded(
+      () => _session.startJitsiConference(roomId: roomId, audioOnly: audioOnly),
+    ),
+  );
+
+  @override
+  Future<String> jitsiJoinUrl(JitsiConference conference) => guarded(
+    () => _session.jitsiJoinUrl(
+      roomId: conference.roomId,
+      domain: conference.domain,
+      conferenceId: conference.conferenceId,
+      audioOnly: conference.audioOnly,
+      needsSignIn: conference.needsSignIn,
     ),
   );
 

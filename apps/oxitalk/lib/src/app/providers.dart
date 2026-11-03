@@ -448,6 +448,15 @@ Future<List<String>> callServices(Ref ref, String account) async {
   return session.callServices();
 }
 
+/// The Jitsi server [account]'s homeserver names for group calls (`null`: none), asked when
+/// watched and when invalidated; the core asks the server once per session.
+@Riverpod(retry: _noRetry)
+Future<String?> jitsiDomain(Ref ref, String account) async {
+  final session = _session(ref, account);
+  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
+  return session.jitsiDomain();
+}
+
 /// The account's devices, this one first; follows every change while it is watched.
 @riverpod
 class AccountDevices extends _$AccountDevices {

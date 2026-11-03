@@ -162,6 +162,9 @@ final class FakeSession implements MatrixSession {
   /// What [callServices] answers.
   var callServiceUrls = <String>[];
 
+  /// What [jitsiDomain] answers.
+  String? jitsiServer;
+
   /// What [isServerAdmin] answers.
   var serverAdmin = false;
 
@@ -281,6 +284,9 @@ final class FakeSession implements MatrixSession {
 
   @override
   Future<List<String>> callServices() async => callServiceUrls;
+
+  @override
+  Future<String?> jitsiDomain() async => jitsiServer;
 
   @override
   Future<bool> isServerAdmin() async => serverAdmin;
@@ -1227,6 +1233,58 @@ final class FakeSession implements MatrixSession {
     );
     return call;
   }
+
+  /// Each room's Jitsi conferences, for tests to change as the server would.
+  final jitsi = <String, Latest<List<JitsiConference>>>{};
+
+  Latest<List<JitsiConference>> jitsiOf(String roomId) =>
+      jitsi.putIfAbsent(roomId, () => Latest(const <JitsiConference>[]));
+
+  /// What [canStartJitsiConference] answers.
+  var mayStartJitsi = true;
+
+  /// The Jitsi conferences started: (room, audio only).
+  final startedJitsi = <(String, bool)>[];
+
+  @override
+  Stream<List<JitsiConference>> jitsiConferences(String roomId) =>
+      jitsiOf(roomId).stream;
+
+  @override
+  Future<bool> canStartJitsiConference(String roomId) async => mayStartJitsi;
+
+  @override
+  Future<JitsiConference> startJitsiConference(
+    String roomId, {
+    required bool audioOnly,
+  }) async {
+    final latest = jitsiOf(roomId);
+    if (latest.value.firstOrNull case final going?) return going;
+    if (!mayStartJitsi) throw const MatrixFailure(FailureKind.forbidden);
+    final domain = jitsiServer;
+    if (domain == null) throw const MatrixFailure(FailureKind.internal);
+    startedJitsi.add((roomId, audioOnly));
+    final id = 'JitsiFake${startedJitsi.length}';
+    final conference = JitsiConference(
+      roomId: roomId,
+      widgetId: 'widget${startedJitsi.length}',
+      domain: domain,
+      conferenceId: id,
+      audioOnly: audioOnly,
+      creatorUserId: userId,
+      startedAt: DateTime.now(),
+      joinUrl:
+          'https://$domain/$id${audioOnly ? '#config.startAudioOnly=true' : ''}',
+    );
+    latest.value = [conference];
+    return conference;
+  }
+
+  @override
+  Future<String> jitsiJoinUrl(JitsiConference conference) async =>
+      conference.needsSignIn
+      ? '${conference.joinUrl}?jwt=fake-jwt'
+      : conference.joinUrl;
 
   @override
   Future<void> declineCall(String roomId, String notificationEventId) async =>

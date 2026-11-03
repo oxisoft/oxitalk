@@ -2,6 +2,7 @@ import '../../rust/api/calls.dart' as calls_api;
 import '../../rust/api/devices.dart' as rust;
 import '../../rust/api/drafts.dart' as drafts_api;
 import '../../rust/api/error.dart';
+import '../../rust/api/jitsi.dart' as jitsi_api;
 import '../../rust/api/membership.dart' as membership_api;
 import '../../rust/api/notices.dart' as notice_api;
 import '../../rust/api/mentions.dart' as mentions_api;
@@ -945,3 +946,21 @@ ReleaseCheck releaseCheckOf(updates_api.ReleaseCheck check) => ReleaseCheck(
   },
   note: check.note,
 );
+
+JitsiConference jitsiConferenceOf(jitsi_api.JitsiConference c) =>
+    JitsiConference(
+      roomId: c.roomId,
+      widgetId: c.widgetId,
+      domain: c.domain,
+      conferenceId: c.conferenceId,
+      audioOnly: c.audioOnly,
+      creatorUserId: c.creatorUserId,
+      creatorName: c.creatorName,
+      startedAt: DateTime.fromMillisecondsSinceEpoch(c.startedAtMs.toInt()),
+      joinUrl: c.joinUrl,
+      needsSignIn: c.needsSignIn,
+    );
+
+List<JitsiConference> jitsiConferencesOf(jitsi_api.RoomJitsi jitsi) => [
+  for (final c in jitsi.conferences) jitsiConferenceOf(c),
+];

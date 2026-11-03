@@ -46,11 +46,13 @@ class AccountServerSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final server = ref.watch(serverInfoProvider(account));
     final services = ref.watch(callServicesProvider(account));
+    final jitsi = ref.watch(jitsiDomainProvider(account));
     final seen = ref.watch(uiPrefsProvider).callServer(account);
     void refresh() {
       ref
         ..invalidate(serverInfoProvider(account))
-        ..invalidate(callServicesProvider(account));
+        ..invalidate(callServicesProvider(account))
+        ..invalidate(jitsiDomainProvider(account));
     }
 
     final info = server.value;
@@ -58,6 +60,8 @@ class AccountServerSettings extends ConsumerWidget {
       info: info,
       services: services.value,
       servicesFailed: services.hasError && services.value == null,
+      jitsiDomain: jitsi.value,
+      jitsiChecked: jitsi.hasValue || jitsi.hasError,
       seen: seen,
     );
     return Column(
@@ -592,28 +596,41 @@ String slidingSyncLabel(ServerInfo info) =>
     };
 
 /// The Calls lines as (label, value, key): whether the homeserver offers calls
-/// ([services], its call services), through which service, the media server the last call
-/// connected to ([seen]; LiveKit tells its version only to a device that joins), and who
-/// cleans up after a device that crashed in a call.
+/// ([services], its call services; [jitsiDomain], the Jitsi server it names for Element's
+/// group calls, known once [jitsiChecked]), through which service, the media server the last
+/// call connected to ([seen]; LiveKit tells its version only to a device that joins), and
+/// who cleans up after a device that crashed in a call.
 List<(String, String, String)> callLines({
   required ServerInfo? info,
   required List<String>? services,
   required bool servicesFailed,
   required CallServerSeen? seen,
+  String? jitsiDomain,
+  bool jitsiChecked = true,
   DateTime? now,
 }) {
+  final jitsi = (
+    'Jitsi group calls',
+    '$jitsiDomain\nJoined in the browser or the Jitsi Meet app',
+    'jitsi',
+  );
   final lines = <(String, String, String)>[
     (
       'Voice and video calls',
       switch (services) {
         null => servicesFailed ? 'Can’t check' : 'Checking…',
+        [] when jitsiDomain != null => 'Jitsi group calls ($jitsiDomain)',
+        [] when !jitsiChecked => 'Checking…',
         [] => 'Not offered by this server',
         _ => 'Supported, end-to-end encrypted',
       },
       'supported',
     ),
   ];
-  if (services != null && services.isEmpty) return lines;
+  if (services != null && services.isEmpty) {
+    if (jitsiDomain != null) lines.add(jitsi);
+    return lines;
+  }
   if (services != null) {
     lines.add((
       services.length == 1 ? 'Call service' : 'Call services',
@@ -621,6 +638,7 @@ List<(String, String, String)> callLines({
       'service',
     ));
   }
+  if (jitsiDomain != null) lines.add(jitsi);
   lines.add((
     'Media server',
     switch (seen) {
