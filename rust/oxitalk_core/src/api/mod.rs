@@ -7,6 +7,7 @@ pub mod devices;
 pub mod directory;
 pub mod drafts;
 pub mod error;
+pub mod jitsi;
 pub mod jump;
 pub mod logging;
 pub mod media;

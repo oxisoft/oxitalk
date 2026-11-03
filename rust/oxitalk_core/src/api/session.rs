@@ -3,7 +3,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt,
-    sync::{Arc, Mutex, PoisonError},
+    sync::{Arc, Mutex, OnceLock, PoisonError},
     time::Duration,
 };
 
@@ -73,6 +73,8 @@ pub struct Session {
     pub(crate) recovery_progress: broadcast::Sender<RecoveryProgress>,
     /// The rooms whose call this device is in through an `ActiveCall` of this session.
     pub(crate) active_calls: Arc<Mutex<HashSet<OwnedRoomId>>>,
+    /// The Jitsi server the homeserver names in its `.well-known`, once it answered.
+    pub(crate) jitsi_domain: OnceLock<Option<String>>,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -193,6 +195,7 @@ impl Session {
             room_subscriptions: Arc::default(),
             recovery_progress: broadcast::channel(16).0,
             active_calls: Arc::default(),
+            jitsi_domain: OnceLock::new(),
             tasks: Mutex::default(),
             runtime: Handle::current(),
         };

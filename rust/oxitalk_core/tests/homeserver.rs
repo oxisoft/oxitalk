@@ -13,6 +13,8 @@ mod day_jump;
 mod devices;
 #[path = "homeserver/drafts.rs"]
 mod drafts;
+#[path = "homeserver/jitsi.rs"]
+mod jitsi;
 #[path = "homeserver/membership.rs"]
 mod membership;
 #[path = "homeserver/mentions.rs"]

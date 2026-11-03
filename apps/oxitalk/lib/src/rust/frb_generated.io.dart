@@ -9,6 +9,7 @@ import 'api/devices.dart';
 import 'api/directory.dart';
 import 'api/drafts.dart';
 import 'api/error.dart';
+import 'api/jitsi.dart';
 import 'api/jump.dart';
 import 'api/logging.dart';
 import 'api/membership.dart';
@@ -241,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<RoomCall> dco_decode_StreamSink_room_call_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<RoomJitsi> dco_decode_StreamSink_room_jitsi_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<RoomPins> dco_decode_StreamSink_room_pins_Sse(dynamic raw);
 
   @protected
@@ -310,6 +314,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   IncomingCall dco_decode_box_autoadd_incoming_call(dynamic raw);
 
   @protected
+  JitsiConference dco_decode_box_autoadd_jitsi_conference(dynamic raw);
+
+  @protected
   LoginInfo dco_decode_box_autoadd_login_info(dynamic raw);
 
   @protected
@@ -332,6 +339,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomCall dco_decode_box_autoadd_room_call(dynamic raw);
+
+  @protected
+  RoomJitsi dco_decode_box_autoadd_room_jitsi(dynamic raw);
 
   @protected
   RoomNotice dco_decode_box_autoadd_room_notice(dynamic raw);
@@ -447,6 +457,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InviteDetails dco_decode_invite_details(dynamic raw);
 
   @protected
+  JitsiConference dco_decode_jitsi_conference(dynamic raw);
+
+  @protected
   JoinRuleKind dco_decode_join_rule_kind(dynamic raw);
 
   @protected
@@ -469,6 +482,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<InconsistentDefault> dco_decode_list_inconsistent_default(dynamic raw);
+
+  @protected
+  List<JitsiConference> dco_decode_list_jitsi_conference(dynamic raw);
 
   @protected
   List<MentionRoom> dco_decode_list_mention_room(dynamic raw);
@@ -609,6 +625,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  JitsiConference? dco_decode_opt_box_autoadd_jitsi_conference(dynamic raw);
+
+  @protected
   LoginInfo? dco_decode_opt_box_autoadd_login_info(dynamic raw);
 
   @protected
@@ -722,6 +741,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomHistory dco_decode_room_history(dynamic raw);
+
+  @protected
+  RoomJitsi dco_decode_room_jitsi(dynamic raw);
 
   @protected
   RoomJoinRule dco_decode_room_join_rule(dynamic raw);
@@ -1024,6 +1046,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<RoomJitsi> sse_decode_StreamSink_room_jitsi_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<RoomPins> sse_decode_StreamSink_room_pins_Sse(
     SseDeserializer deserializer,
   );
@@ -1105,6 +1132,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  JitsiConference sse_decode_box_autoadd_jitsi_conference(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LoginInfo sse_decode_box_autoadd_login_info(SseDeserializer deserializer);
 
   @protected
@@ -1131,6 +1163,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomCall sse_decode_box_autoadd_room_call(SseDeserializer deserializer);
+
+  @protected
+  RoomJitsi sse_decode_box_autoadd_room_jitsi(SseDeserializer deserializer);
 
   @protected
   RoomNotice sse_decode_box_autoadd_room_notice(SseDeserializer deserializer);
@@ -1260,6 +1295,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InviteDetails sse_decode_invite_details(SseDeserializer deserializer);
 
   @protected
+  JitsiConference sse_decode_jitsi_conference(SseDeserializer deserializer);
+
+  @protected
   JoinRuleKind sse_decode_join_rule_kind(SseDeserializer deserializer);
 
   @protected
@@ -1288,6 +1326,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<InconsistentDefault> sse_decode_list_inconsistent_default(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<JitsiConference> sse_decode_list_jitsi_conference(
     SseDeserializer deserializer,
   );
 
@@ -1450,6 +1493,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  JitsiConference? sse_decode_opt_box_autoadd_jitsi_conference(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LoginInfo? sse_decode_opt_box_autoadd_login_info(
     SseDeserializer deserializer,
   );
@@ -1587,6 +1635,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoomHistory sse_decode_room_history(SseDeserializer deserializer);
+
+  @protected
+  RoomJitsi sse_decode_room_jitsi(SseDeserializer deserializer);
 
   @protected
   RoomJoinRule sse_decode_room_join_rule(SseDeserializer deserializer);
@@ -1937,6 +1988,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_room_jitsi_Sse(
+    RustStreamSink<RoomJitsi> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_room_pins_Sse(
     RustStreamSink<RoomPins> self,
     SseSerializer serializer,
@@ -2039,6 +2096,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_jitsi_conference(
+    JitsiConference self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_login_info(
     LoginInfo self,
     SseSerializer serializer,
@@ -2080,6 +2143,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_room_call(
     RoomCall self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_room_jitsi(
+    RoomJitsi self,
     SseSerializer serializer,
   );
 
@@ -2249,6 +2318,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_invite_details(InviteDetails self, SseSerializer serializer);
 
   @protected
+  void sse_encode_jitsi_conference(
+    JitsiConference self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_join_rule_kind(JoinRuleKind self, SseSerializer serializer);
 
   @protected
@@ -2284,6 +2359,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_inconsistent_default(
     List<InconsistentDefault> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_jitsi_conference(
+    List<JitsiConference> self,
     SseSerializer serializer,
   );
 
@@ -2507,6 +2588,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_jitsi_conference(
+    JitsiConference? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_login_info(
     LoginInfo? self,
     SseSerializer serializer,
@@ -2673,6 +2760,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_room_history(RoomHistory self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_room_jitsi(RoomJitsi self, SseSerializer serializer);
 
   @protected
   void sse_encode_room_join_rule(RoomJoinRule self, SseSerializer serializer);

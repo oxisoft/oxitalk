@@ -9,6 +9,7 @@ import 'devices.dart';
 import 'directory.dart';
 import 'drafts.dart';
 import 'error.dart';
+import 'jitsi.dart';
 import 'jump.dart';
 import 'membership.dart';
 import 'mentions.dart';
@@ -120,6 +121,13 @@ abstract class Session implements RustOpaqueInterface {
   /// `notifications.room` power level).
   Future<bool> canMentionRoom({required String roomId});
 
+  /// Whether the user may add a Jitsi conference to the room (send its widget state event).
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<bool> canStartJitsiConference({required String roomId});
+
   /// Forgets the room's draft (or the thread's): after sending, or when the composer is
   /// emptied.
   ///
@@ -196,6 +204,18 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// As [`Self::set_room_name`].
   Future<void> enableRoomEncryption({required String roomId});
+
+  /// Ends the room's Jitsi conference `widget_id` for everyone, as Element's "Remove for
+  /// everyone": the widget's state event with empty content.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Forbidden`] when the room doesn't let the user; otherwise as the server
+  /// answers.
+  Future<void> endJitsiConference({
+    required String roomId,
+    required String widgetId,
+  });
 
   /// Opens the room's timeline around the event `event_id`: the event with some before and
   /// after it, from the server. It pages back with [`Timeline::paginate_back`] and forward,
@@ -281,6 +301,41 @@ abstract class Session implements RustOpaqueInterface {
   /// [`CoreError::SessionExpired`] if the session has been logged out; a server that
   /// doesn't answer counts as not admin.
   Future<bool> isServerAdmin();
+
+  /// The room's Jitsi conferences now, from the store and the server.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Future<RoomJitsi> jitsiConferences({required String roomId});
+
+  /// The Jitsi server this account's homeserver names for group calls
+  /// (`.well-known/matrix/client`, `io.element.jitsi` or `im.vector.riot.jitsi`
+  /// `preferredDomain`), e.g. `meet.example.org`; `None` when it names none. Asked once per
+  /// session.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::SessionExpired`], or [`CoreError::Network`] when the server can't be
+  /// reached (not kept: the next call asks again).
+  Future<String?> jitsiDomain();
+
+  /// The link that joins a room's Jitsi conference in the browser or the Jitsi Meet app. On a
+  /// Jitsi with Matrix sign-in (`needs_sign_in`) it carries a JWT with a fresh OpenID token
+  /// of the user's (it proves who they are, nothing more, for about an hour), as Element's
+  /// wrapper hands Jitsi.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::RoomNotFound`]; [`CoreError::Internal`] for a domain that isn't a host
+  /// name; otherwise as the homeserver answers the OpenID token request.
+  Future<String> jitsiJoinUrl({
+    required String roomId,
+    required String domain,
+    required String conferenceId,
+    required bool audioOnly,
+    required bool needsSignIn,
+  });
 
   /// Joins a room, typically one the user was invited to.
   ///
@@ -828,6 +883,19 @@ abstract class Session implements RustOpaqueInterface {
     String? password,
   });
 
+  /// Starts a Jitsi conference in the room as Element does (a Jitsi widget on the server's
+  /// Jitsi domain, a new random conference), or returns the one going on there.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::Forbidden`] when the room doesn't let the user add widgets;
+  /// [`CoreError::Internal`] when the server names no Jitsi server or its Jitsi wants a
+  /// Matrix sign-in; otherwise as the server answers.
+  Future<JitsiConference> startJitsiConference({
+    required String roomId,
+    required bool audioOnly,
+  });
+
   /// Starts syncing. Calling it while syncing is harmless; while offline it retries at once.
   Future<void> startSync();
 
@@ -850,6 +918,14 @@ abstract class Session implements RustOpaqueInterface {
   /// counts while it is fresh (MSC4075 lifetime), the call it is about is going on and the
   /// user is not in it yet.
   Stream<IncomingCallUpdate> subscribeIncomingCalls();
+
+  /// Sends the room's Jitsi conferences as the store knows them (usually none), then as the
+  /// server has them, then after every widget event the sync brings for the room.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
+  Stream<RoomJitsi> subscribeJitsiConferences({required String roomId});
 
   /// Sends the account's notification settings, then the settings after every change, made
   /// here or on another device.
