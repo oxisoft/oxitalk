@@ -34,7 +34,7 @@ android {
     defaultConfig {
         applicationId = "io.oxisoft.oxitalk"
         // OxiTalk supports only current OS versions: Android 16 minimum, Android 17 target.
-        minSdk = 36
+        minSdk = 34
         targetSdk = 37
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)

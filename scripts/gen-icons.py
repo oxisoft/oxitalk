@@ -88,7 +88,7 @@ def main():
         for s in scales:
             save(icon, ios / f"Icon-App-{pts:g}x{pts:g}@{s}x.png", round(pts * s))
 
-    # Android: adaptive icon (minSdk 36) = ink colour (values/ic_launcher_background.xml)
+    # Android: adaptive icon (minSdk 34) = ink colour (values/ic_launcher_background.xml)
     # + transparent foreground + monochrome; legacy ic_launcher.png kept in sync.
     res = APP / "android/app/src/main/res"
     mono = Image.new("RGBA", fg.size, (255, 255, 255, 0))
