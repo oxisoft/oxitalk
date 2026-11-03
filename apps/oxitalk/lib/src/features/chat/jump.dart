@@ -23,6 +23,8 @@ final class ChatJump {
     this.around,
     this.highlight,
     this.keepHighlight = false,
+    this.toTop = false,
+    this.day,
     this.serial = 0,
   });
 
@@ -37,6 +39,13 @@ final class ChatJump {
 
   /// Whether the highlight stays (a search hit) rather than fading after a moment (a pin).
   final bool keepHighlight;
+
+  /// Whether [target] goes to the top of the view (the first message of a day) rather than
+  /// the middle.
+  final bool toTop;
+
+  /// A day picked in the calendar, to go to its first message; `null` once on the way.
+  final DateTime? day;
 
   /// Counts the requests, so a second jump to the same message still scrolls.
   final int serial;
@@ -59,12 +68,35 @@ final class ChatJumpNotifier extends Notifier<ChatJump> {
 
   /// Brings the message [eventId] into view and highlights it, for a moment or with
   /// [keepHighlight] until another jump; from the loaded messages, or else around it.
-  void show(String eventId, {bool keepHighlight = false}) => state = ChatJump(
-    target: eventId,
+  void show(String eventId, {bool keepHighlight = false, bool toTop = false}) =>
+      state = ChatJump(
+        target: eventId,
+        around: state.around,
+        highlight: eventId,
+        keepHighlight: keepHighlight,
+        toTop: toTop,
+        serial: state.serial + 1,
+      );
+
+  /// Goes to the first message of [day] (or the next day with messages).
+  void toDay(DateTime day) => state = ChatJump(
+    target: state.target,
     around: state.around,
-    highlight: eventId,
-    keepHighlight: keepHighlight,
+    highlight: state.highlight,
+    keepHighlight: state.keepHighlight,
+    toTop: state.toTop,
+    day: day,
     serial: state.serial + 1,
+  );
+
+  /// The day's first message is being looked for.
+  void dayTaken() => state = ChatJump(
+    target: state.target,
+    around: state.around,
+    highlight: state.highlight,
+    keepHighlight: state.keepHighlight,
+    toTop: state.toTop,
+    serial: state.serial,
   );
 
   /// Shows the room around [eventId], to bring that message into view.
@@ -73,6 +105,8 @@ final class ChatJumpNotifier extends Notifier<ChatJump> {
     around: eventId,
     highlight: state.highlight,
     keepHighlight: state.keepHighlight,
+    toTop: state.toTop,
+    day: state.day,
     serial: state.serial,
   );
 
@@ -81,6 +115,7 @@ final class ChatJumpNotifier extends Notifier<ChatJump> {
     around: state.around,
     highlight: state.highlight,
     keepHighlight: state.keepHighlight,
+    day: state.day,
     serial: state.serial,
   );
 
@@ -92,6 +127,8 @@ final class ChatJumpNotifier extends Notifier<ChatJump> {
     state = ChatJump(
       target: state.target,
       around: state.around,
+      toTop: state.toTop,
+      day: state.day,
       serial: state.serial,
     );
   }
@@ -142,7 +179,7 @@ Stream<List<TimelineEntry>> timelineAtEntries(
 };
 
 /// Scrolls the list of [controller] until the widget of [key] is built, then brings it to
-/// the middle. The list is reversed (newest at the bottom); [index] is the item's position
+/// the middle (or with [alignment] 1 to the top). The list is reversed (newest at the bottom); [index] is the item's position
 /// in the list's entries, oldest first, and [builtIndexes] tells which are built now.
 /// Returns whether it got there.
 Future<bool> scrollToItem({
@@ -151,6 +188,7 @@ Future<bool> scrollToItem({
   required int index,
   required Iterable<int> Function() builtIndexes,
   required bool Function() mounted,
+  double alignment = 0.5,
 }) async {
   for (var step = 0; step < 200; step++) {
     if (!mounted() || !controller.hasClients) return false;
@@ -158,7 +196,7 @@ Future<bool> scrollToItem({
     if (context != null && context.mounted) {
       await Scrollable.ensureVisible(
         context,
-        alignment: 0.5,
+        alignment: alignment,
         duration: const Duration(milliseconds: 250),
       );
       return true;

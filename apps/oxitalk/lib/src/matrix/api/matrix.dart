@@ -358,6 +358,14 @@ abstract interface class MatrixSession {
   /// forward to the newest message.
   Future<RoomTimeline> openTimelineAt(String roomId, String eventId);
 
+  /// The room's first message at or after [time], found by the server (Matrix
+  /// `timestamp_to_event`): to jump to a day. Reactions, edits, thread replies and state
+  /// changes don't count.
+  Future<MessageSince> firstMessageSince(String roomId, DateTime time);
+
+  /// When the room was created, if this device knows.
+  Future<DateTime?> roomCreatedAt(String roomId);
+
   /// The room's pins, and pinning.
   Future<PinnedEvents> openPins(String roomId);
 
@@ -452,6 +460,30 @@ abstract interface class ThreadList {
   Future<bool> loadMore();
 
   void close();
+}
+
+/// The first message of a room at or after a time, as [MatrixSession.firstMessageSince]
+/// finds it.
+sealed class MessageSince {
+  const MessageSince();
+}
+
+/// The first message since then: [eventId], sent at [time].
+final class MessageFound extends MessageSince {
+  const MessageFound(this.eventId, this.time);
+
+  final String eventId;
+  final DateTime time;
+}
+
+/// No message since then.
+final class NoMessageSince extends MessageSince {
+  const NoMessageSince();
+}
+
+/// The server can't find events by time (it lacks `timestamp_to_event`, MSC3030).
+final class MessageSinceUnsupported extends MessageSince {
+  const MessageSinceUnsupported();
 }
 
 abstract interface class RoomTimeline {

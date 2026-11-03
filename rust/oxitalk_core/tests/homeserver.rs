@@ -7,6 +7,8 @@
 
 #[path = "homeserver/calls.rs"]
 mod calls;
+#[path = "homeserver/day_jump.rs"]
+mod day_jump;
 #[path = "homeserver/devices.rs"]
 mod devices;
 #[path = "homeserver/drafts.rs"]

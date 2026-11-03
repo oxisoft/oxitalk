@@ -9,6 +9,7 @@ import 'devices.dart';
 import 'directory.dart';
 import 'drafts.dart';
 import 'error.dart';
+import 'jump.dart';
 import 'membership.dart';
 import 'mentions.dart';
 import 'notifications.dart';
@@ -207,6 +208,20 @@ abstract class Session implements RustOpaqueInterface {
   Future<Timeline> eventTimeline({
     required String roomId,
     required String eventId,
+  });
+
+  /// Finds the room's first message at or after `timestamp_ms` (milliseconds since the Unix
+  /// epoch), e.g. the first of a day, to jump there with [`Self::event_timeline`]. Asks the
+  /// server's `timestamp_to_event` (MSC3030, Matrix 1.6) for the first event since then,
+  /// and from there reads on to the first one the chat shows: reactions, edits, thread
+  /// replies, redactions and state changes are skipped.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or as the server answers.
+  Future<MessageSince> firstMessageSince({
+    required String roomId,
+    required PlatformInt64 timestampMs,
   });
 
   /// Makes inconsistent defaults consistent again as Element X does: the rule that isn't
@@ -524,6 +539,14 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`] or [`CoreError::SessionExpired`].
   Future<RoomCall> roomCall({required String roomId});
+
+  /// When the room was created (its `m.room.create` event), in milliseconds since the Unix
+  /// epoch, if this device has that event: the first day there can be messages.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], or if the store can't be read.
+  Future<PlatformInt64?> roomCreatedMs({required String roomId});
 
   /// A room's details for its info screen.
   ///

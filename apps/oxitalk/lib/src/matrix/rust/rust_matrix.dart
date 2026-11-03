@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import '../../rust/api/calls.dart' as calls_api;
 import '../../rust/api/error.dart';
+import '../../rust/api/jump.dart' as jump_api;
 import '../../rust/api/pins.dart' as pins_api;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/rooms.dart' as rust;
@@ -879,6 +880,29 @@ final class RustMatrixSession implements MatrixSession {
           () => _session.eventTimeline(roomId: roomId, eventId: eventId),
         ),
       );
+
+  @override
+  Future<MessageSince> firstMessageSince(String roomId, DateTime time) async =>
+      switch (await guarded(
+        () => _session.firstMessageSince(
+          roomId: roomId,
+          timestampMs: time.millisecondsSinceEpoch,
+        ),
+      )) {
+        jump_api.MessageSince_Found(:final eventId, :final timestampMs) =>
+          MessageFound(
+            eventId,
+            DateTime.fromMillisecondsSinceEpoch(timestampMs),
+          ),
+        jump_api.MessageSince_NoneAfter() => const NoMessageSince(),
+        jump_api.MessageSince_Unsupported() => const MessageSinceUnsupported(),
+      };
+
+  @override
+  Future<DateTime?> roomCreatedAt(String roomId) async {
+    final ms = await guarded(() => _session.roomCreatedMs(roomId: roomId));
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
 
   @override
   Future<PinnedEvents> openPins(String roomId) async =>

@@ -9,6 +9,7 @@ import 'api/devices.dart';
 import 'api/directory.dart';
 import 'api/drafts.dart';
 import 'api/error.dart';
+import 'api/jump.dart';
 import 'api/logging.dart';
 import 'api/membership.dart';
 import 'api/mentions.dart';
@@ -579,6 +580,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessagePart dco_decode_message_part(dynamic raw);
+
+  @protected
+  MessageSince dco_decode_message_since(dynamic raw);
 
   @protected
   NewRoom dco_decode_new_room(dynamic raw);
@@ -1413,6 +1417,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessagePart sse_decode_message_part(SseDeserializer deserializer);
+
+  @protected
+  MessageSince sse_decode_message_since(SseDeserializer deserializer);
 
   @protected
   NewRoom sse_decode_new_room(SseDeserializer deserializer);
@@ -2459,6 +2466,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_message_part(MessagePart self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_message_since(MessageSince self, SseSerializer serializer);
 
   @protected
   void sse_encode_new_room(NewRoom self, SseSerializer serializer);

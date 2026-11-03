@@ -23,6 +23,7 @@ import '../calls/call_ui.dart';
 import '../chats/badges.dart';
 import 'chat_search.dart';
 import 'bubble_attachments.dart';
+import 'date_jump.dart';
 import 'drafts.dart';
 import 'emoji.dart';
 import 'emoticons.dart';
@@ -204,6 +205,7 @@ class ChatPane extends ConsumerWidget {
           color: context.oxi.wallpaper,
           child: Column(
             children: [
+              ChatDateRow(account: account, roomId: roomId),
               if (searching)
                 ChatSearchBar(account: account, roomId: roomId)
               else
@@ -286,6 +288,18 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
 
   /// The jump being brought into view, by its serial.
   int? _jumping;
+
+  /// The jump to a day being looked for, by its serial.
+  int? _dayJumping;
+
+  /// The entries the list shows now, oldest first.
+  List<TimelineEntry> _entries = const [];
+
+  /// The list, to tell which message is at its top.
+  final _listKey = GlobalKey();
+
+  /// Whether the top message's day is to be looked at after this frame.
+  var _topDayPending = false;
 
   /// Whether a timeline opened around an older message has all the newer ones.
   var _reachedEnd = false;
@@ -455,8 +469,123 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       _atBottom = atBottom;
       if (atBottom) unawaited(_markRead());
     }
+    _scheduleTopDay();
     return false;
   }
+
+  /// Looks at the top message's day after the frame, once however often asked.
+  void _scheduleTopDay() {
+    if (widget.thread != null || _topDayPending) return;
+    _topDayPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _topDayPending = false;
+      _updateTopDay();
+    });
+  }
+
+  /// Tells the date row the day of the topmost message in view: the first (oldest) built
+  /// message whose bottom is below the list's top edge.
+  void _updateTopDay() {
+    if (!mounted) return;
+    DateTime? time;
+    final list = _listKey.currentContext?.findRenderObject();
+    if (list is RenderBox && list.attached && list.hasSize) {
+      final top = list.localToGlobal(Offset.zero).dy;
+      for (final entry in _entries) {
+        final at = entryTime(entry);
+        final box = _bubbleKeys[entry.id]?.currentContext?.findRenderObject();
+        if (at == null || box is! RenderBox || !box.attached || !box.hasSize) {
+          continue;
+        }
+        if (box.localToGlobal(Offset(0, box.size.height)).dy > top) {
+          time = at;
+          break;
+        }
+      }
+    }
+    ref.read(chatTopDayProvider(_chat).notifier).set(time);
+  }
+
+  /// Goes to the first message of [day] picked in the calendar: from the loaded messages if
+  /// they tell, else as the server finds it (or, if it can't, by loading older messages
+  /// until they reach the day). Without messages that day, the next day with some; without
+  /// any since, the newest.
+  Future<void> _goToDay(DateTime day) async {
+    final notifier = ref.read(chatJumpProvider(_chat).notifier)..dayTaken();
+    final start = dayOf(day);
+    var loaded = _loadedDayStart(start);
+    if (loaded is NotLoaded) {
+      final session = ref.read(accountsProvider).value?.byId(widget.account);
+      MessageSince? answer;
+      try {
+        answer = await session?.firstMessageSince(widget.roomId, start);
+      } on MatrixFailure {
+        answer = null;
+      }
+      if (!mounted) return;
+      switch (answer) {
+        case MessageFound(:final eventId, :final time):
+          loaded = LoadedFound(eventId, time);
+        case NoMessageSince():
+          loaded = const LoadedNoneAfter();
+        case MessageSinceUnsupported():
+          loaded = await _loadBackTo(start);
+          if (!mounted) return;
+        case null:
+          _say('Can’t reach ${dayLabel(start)} right now');
+          return;
+      }
+    }
+    switch (loaded) {
+      case LoadedFound(:final eventId, :final time):
+        if (dayOf(time) != start) {
+          _say('No messages on ${dayLabel(start)}; showing ${dayLabel(time)}');
+        }
+        notifier.show(eventId, toTop: true);
+      case LoadedNoneAfter():
+        _say('No messages since ${dayLabel(start)}');
+        notifier.toLatest();
+        if (_jump.around == null && _scroll.hasClients) _scroll.jumpTo(0);
+      case NotLoaded():
+        _say(
+          'This server can’t find messages by date; scroll up to reach '
+          '${dayLabel(start)}',
+        );
+    }
+  }
+
+  /// What the shown messages tell about the first message at or after [start].
+  LoadedDayStart _loadedDayStart(DateTime start) => loadedDayStart(
+    _entries,
+    start,
+    reachedStart: _reachedStart,
+    reachedEnd: _jump.around == null || _reachedEnd,
+  );
+
+  /// For a server that can't find messages by time: loads older messages (up to
+  /// [_maxDayLoads] times) until they reach back to [start].
+  Future<LoadedDayStart> _loadBackTo(DateTime start) async {
+    var loaded = _loadedDayStart(start);
+    final timeline = _shownTimeline;
+    for (var i = 0; i < _maxDayLoads && loaded is NotLoaded; i++) {
+      if (timeline == null || _reachedStart) break;
+      try {
+        _reachedStart = await timeline.loadOlder();
+      } on MatrixFailure {
+        break;
+      }
+      // The new messages show with the next frame.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return loaded;
+      loaded = _loadedDayStart(start);
+    }
+    return loaded;
+  }
+
+  static const _maxDayLoads = 30;
+
+  void _say(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   @override
   Widget build(BuildContext context) {
@@ -498,6 +627,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                 if (!isMembershipNotice(entry)) entry,
             ],
           );
+    if (entries is! AsyncData<List<TimelineEntry>>) {
+      // Nothing in view: the date row hides.
+      _entries = const [];
+      _scheduleTopDay();
+    }
     return switch (entries) {
       AsyncData(value: final entries) when jump.around == null => _list(
         entries,
@@ -534,6 +668,14 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       );
     }
     _bubbleKeys.removeWhere((id, _) => !entries.any((entry) => entry.id == id));
+    _entries = entries;
+    _scheduleTopDay();
+    if (_jump.day case final day? when _dayJumping != _jump.serial) {
+      _dayJumping = _jump.serial;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_goToDay(day)),
+      );
+    }
     if (_jump.target case final target? when _jumping != _jump.serial) {
       _jumping = _jump.serial;
       final jump = _jump;
@@ -620,6 +762,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           if (_bubbleKeys[entry.id]?.currentContext != null) i,
       ],
       mounted: () => mounted,
+      alignment: jump.toTop ? 1 : 0.5,
     );
     if (!mounted) return;
     notifier.shown();
@@ -667,6 +810,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ListView.builder(
+        key: _listKey,
         controller: _scroll,
         reverse: true,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),

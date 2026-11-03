@@ -988,6 +988,26 @@ final class FakeSession implements MatrixSession {
   Future<RoomTimeline> openTimelineAt(String roomId, String eventId) async =>
       timelinesAt.putIfAbsent(eventId, () => FakeTimeline(ownUserId: userId));
 
+  /// What [firstMessageSince] answers, by the time asked; [MessageSinceUnsupported]
+  /// when not set.
+  MessageSince Function(DateTime time)? messageSince;
+
+  /// The times [firstMessageSince] was asked for.
+  final messageSinceAsked = <DateTime>[];
+
+  @override
+  Future<MessageSince> firstMessageSince(String roomId, DateTime time) async {
+    messageSinceAsked.add(time);
+    return messageSince?.call(time) ?? const MessageSinceUnsupported();
+  }
+
+  /// When each room was created, by room ID, for [roomCreatedAt].
+  final roomsCreatedAt = <String, DateTime>{};
+
+  @override
+  Future<DateTime?> roomCreatedAt(String roomId) async =>
+      roomsCreatedAt[roomId];
+
   /// The pins [openPins] returns, by room ID.
   final pins = <String, FakePinnedEvents>{};
 

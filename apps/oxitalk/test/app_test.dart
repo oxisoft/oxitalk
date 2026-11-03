@@ -249,7 +249,21 @@ void main() {
       await openBob(tester);
       expect(find.text('Hi there'), findsOneWidget);
       expect(find.text('Hello Bob'), findsOneWidget);
-      expect(find.text('Today'), findsOneWidget);
+      // The day divider in the timeline, and the date row under the header.
+      expect(
+        find.descendant(
+          of: find.byWidgetPredicate((w) => w is ListView && w.reverse),
+          matching: find.text('Today'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('chat.dateRow')),
+          matching: find.text('Today'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Waiting for this message…'), findsOneWidget);
       expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
       expect(find.text('end-to-end encrypted'), findsOneWidget);
