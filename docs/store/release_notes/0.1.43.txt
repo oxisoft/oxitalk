@@ -1,0 +1,3 @@
+Join Jitsi group calls started in Element, and start them on servers that offer Jitsi.
+Filter the chat list as you type (Ctrl+K or Cmd+K).
+Jump to any day in a chat from the new date row.
