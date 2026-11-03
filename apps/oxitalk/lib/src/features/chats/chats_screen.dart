@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,6 +23,7 @@ import '../chat_info/room_notifications.dart';
 import '../chat_info/room_settings.dart';
 import 'badges.dart';
 import 'finders.dart';
+import 'list_filter.dart';
 import 'membership_actions.dart';
 import 'new_room.dart';
 import 'notification_actions.dart';
@@ -336,9 +339,11 @@ class _WelcomePaneState extends ConsumerState<WelcomePane> {
   }
 }
 
-/// The account's chats under a header with the account dropdown; on a wide window it can be
-/// narrowed to pictures and short names, and brings back a hidden account rail.
-class ChatListPane extends ConsumerWidget {
+/// The account's chats under a header with the account dropdown and above them a field that
+/// filters them as the user types; on a wide window the list can be narrowed to pictures
+/// and short names (without the field: Ctrl+K widens it again), and brings back a hidden
+/// account rail.
+class ChatListPane extends ConsumerStatefulWidget {
   const ChatListPane({
     required this.account,
     this.selectedRoomId,
@@ -354,10 +359,104 @@ class ChatListPane extends ConsumerWidget {
   final bool phone;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatListPane> createState() => _ChatListPaneState();
+}
+
+class _ChatListPaneState extends ConsumerState<ChatListPane> {
+  final _filter = TextEditingController();
+  final _filterFocus = FocusNode(debugLabel: 'list.filter');
+
+  String get account => widget.account;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter.text = ref.read(listFilterProvider(widget.account));
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
+  void didUpdateWidget(ChatListPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Each account keeps its own filter.
+    if (oldWidget.account != widget.account) {
+      _filter.text = ref.read(listFilterProvider(widget.account));
+    }
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    _filter.dispose();
+    _filterFocus.dispose();
+    super.dispose();
+  }
+
+  /// Ctrl+K (Cmd+K on Apple platforms) goes to the filter, widening a narrowed list first;
+  /// handled before the focused widget, so it works from the composer too.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.keyK) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    final apple =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    final modifier = apple ? keyboard.isMetaPressed : keyboard.isControlPressed;
+    if (!modifier || keyboard.isAltPressed || keyboard.isShiftPressed) {
+      return false;
+    }
+    // Not from under a dialog, nor from a list a chat covers on a phone.
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return false;
+    if (!widget.phone && ref.read(narrowListProvider)) {
+      ref.read(narrowListProvider.notifier).toggle();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusFilter());
+    } else {
+      _focusFilter();
+    }
+    return true;
+  }
+
+  void _focusFilter() {
+    if (!mounted) return;
+    _filterFocus.requestFocus();
+    _filter.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _filter.text.length,
+    );
+  }
+
+  void _setFilter(String text) =>
+      ref.read(listFilterProvider(account).notifier).set(text);
+
+  void _clearFilter({bool unfocus = false}) {
+    _filter.clear();
+    ref.read(listFilterProvider(account).notifier).clear();
+    if (unfocus) _filterFocus.unfocus();
+  }
+
+  /// Enter opens the first chat the filter left.
+  void _openFirst() {
+    if (_filter.text.trim().isEmpty) return;
+    final rooms = ref.read(roomsProvider(account)).value ?? const <Room>[];
+    final groups = filteredRoomGroups(
+      ref,
+      account,
+      rooms,
+      _filter.text,
+      watch: false,
+    );
+    final first = groups.firstOrNull?.rooms.firstOrNull;
+    if (first != null) GoRouter.of(context).go(Routes.room(first.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final phone = widget.phone;
     final rooms = ref.watch(roomsProvider(account)).value;
     final narrow = !phone && ref.watch(narrowListProvider);
     final railHidden = phone || ref.watch(railHiddenProvider);
+    final filter = ref.watch(listFilterProvider(account));
     final narrowButton = IconButton(
       key: Key(narrow ? 'list.widen' : 'list.narrow'),
       tooltip: narrow ? 'Widen the list' : 'Narrow the list',
@@ -410,11 +509,31 @@ class ChatListPane extends ConsumerWidget {
       body: switch (rooms) {
         null => const Center(child: CircularProgressIndicator()),
         [] => Center(child: Text(narrow ? '—' : 'No chats yet')),
-        final rooms => _RoomList(
+        // Pictures only: no room for a field, and the whole list shows.
+        final rooms when narrow => _RoomList(
           account: account,
           rooms: rooms,
-          selectedRoomId: selectedRoomId,
-          narrow: narrow,
+          selectedRoomId: widget.selectedRoomId,
+          narrow: true,
+        ),
+        final rooms => Column(
+          children: [
+            ListFilterField(
+              controller: _filter,
+              focusNode: _filterFocus,
+              onChanged: _setFilter,
+              onSubmitted: _openFirst,
+              onClear: _clearFilter,
+            ),
+            Expanded(
+              child: _RoomList(
+                account: account,
+                rooms: rooms,
+                selectedRoomId: widget.selectedRoomId,
+                filter: filter,
+              ),
+            ),
+          ],
         ),
       },
       floatingActionButton: Builder(
@@ -503,14 +622,46 @@ class ChatListPane extends ConsumerWidget {
   }
 }
 
+/// [account]'s rooms in their sections, in display order, only those [filter] matches when
+/// it says something: the sections left empty are left out. A direct chat matches by the
+/// other person's name and user ID too, once the account told them ([dmPeopleProvider]).
+List<RoomGroup> filteredRoomGroups(
+  WidgetRef ref,
+  String account,
+  List<Room> rooms,
+  String filter, {
+  bool watch = true,
+}) {
+  final sections =
+      (watch
+              ? ref.watch(sectionsProvider(account))
+              : ref.read(sectionsProvider(account)))
+          .value ??
+      const Sections();
+  final groups = groupRooms(rooms, sections);
+  if (filter.trim().isEmpty) return groups;
+  final people =
+      (watch
+              ? ref.watch(dmPeopleProvider(account))
+              : ref.read(dmPeopleProvider(account)))
+          .value ??
+      const {};
+  return filterGroups(
+    groups,
+    (room) => roomMatches(room, filter, people: people[room.id] ?? const []),
+  );
+}
+
 /// The rooms in their sections, each under a header that folds it; a plain list while every
-/// room is in Rooms, as in Element.
+/// room is in Rooms, as in Element. While filtered, only the matching rooms, every section
+/// unfolded.
 class _RoomList extends ConsumerWidget {
   const _RoomList({
     required this.account,
     required this.rooms,
     required this.selectedRoomId,
     this.narrow = false,
+    this.filter = '',
   });
 
   final String account;
@@ -520,16 +671,40 @@ class _RoomList extends ConsumerWidget {
   /// Pictures and short names only: no section headers, every room in section order.
   final bool narrow;
 
+  /// What the user typed into the filter; empty for the whole list.
+  final String filter;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sections =
         ref.watch(sectionsProvider(account)).value ?? const Sections();
-    final collapsed =
-        ref.watch(collapsedSectionTagsProvider(account)).value ?? const {};
-    final groups = groupRooms(rooms, sections);
+    final filtering = filter.trim().isNotEmpty;
+    final collapsed = filtering
+        ? const <String>{}
+        : ref.watch(collapsedSectionTagsProvider(account)).value ?? const {};
+    final all = groupRooms(rooms, sections);
+    // Headers or none as without the filter, so they don't come and go while typing.
     final flat =
-        narrow ||
-        (groups.length == 1 && groups.single.tag == SectionTags.rooms);
+        narrow || (all.length == 1 && all.single.tag == SectionTags.rooms);
+    final groups = filtering
+        ? filteredRoomGroups(ref, account, rooms, filter)
+        : all;
+    if (groups.isEmpty) {
+      final theme = Theme.of(context);
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Text(
+            'No chats match',
+            key: const Key('list.filter.empty'),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: context.oxi.muted,
+            ),
+          ),
+        ),
+      );
+    }
     final movable = movableOrder(sections);
     final items = <Object>[
       for (final group in groups) ...[
@@ -557,6 +732,94 @@ class _RoomList extends ConsumerWidget {
         ),
         _ => const SizedBox.shrink(),
       },
+    );
+  }
+}
+
+/// The field above the chat list that filters it as the user types: flat and bevelled
+/// like the app's other fields, a clear button once there is text; Esc clears it and
+/// leaves it, Enter opens the first match.
+class ListFilterField extends StatelessWidget {
+  const ListFilterField({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onSubmitted,
+    required this.onClear,
+    super.key,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onSubmitted;
+  final void Function({bool unfocus}) onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.oxi;
+    final apple =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    final desktop = switch (defaultTargetPlatform) {
+      TargetPlatform.linux ||
+      TargetPlatform.macOS ||
+      TargetPlatform.windows => true,
+      _ => false,
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              onClear(unfocus: true),
+        },
+        child: TextField(
+          key: const Key('list.filter'),
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: onChanged,
+          onSubmitted: (_) => onSubmitted(),
+          textInputAction: TextInputAction.search,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: Theme.of(context).textTheme.bodyMedium,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: desktop
+                ? 'Filter chats  ${apple ? '⌘K' : 'Ctrl+K'}'
+                : 'Filter chats',
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: palette.muted,
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
+            ),
+            suffixIcon: ValueListenableBuilder(
+              valueListenable: controller,
+              builder: (context, value, _) => value.text.isEmpty
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      key: const Key('list.filter.clear'),
+                      tooltip: 'Clear',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      color: palette.muted,
+                      onPressed: onClear,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
