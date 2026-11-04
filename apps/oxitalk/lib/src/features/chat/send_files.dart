@@ -10,26 +10,28 @@ import '../../matrix/api/matrix.dart';
 import '../../ui/format.dart';
 
 /// Shows [files] with a caption field and, for photos, a Compress switch; on Send, sends
-/// them to the chat, or with [thread] into that thread. The caption goes with the first file.
-Future<void> confirmAndSendFiles(
+/// them to the chat, or with [thread] into that thread. The caption goes with the first file
+/// and starts as [caption]. Returns whether the user pressed Send.
+Future<bool> confirmAndSendFiles(
   BuildContext context,
   WidgetRef ref, {
   required String account,
   required String roomId,
   required List<PendingFile> files,
   String? thread,
+  String caption = '',
 }) async {
-  if (files.isEmpty) return;
+  if (files.isEmpty) return false;
   final messenger = ScaffoldMessenger.of(context);
   final choice = await showDialog<({String caption, bool compress})>(
     context: context,
-    builder: (_) => _SendFilesDialog(files: files),
+    builder: (_) => _SendFilesDialog(files: files, caption: caption),
   );
   final timeline = ref
       .read(roomTimelineProvider(account, roomId, thread: thread))
       .value;
   final markdown = ref.read(useMarkdownProvider);
-  if (choice == null || timeline == null) return;
+  if (choice == null || timeline == null) return false;
   for (final (index, file) in files.indexed) {
     try {
       await timeline.sendFile(
@@ -50,19 +52,23 @@ Future<void> confirmAndSendFiles(
       );
     }
   }
+  return true;
 }
 
 class _SendFilesDialog extends StatefulWidget {
-  const _SendFilesDialog({required this.files});
+  const _SendFilesDialog({required this.files, this.caption = ''});
 
   final List<PendingFile> files;
+
+  /// What the caption field starts with: the message box's draft when an image is pasted.
+  final String caption;
 
   @override
   State<_SendFilesDialog> createState() => _SendFilesDialogState();
 }
 
 class _SendFilesDialogState extends State<_SendFilesDialog> {
-  final _caption = TextEditingController();
+  late final _caption = TextEditingController(text: widget.caption);
   var _compress = true;
 
   @override

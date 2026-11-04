@@ -2127,7 +2127,9 @@ class _ComposerState extends ConsumerState<Composer> {
     );
   }
 
-  /// Ctrl+V: an image or copied files go to the send dialog; text is pasted as usual.
+  /// Ctrl+V: an image or copied files go to the send dialog, with the message box's draft
+  /// as their caption (gone from the box once sent, kept there on Cancel); text is pasted
+  /// as usual.
   Future<void> _paste() async {
     final files = ref.read(fileActionsProvider);
     final image = await files.clipboardImage();
@@ -2139,14 +2141,22 @@ class _ComposerState extends ConsumerState<Composer> {
           ? [PendingFile('pasted.png', 'image/png', image)]
           : await files.readFiles(copied);
       if (!mounted) return;
-      await confirmAndSendFiles(
+      final draft = _text.text.trim();
+      final sent = await confirmAndSendFiles(
         context,
         ref,
         account: widget.account,
         roomId: widget.roomId,
         files: pending,
         thread: widget.thread,
+        caption: draft,
       );
+      if (sent && draft.isNotEmpty && mounted) {
+        _text.clear();
+        _draftSave?.cancel();
+        _saved = ('', null);
+        _drafts.clear(widget.roomId, widget.thread);
+      }
       return;
     }
     final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
