@@ -236,6 +236,11 @@ class ChatPane extends ConsumerWidget {
   ) async {
     final files = await ref.read(fileActionsProvider).readFiles(paths);
     if (!context.mounted) return;
+    // The chat's message box, so its draft becomes the caption.
+    if (_composers['$account|$roomId'] case final composer?) {
+      await composer._sendFiles(files);
+      return;
+    }
     await confirmAndSendFiles(
       context,
       ref,
@@ -1759,6 +1764,10 @@ class Composer extends ConsumerStatefulWidget {
   ConsumerState<Composer> createState() => _ComposerState();
 }
 
+/// The open chats' message boxes (not threads'), by account and room, for files dropped on
+/// the chat.
+final _composers = <String, _ComposerState>{};
+
 class _ComposerState extends ConsumerState<Composer> {
   final _text = ComposerController();
   late final _emoticons = EmoticonFormatter(
@@ -1836,6 +1845,9 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   void initState() {
     super.initState();
+    if (widget.thread == null) {
+      _composers['${widget.account}|${widget.roomId}'] = this;
+    }
     _drafts = ref.read(draftsProvider(widget.account).notifier);
     final live = _drafts.live(widget.roomId, widget.thread);
     if (live != null) {
@@ -1977,6 +1989,8 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   void dispose() {
+    final key = '${widget.account}|${widget.roomId}';
+    if (identical(_composers[key], this)) _composers.remove(key);
     _saveDraft(leaving: true);
     _lifecycle.dispose();
     _typingPause?.cancel();
@@ -2117,18 +2131,31 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _attach() async {
     final files = await ref.read(fileActionsProvider).pickFiles();
     if (!mounted) return;
-    await confirmAndSendFiles(
+    await _sendFiles(files);
+  }
+
+  /// The send dialog for [files], with the message box's draft as their caption: gone from
+  /// the box once sent, kept there on Cancel.
+  Future<void> _sendFiles(List<PendingFile> files) async {
+    final draft = _text.text.trim();
+    final sent = await confirmAndSendFiles(
       context,
       ref,
       account: widget.account,
       roomId: widget.roomId,
       files: files,
       thread: widget.thread,
+      caption: draft,
     );
+    if (sent && draft.isNotEmpty && mounted) {
+      _text.clear();
+      _draftSave?.cancel();
+      _saved = ('', null);
+      _drafts.clear(widget.roomId, widget.thread);
+    }
   }
 
-  /// Ctrl+V: an image or copied files go to the send dialog, with the message box's draft
-  /// as their caption (gone from the box once sent, kept there on Cancel); text is pasted
+  /// Ctrl+V: an image or copied files go to the send dialog ([_sendFiles]); text is pasted
   /// as usual.
   Future<void> _paste() async {
     final files = ref.read(fileActionsProvider);
@@ -2141,22 +2168,7 @@ class _ComposerState extends ConsumerState<Composer> {
           ? [PendingFile('pasted.png', 'image/png', image)]
           : await files.readFiles(copied);
       if (!mounted) return;
-      final draft = _text.text.trim();
-      final sent = await confirmAndSendFiles(
-        context,
-        ref,
-        account: widget.account,
-        roomId: widget.roomId,
-        files: pending,
-        thread: widget.thread,
-        caption: draft,
-      );
-      if (sent && draft.isNotEmpty && mounted) {
-        _text.clear();
-        _draftSave?.cancel();
-        _saved = ('', null);
-        _drafts.clear(widget.roomId, widget.thread);
-      }
+      await _sendFiles(pending);
       return;
     }
     final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
