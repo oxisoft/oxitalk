@@ -228,6 +228,10 @@ final class MessageActions {
   Future<void> save(MediaEntry entry) =>
       saveMediaAs(_context, _ref, account, entry.media);
 
+  /// Puts [entry]'s image on the clipboard.
+  Future<void> copyImage(MediaEntry entry) =>
+      copyMediaImage(_context, _ref, account, entry.media);
+
   /// Pins [entry] to the top of the chat, or unpins it.
   Future<void> setPin(TimelineEntry entry, {required bool pinned}) async {
     final eventId = eventFields(entry)?.meta.eventId;
@@ -346,6 +350,13 @@ final class MessageActions {
               ),
       if (fields.meta.isEditable)
         MessageAction('edit', 'Edit', Icons.edit_outlined, () => edit(entry)),
+      if (entry is MediaEntry && entry.media.kind == MediaKind.image)
+        MessageAction(
+          'copyImage',
+          'Copy image',
+          Icons.image_outlined,
+          () => unawaited(copyImage(entry)),
+        ),
       if (entry is MediaEntry)
         MessageAction(
           'save',

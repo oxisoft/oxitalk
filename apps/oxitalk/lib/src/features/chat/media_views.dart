@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,6 +58,52 @@ Future<void> saveMediaAs(
       SnackBar(content: Text('Can’t save the file: ${failure.kind.name}')),
     );
   }
+}
+
+/// Puts a message's image on the clipboard, as a PNG, for pasting in another app.
+Future<void> copyMediaImage(
+  BuildContext context,
+  WidgetRef ref,
+  String account,
+  MediaInfo media,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final session = ref.read(accountsProvider).value?.byId(account);
+  final files = ref.read(fileActionsProvider);
+  if (session == null) return;
+  try {
+    final bytes = await session.mediaContent(media.source);
+    await files.copyImage(await asPng(bytes));
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Image copied to the clipboard')),
+    );
+  } on MatrixFailure catch (failure) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('Can’t copy the image: ${failure.kind.name}')),
+    );
+  } on Object {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Can’t copy the image')),
+    );
+  }
+}
+
+/// [bytes] as a PNG: as they are if they already are one, else decoded and encoded again
+/// (JPEG, WebP, GIF's first frame), since PNG is what every clipboard takes.
+Future<Uint8List> asPng(Uint8List bytes) async {
+  const magic = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+  if (bytes.length > magic.length &&
+      [for (var i = 0; i < magic.length; i++) bytes[i] == magic[i]]
+          .every((same) => same)) {
+    return bytes;
+  }
+  final codec = await ui.instantiateImageCodec(bytes);
+  final frame = await codec.getNextFrame();
+  final data = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+  frame.image.dispose();
+  codec.dispose();
+  if (data == null) throw StateError('not an image');
+  return data.buffer.asUint8List();
 }
 
 /// What a click on a message's file does: images open in the viewer, the rest in the
@@ -322,7 +369,7 @@ class FileRow extends ConsumerWidget {
   }
 }
 
-/// An image over the whole window, zoomable, with Save as and Open.
+/// An image over the whole window, zoomable, with Copy, Save as and Open.
 class ImageViewer extends ConsumerWidget {
   const ImageViewer({required this.account, required this.media, super.key});
 
@@ -343,6 +390,12 @@ class ImageViewer extends ConsumerWidget {
           title: Text(media.filename, overflow: TextOverflow.ellipsis),
           leading: const CloseButton(),
           actions: [
+            IconButton(
+              tooltip: 'Copy image',
+              icon: const Icon(Icons.copy_rounded),
+              onPressed: () =>
+                  unawaited(copyMediaImage(context, ref, account, media)),
+            ),
             IconButton(
               tooltip: 'Save as…',
               icon: const Icon(Icons.download_rounded),

@@ -207,6 +207,28 @@ void main() {
     expect(session.saved, {'/saved/file': 'photo'});
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
+  testWidgets('the right-click menu of an image copies it to the clipboard', (
+    tester,
+  ) async {
+    final (_, files) = await _openChat(tester);
+    await tester.tap(find.text('The new office'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copy image'));
+    await tester.pumpAndSettle();
+    expect(files.copiedImage, png);
+    expect(find.text('Image copied to the clipboard'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('only images have Copy image in the right-click menu', (
+    tester,
+  ) async {
+    await _openChat(tester);
+    await tester.tap(_mediaOf(_doc).first, buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Save as…'), findsOneWidget);
+    expect(find.text('Copy image'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets('the chat title opens its info in the chat’s place', (
     tester,
   ) async {

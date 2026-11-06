@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -57,6 +57,9 @@ abstract interface class FileActions {
   /// Files copied in a file manager, by path.
   Future<List<String>> clipboardFiles();
 
+  /// Puts the image [png] on the clipboard, for pasting in another app.
+  Future<void> copyImage(Uint8List png);
+
   /// A fresh path for [filename] in a temporary folder, to hand to another app.
   Future<String> tempPathFor(String filename);
 
@@ -103,6 +106,14 @@ final class SystemFileActions implements FileActions {
 
   @override
   Future<List<String>> clipboardFiles() => Pasteboard.files();
+
+  /// The Linux runner's own clipboard channel: pasteboard can't write images there.
+  static const _linuxClipboard = MethodChannel('io.oxisoft.oxitalk/clipboard');
+
+  @override
+  Future<void> copyImage(Uint8List png) => Platform.isLinux
+      ? _linuxClipboard.invokeMethod<void>('writeImage', png)
+      : Pasteboard.writeImage(png);
 
   @override
   Future<String> tempPathFor(String filename) async {
@@ -164,6 +175,12 @@ final class FakeFileActions implements FileActions {
 
   @override
   Future<List<String>> clipboardFiles() async => const [];
+
+  /// What [copyImage] put on the clipboard.
+  Uint8List? copiedImage;
+
+  @override
+  Future<void> copyImage(Uint8List png) async => copiedImage = png;
 
   @override
   Future<String> tempPathFor(String filename) async =>

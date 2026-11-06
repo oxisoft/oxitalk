@@ -10,9 +10,43 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  // io.oxisoft.oxitalk/clipboard: writes images, which the pasteboard plugin can't on Linux.
+  FlMethodChannel* clipboard_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+// writeImage(Uint8List png): puts the image on the clipboard; GTK serves it in every
+// image format another app asks for while OxiTalk runs.
+static void clipboard_method_cb(FlMethodChannel* channel,
+                                FlMethodCall* method_call,
+                                gpointer user_data) {
+  if (g_strcmp0(fl_method_call_get_name(method_call), "writeImage") != 0) {
+    fl_method_call_respond_not_implemented(method_call, nullptr);
+    return;
+  }
+  FlValue* args = fl_method_call_get_args(method_call);
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_UINT8_LIST) {
+    fl_method_call_respond_error(method_call, "args", "expected image bytes",
+                                 nullptr, nullptr);
+    return;
+  }
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GdkPixbufLoader) loader = gdk_pixbuf_loader_new();
+  gboolean ok = gdk_pixbuf_loader_write(loader, fl_value_get_uint8_list(args),
+                                        fl_value_get_length(args), &error) &&
+                gdk_pixbuf_loader_close(loader, &error);
+  GdkPixbuf* pixbuf = ok ? gdk_pixbuf_loader_get_pixbuf(loader) : nullptr;
+  if (pixbuf == nullptr) {
+    fl_method_call_respond_error(
+        method_call, "decode", error != nullptr ? error->message : "not an image",
+        nullptr, nullptr);
+    return;
+  }
+  gtk_clipboard_set_image(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), pixbuf);
+  gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+  fl_method_call_respond_success(method_call, nullptr, nullptr);
+}
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
@@ -84,6 +118,13 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->clipboard_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "io.oxisoft.oxitalk/clipboard", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(
+      self->clipboard_channel, clipboard_method_cb, nullptr, nullptr);
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -130,6 +171,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->clipboard_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
