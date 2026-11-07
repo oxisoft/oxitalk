@@ -698,13 +698,32 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     // what can be done with the message it was opened on.
     return SelectionArea(
       contextMenuBuilder: (context, region) {
-        final entry = _entryAt(
-          region.contextMenuAnchors.primaryAnchor,
-          entries,
-        );
+        final anchor = region.contextMenuAnchors.primaryAnchor;
+        final entry = _entryAt(anchor, entries);
+        final bubble = entry == null
+            ? null
+            : _bubbleKeys[entry.id]?.currentContext?.findRenderObject();
+        final link = bubble is RenderBox ? linkAt(bubble, anchor) : null;
         return AdaptiveTextSelectionToolbar.buttonItems(
           anchors: region.contextMenuAnchors,
           buttonItems: [
+            // On a link: its own actions first, as a browser has them.
+            if (link != null) ...[
+              ContextMenuButtonItem(
+                label: 'Copy link',
+                onPressed: () {
+                  region.hideToolbar();
+                  unawaited(Clipboard.setData(ClipboardData(text: link)));
+                },
+              ),
+              ContextMenuButtonItem(
+                label: 'Open in browser',
+                onPressed: () {
+                  region.hideToolbar();
+                  _openLink(link);
+                },
+              ),
+            ],
             ...region.contextMenuButtonItems,
             if (entry != null)
               ..._actions.menuItems(

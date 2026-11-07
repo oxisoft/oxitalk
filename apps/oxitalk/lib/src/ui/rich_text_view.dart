@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../app/theme.dart';
@@ -9,6 +10,29 @@ import '../matrix/api/models.dart';
 import 'touch.dart';
 
 final _url = RegExp(r'https?://[^\s<>"]+');
+
+/// The tap of a link in message text; it knows the link's URL, so the context menu can
+/// find the link under the pointer ([linkAt]).
+class LinkTapRecognizer extends TapGestureRecognizer {
+  LinkTapRecognizer(this.url);
+
+  final String url;
+}
+
+/// The URL of the link at [position] (global) in [box], e.g. a message's bubble; `null`
+/// when no link is there. Only [box] is hit tested, so it also works while a menu is being
+/// built over it.
+String? linkAt(RenderBox box, Offset position) {
+  if (!box.attached || !box.hasSize) return null;
+  final result = BoxHitTestResult();
+  box.hitTest(result, position: box.globalToLocal(position));
+  for (final entry in result.path) {
+    if (entry.target case TextSpan(:final LinkTapRecognizer recognizer)) {
+      return recognizer.url;
+    }
+  }
+  return null;
+}
 
 /// [text] without punctuation that ends the sentence around a link.
 String _trimLink(String text) =>
@@ -54,6 +78,12 @@ class _RichTextViewState extends State<RichTextView> {
 
   TapGestureRecognizer _onTap(VoidCallback action) {
     final recognizer = TapGestureRecognizer()..onTap = action;
+    _recognizers.add(recognizer);
+    return recognizer;
+  }
+
+  TapGestureRecognizer _onLink(String url) {
+    final recognizer = LinkTapRecognizer(url)..onTap = () => widget.onLink(url);
     _recognizers.add(recognizer);
     return recognizer;
   }
@@ -137,7 +167,7 @@ class _RichTextViewState extends State<RichTextView> {
             span.text,
             style: _style(context, span),
             linkColor: scheme.primary,
-            onLink: (url) => _onTap(() => widget.onLink(url)),
+            onLink: _onLink,
           )
         else
           TextSpan(
@@ -147,7 +177,7 @@ class _RichTextViewState extends State<RichTextView> {
               RichSpan(spoiler: true) => _onTap(
                 () => setState(() => _spoilersShown = !_spoilersShown),
               ),
-              RichSpan(:final link?) => _onTap(() => widget.onLink(link)),
+              RichSpan(:final link?) => _onLink(link),
               RichSpan(:final mention?) when widget.onMention != null => _onTap(
                 () => widget.onMention!(mention, span.text),
               ),
@@ -259,7 +289,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
           style: null,
           linkColor: Theme.of(context).colorScheme.primary,
           onLink: (url) {
-            final recognizer = TapGestureRecognizer()
+            final recognizer = LinkTapRecognizer(url)
               ..onTap = () => widget.onLink(url);
             _recognizers.add(recognizer);
             return recognizer;
