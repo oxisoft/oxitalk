@@ -1640,6 +1640,13 @@ final class FakeAudioCodec implements AudioCodec {
       data.length >= 3 && String.fromCharCodes(data.sublist(0, 3)) == 'ID3'
       ? null
       : data;
+
+  /// An mp3 (`ID3...`) comes out as a WAV-ish file, anything else can't be decoded.
+  @override
+  Future<Uint8List?> decodedWav(Uint8List data, {String? extension}) async =>
+      data.length >= 3 && String.fromCharCodes(data.sublist(0, 3)) == 'ID3'
+      ? Uint8List.fromList('RIFF....WAVE'.codeUnits)
+      : null;
 }
 
 /// A verification the test drives: it moves the [step] as the other device would.

@@ -243,6 +243,9 @@ abstract interface class AudioOutput {
   /// called [name], which only the platform may know. Throws [UnplayableAudio].
   Future<void> open(Uint8List audio, {required String name});
 
+  /// It plays WAV only, so other files must be decoded to WAV first.
+  bool get wavOnly;
+
   /// Plays what was opened from [from].
   Future<void> play(Duration from);
 
@@ -269,6 +272,9 @@ final class PlatformAudioOutput implements AudioOutput {
   StreamSubscription<AudioEvent>? _events;
   Timer? _poll;
   Completer<void>? _prepared;
+
+  @override
+  bool get wavOnly => false;
 
   Future<void> _create() => _created ??= () async {
     await GlobalAudioplayersPlatformInterface.instance.init();
@@ -342,9 +348,13 @@ final class PlatformAudioOutput implements AudioOutput {
 }
 
 /// Linux: WAV through `pacat` (pulseaudio-utils, which recording needs anyway), so the app
-/// needs no GStreamer development files to build. Other formats aren't played here.
+/// needs no GStreamer development files to build. Other formats are decoded to WAV by the
+/// core first.
 final class PacatAudioOutput implements AudioOutput {
   PacatAudioOutput({this.binary = 'pacat'});
+
+  @override
+  bool get wavOnly => true;
 
   final String binary;
   final _positions = StreamController<Duration>.broadcast();

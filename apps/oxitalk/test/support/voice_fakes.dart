@@ -62,8 +62,12 @@ final class FakeAudioOutput implements AudioOutput {
   /// Every `play <ms>` and `pause`, in order.
   final calls = <String>[];
 
-  /// Throws [UnplayableAudio] on open, as Linux does for an mp3.
+  /// Throws [UnplayableAudio] on open, as a speaker does for a file it can't play.
   var unplayable = false;
+
+  /// Plays WAV only, as Linux's does; anything else throws [UnplayableAudio] on open.
+  @override
+  var wavOnly = false;
 
   void playAt(Duration position) => _positions.add(position);
 
@@ -72,6 +76,9 @@ final class FakeAudioOutput implements AudioOutput {
   @override
   Future<void> open(Uint8List audio, {required String name}) async {
     if (unplayable) throw const UnplayableAudio();
+    if (wavOnly && String.fromCharCodes(audio.take(4)) != 'RIFF') {
+      throw const UnplayableAudio();
+    }
     opened.add(name);
   }
 

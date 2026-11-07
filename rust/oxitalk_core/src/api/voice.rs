@@ -73,6 +73,82 @@ pub fn playable_wav(data: Vec<u8>) -> Option<Vec<u8>> {
     decode_ogg_opus(&data).ok().map(|pcm| wav(&pcm, RATE))
 }
 
+/// Any other audio file (mp3, AAC/M4A, FLAC, Ogg Vorbis, WAV of other sample formats...)
+/// decoded to a 16-bit WAV file at its own sample rate and channels, for a player that only
+/// takes WAV (Linux's). `None` if it isn't audio Symphonia knows, or would decode to more
+/// than [`MAX_DECODED`] bytes; the file then goes to the system's app.
+#[must_use]
+// The bridge hands over owned values.
+#[allow(clippy::needless_pass_by_value)]
+pub fn decoded_wav(data: Vec<u8>, extension: Option<String>) -> Option<Vec<u8>> {
+    use symphonia::core::codecs::audio::AudioDecoderOptions;
+    use symphonia::core::errors::Error;
+    use symphonia::core::formats::probe::Hint;
+    use symphonia::core::formats::{FormatOptions, TrackType};
+    use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
+    use symphonia::core::meta::MetadataOptions;
+
+    let source = MediaSourceStream::new(
+        Box::new(Cursor::new(data)),
+        MediaSourceStreamOptions::default(),
+    );
+    let mut hint = Hint::new();
+    if let Some(extension) = extension.as_deref() {
+        hint.with_extension(extension.trim_start_matches('.'));
+    }
+    let mut format = symphonia::default::get_probe()
+        .probe(
+            &hint,
+            source,
+            FormatOptions::default(),
+            MetadataOptions::default(),
+        )
+        .ok()?;
+    let track = format.default_track(TrackType::Audio)?;
+    let track_id = track.id;
+    let params = track.codec_params.as_ref()?.audio()?.clone();
+    let mut decoder = symphonia::default::get_codecs()
+        .make_audio_decoder(&params, &AudioDecoderOptions::default())
+        .ok()?;
+    let mut pcm = Vec::<i16>::new();
+    let mut chunk = Vec::<i16>::new();
+    let mut spec = None;
+    // To the end; a broken tail ends it too, with what was decoded so far.
+    while let Ok(Some(packet)) = format.next_packet() {
+        if packet.track_id != track_id {
+            continue;
+        }
+        let buffer = match decoder.decode(&packet) {
+            Ok(buffer) => buffer,
+            // A damaged packet: skip it, as players do.
+            Err(Error::DecodeError(_)) => continue,
+            Err(_) => break,
+        };
+        let this = buffer.spec();
+        let (rate, channels) = (this.rate(), this.channels().count());
+        match spec {
+            None => spec = Some((rate, channels)),
+            // A stream that changes its rate or channels midway: what came before.
+            Some(known) if known != (rate, channels) => break,
+            Some(_) => {}
+        }
+        buffer.copy_to_vec_interleaved(&mut chunk);
+        pcm.extend_from_slice(&chunk);
+        if pcm.len() * 2 > MAX_DECODED {
+            return None;
+        }
+    }
+    let (rate, channels) = spec?;
+    if pcm.is_empty() || rate == 0 || channels == 0 {
+        return None;
+    }
+    Some(wav_of(&pcm, rate, u16::try_from(channels).ok()?))
+}
+
+/// The most sound [`decoded_wav`] gives: 200 MB of samples, about 19 minutes of CD-quality
+/// stereo. Longer files go to the system's app.
+const MAX_DECODED: usize = 200 * 1024 * 1024;
+
 /// The size of the header [`wav`] writes.
 const WAV_HEADER: usize = 44;
 
@@ -169,18 +245,24 @@ fn decode_ogg_opus(data: &[u8]) -> Result<Vec<i16>, String> {
 
 /// A WAV file of 16-bit mono samples at `rate`.
 fn wav(pcm: &[i16], rate: u32) -> Vec<u8> {
+    wav_of(pcm, rate, 1)
+}
+
+/// Interleaved 16-bit samples of `channels` channels as a WAV file.
+fn wav_of(pcm: &[i16], rate: u32, channels: u16) -> Vec<u8> {
     let bytes = u32::try_from(pcm.len() * 2).unwrap_or(u32::MAX - 36);
+    let frame = channels * 2;
     let mut out = Vec::with_capacity(WAV_HEADER + pcm.len() * 2);
     out.extend_from_slice(b"RIFF");
     out.extend_from_slice(&(36 + bytes).to_le_bytes());
     out.extend_from_slice(b"WAVEfmt ");
     out.extend_from_slice(&16_u32.to_le_bytes());
-    // PCM, one channel.
+    // PCM.
     out.extend_from_slice(&1_u16.to_le_bytes());
-    out.extend_from_slice(&1_u16.to_le_bytes());
+    out.extend_from_slice(&channels.to_le_bytes());
     out.extend_from_slice(&rate.to_le_bytes());
-    out.extend_from_slice(&(rate * 2).to_le_bytes());
-    out.extend_from_slice(&2_u16.to_le_bytes());
+    out.extend_from_slice(&(rate * u32::from(frame)).to_le_bytes());
+    out.extend_from_slice(&frame.to_le_bytes());
     out.extend_from_slice(&16_u16.to_le_bytes());
     out.extend_from_slice(b"data");
     out.extend_from_slice(&bytes.to_le_bytes());
@@ -336,6 +418,20 @@ mod tests {
         assert!(silence.waveform.iter().all(|point| *point == 0));
         assert_eq!(silence.duration_ms, 100);
         Ok(())
+    }
+
+    #[test]
+    fn other_audio_files_are_decoded_to_wav() {
+        // A stereo WAV at 44.1 kHz stands in for any format Symphonia reads: the samples come
+        // back at the file's own rate and channels.
+        let stereo: Vec<i16> = (0..8_820)
+            .map(|i| i16::try_from(i % 1000).unwrap_or(0))
+            .collect();
+        let file = wav_of(&stereo, 44_100, 2);
+        let decoded = decoded_wav(file.clone(), Some(".wav".to_owned()));
+        assert_eq!(decoded, Some(file));
+        assert_eq!(decoded_wav(b"ID3 not really an mp3".to_vec(), None), None);
+        assert_eq!(decoded_wav(Vec::new(), Some("mp3".to_owned())), None);
     }
 
     #[test]

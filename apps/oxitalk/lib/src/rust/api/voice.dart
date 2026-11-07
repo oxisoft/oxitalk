@@ -8,7 +8,7 @@ import 'error.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decode_ogg_opus`, `downmix`, `ogg_opus`, `opus_head`, `opus_tags`, `resample`, `samples_to_ms`, `to_i16`, `wav`, `waveform`
+// These functions are ignored because they are not marked as `pub`: `decode_ogg_opus`, `downmix`, `ogg_opus`, `opus_head`, `opus_tags`, `resample`, `samples_to_ms`, `to_i16`, `wav_of`, `wav`, `waveform`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
 
 /// Makes a voice message of recorded sound: interleaved 16-bit samples of `channels`
@@ -32,6 +32,16 @@ Future<VoiceClip> encodeVoice({
 /// platform may know how to play.
 Future<Uint8List?> playableWav({required List<int> data}) =>
     RustLib.instance.api.crateApiVoicePlayableWav(data: data);
+
+/// Any other audio file (mp3, AAC/M4A, FLAC, Ogg Vorbis, WAV of other sample formats...)
+/// decoded to a 16-bit WAV file at its own sample rate and channels, for a player that only
+/// takes WAV (Linux's). `None` if it isn't audio Symphonia knows, or would decode to more
+/// than [`MAX_DECODED`] bytes; the file then goes to the system's app.
+Future<Uint8List?> decodedWav({required List<int> data, String? extension_}) =>
+    RustLib.instance.api.crateApiVoiceDecodedWav(
+      data: data,
+      extension_: extension_,
+    );
 
 /// A recorded voice message, ready to send.
 class VoiceClip {

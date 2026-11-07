@@ -621,6 +621,11 @@ abstract interface class AudioCodec {
 
   /// A voice message (Ogg Opus) decoded to WAV, a WAV file as it is; `null` for other files.
   Future<Uint8List?> playableWav(Uint8List data);
+
+  /// Any other audio file (mp3, AAC/M4A, FLAC, Vorbis...) decoded to WAV, for a speaker that
+  /// only plays WAV; [extension] (the file name's, like `.mp3`) helps find the format. `null`
+  /// if it can't be decoded.
+  Future<Uint8List?> decodedWav(Uint8List data, {String? extension});
 }
 
 /// One verification with another device of the user, by comparing emoji.

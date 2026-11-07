@@ -23,6 +23,7 @@ matrix-sdk-ui.workspace = true
 mime.workspace = true
 ogg.workspace = true
 opus-rs.workspace = true
+symphonia.workspace = true
 ring.workspace = true
 ruma.workspace = true
 rustls.workspace = true

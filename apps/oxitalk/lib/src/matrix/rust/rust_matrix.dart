@@ -1449,6 +1449,10 @@ final class RustAudioCodec implements AudioCodec {
   @override
   Future<Uint8List?> playableWav(Uint8List data) =>
       voice.playableWav(data: data);
+
+  @override
+  Future<Uint8List?> decodedWav(Uint8List data, {String? extension}) =>
+      voice.decodedWav(data: data, extension_: extension);
 }
 
 final class _RustJoinedCall implements JoinedCall {

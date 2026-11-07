@@ -93,6 +93,9 @@ mime = "0.3.17"
 # Voice messages as Element sends them, Ogg Opus, in pure Rust: no C toolchain for any target.
 ogg = "0.9.2"
 opus-rs = "0.1.39"
+# Audio files that aren't voice messages (mp3, AAC/M4A, FLAC, Vorbis, ...) decoded to WAV, for the
+# Linux player that only takes WAV. Pure Rust, MPL-2.0.
+symphonia = { version = "0.6.1", default-features = false, features = ["aac", "adpcm", "aiff", "alac", "caf", "flac", "id3v1", "id3v2", "isomp4", "mkv", "mp3", "ogg", "pcm", "vorbis", "wav"] }
 # Only for its Matrix HTML model (feature html-matrix); the same rev as matrix-rust-sdk's.
 ruma = { git = "https://github.com/ruma/ruma", rev = "e03080c0790ba7b24ea37f9fd11794678cc975b0", default-features = false, features = ["html-matrix"] }
 # Jitsi: signs the JWT Element's Jitsi wrapper makes (HS256); in the tree already through rustls.

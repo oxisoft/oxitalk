@@ -272,7 +272,8 @@ class AudioMessageView extends ConsumerWidget {
   );
 }
 
-/// An audio message's file, made playable: a voice message is decoded to WAV by the core.
+/// An audio message's file, made playable: a voice message is decoded to WAV by the core,
+/// and so is any other sound file where the speaker only plays WAV (Linux).
 Future<PlayableAudio> loadMessageAudio(
   WidgetRef ref,
   String account,
@@ -289,5 +290,18 @@ Future<PlayableAudio> loadMessageAudio(
   }
   final dot = media.filename.lastIndexOf('.');
   final extension = dot < 0 ? '' : media.filename.substring(dot);
+  if (ref.read(audioOutputProvider).wavOnly) {
+    final decoded = await codec.decodedWav(
+      data,
+      extension: extension.isEmpty ? null : extension,
+    );
+    if (decoded != null) {
+      return PlayableAudio(
+        decoded,
+        name: '$name.wav',
+        duration: media.duration,
+      );
+    }
+  }
   return PlayableAudio(data, name: '$name$extension', duration: media.duration);
 }

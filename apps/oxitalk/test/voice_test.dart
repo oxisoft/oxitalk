@@ -350,6 +350,18 @@ void main() {
       expect(chat.audio.calls.last, 'play 3000');
     });
 
+    testWidgets('an mp3 plays in the chat where the speaker takes only WAV', (
+      tester,
+    ) async {
+      final chat = await _open(tester, entries: [_media('song', _song)]);
+      chat.audio.wavOnly = true;
+      await tester.tap(_key('audio.play.song'));
+      await tester.pumpAndSettle();
+      expect(chat.audio.opened.single, endsWith('.wav'));
+      expect(chat.audio.calls.last, 'play 0');
+      expect(chat.files.launched, isEmpty);
+    });
+
     testWidgets('a file this platform can’t play opens in another app', (
       tester,
     ) async {
