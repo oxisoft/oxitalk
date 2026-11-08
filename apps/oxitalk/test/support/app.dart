@@ -18,6 +18,7 @@ import 'package:oxitalk/src/features/calls/call_media.dart';
 import 'package:oxitalk/src/features/calls/call_ui.dart';
 import 'package:oxitalk/src/features/chat/video/video_message.dart';
 import 'package:oxitalk/src/features/chat/voice/audio_io.dart';
+import 'package:oxitalk/src/features/share/share_inbox.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
 
 import 'call_fakes.dart';
@@ -47,6 +48,7 @@ Future<void> pumpApp(
   VideoRecorder Function()? camera,
   bool video = false,
   FakeRinger? ringer,
+  FakeShareSource? share,
 }) async {
   tester.view
     ..physicalSize = size
@@ -85,6 +87,7 @@ Future<void> pumpApp(
         ),
         callMediaFactoryProvider.overrideWithValue(FakeCallMedia.create),
         ringerProvider.overrideWithValue(ringer ?? FakeRinger()),
+        shareSourceProvider.overrideWithValue(share ?? FakeShareSource()),
         // No ticking clock: it would keep pumpAndSettle busy.
         callTickerProvider.overrideWith((ref) => const Stream.empty()),
       ],

@@ -13,6 +13,8 @@ import '../features/chat_info/room_notifications.dart';
 import '../features/chat_info/room_settings.dart';
 import '../features/chats/chats_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/share/share_inbox.dart';
+import '../features/share/share_screen.dart';
 import '../features/verify/verify_screen.dart';
 import '../matrix/api/matrix.dart';
 import 'providers.dart';
@@ -64,6 +66,9 @@ abstract final class Routes {
   static const about = '/about';
   static const chats = '/';
 
+  /// "Send to…": the chats to send what another app shared to.
+  static const share = '/share';
+
   static String room(String roomId) => '/room/${Uri.encodeComponent(roomId)}';
 
   static String roomInfo(String roomId) => '${room(roomId)}/info';
@@ -112,6 +117,7 @@ GoRouter router(Ref ref) {
   ref
     ..listen(accountsProvider, (_, _) => refresh.value++)
     ..listen(activeVerificationProvider, (_, _) => refresh.value++)
+    ..listen(pendingShareProvider, (_, _) => refresh.value++)
     ..listen(activeAccountProvider, (previous, next) {
       if (previous != next) router.go(home(next));
     })
@@ -138,6 +144,12 @@ GoRouter router(Ref ref) {
           VerificationStatus.unverified) {
         return location == Routes.verify ? null : Routes.verify;
       }
+      // Something shared from another app waits for a chat; once sent or dropped, home.
+      final sharing = ref.read(pendingShareProvider) != null;
+      if (location == Routes.share) {
+        return sharing ? null : home(ref.read(activeAccountProvider));
+      }
+      if (sharing) return Routes.share;
       if (location == Routes.login ||
           location == Routes.starting ||
           location == Routes.verify) {
@@ -204,6 +216,7 @@ GoRouter router(Ref ref) {
         builder: (_, _) => const LoginScreen(adding: true),
       ),
       GoRoute(path: Routes.verify, builder: (_, _) => const VerifyScreen()),
+      GoRoute(path: Routes.share, builder: (_, _) => const ShareTargetScreen()),
       GoRoute(
         path: Routes.chats,
         pageBuilder: (_, _) => const NoTransitionPage(child: ChatsScreen()),

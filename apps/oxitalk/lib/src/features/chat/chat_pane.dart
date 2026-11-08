@@ -40,6 +40,7 @@ import 'notice_line.dart';
 import 'pins.dart';
 import 'read_receipts.dart';
 import 'send_files.dart';
+import '../share/share_inbox.dart';
 import 'video/video_message.dart';
 import 'voice/audio_io.dart';
 import 'voice/voice_composer.dart';
@@ -1876,7 +1877,7 @@ class _ComposerState extends ConsumerState<Composer> {
         WidgetsBinding.instance.addPostFrameCallback((_) => _restoreMode(mode));
       }
     } else {
-      unawaited(_restoreStored());
+      _draftRestored = _restoreStored();
     }
     _text
       ..addListener(_onText)
@@ -1888,6 +1889,51 @@ class _ComposerState extends ConsumerState<Composer> {
       onPause: () => _saveDraft(leaving: false),
     );
     _popup.show();
+    // What another app shared, when the user picked this chat for it.
+    if (widget.thread == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _takeShared());
+    }
+  }
+
+  /// The stored draft is back (or there was none), so shared text goes after it.
+  Future<void> _draftRestored = Future.value();
+
+  /// Takes what was shared for this chat: its text goes into the box (after the draft), its
+  /// files to the send dialog, where the box's text is their caption.
+  Future<void> _takeShared() async {
+    if (!mounted || widget.thread != null) return;
+    final delivery = ref
+        .read(shareDeliveryProvider.notifier)
+        .takeFor(widget.account, widget.roomId);
+    if (delivery == null) return;
+    final items = delivery.items;
+    await _draftRestored;
+    if (!mounted) return;
+    if (items.text.isNotEmpty) {
+      final current = _text.text;
+      final separator = current.isEmpty
+          ? ''
+          : current.endsWith('\n')
+          ? ''
+          : '\n';
+      _text.value = _text.value.copyWith(
+        text: '$current$separator${items.text}',
+        selection: TextSelection.collapsed(
+          offset: current.length + separator.length + items.text.length,
+        ),
+      );
+    }
+    if (items.paths.isNotEmpty) {
+      final files = await ref.read(fileActionsProvider).readFiles(items.paths);
+      if (!mounted) return;
+      if (files.isEmpty) {
+        _showError('Can’t read the shared files');
+        return;
+      }
+      await _sendFiles(files);
+    } else {
+      _focus.requestFocus();
+    }
   }
 
   /// Puts back the draft kept in the account's store, unless the user typed already.
@@ -2234,6 +2280,9 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   Widget build(BuildContext context) {
     final mode = _mode = ref.watch(composerModeProvider(_chat));
+    ref.listen(shareDeliveryProvider, (_, next) {
+      if (next != null) unawaited(_takeShared());
+    });
     ref.listen(composerModeProvider(_chat), (previous, next) {
       _mode = next;
       final restored = identical(next, _restoredMode);

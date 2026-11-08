@@ -16,10 +16,13 @@ import 'src/app/media_prefs.dart';
 import 'src/app/providers.dart';
 import 'src/app/ui_prefs.dart';
 import 'src/app/window_controls.dart';
+import 'src/features/share/share_inbox.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/util/log.dart';
 
-Future<void> main() async {
+/// [args]: files and links named on the command line, as Open with passes them on Linux and
+/// Windows; they go to "Send to…".
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // GNOME and other Wayland desktops show the name and icon of an installed entry only.
   if (Platform.isLinux) unawaited(registerThisLinuxApp());
@@ -55,6 +58,7 @@ Future<void> main() async {
         windowControlsProvider.overrideWithValue(window),
         mediaPrefsProvider.overrideWithValue(mediaPrefs),
         uiPrefsProvider.overrideWithValue(uiPrefs),
+        shareSourceProvider.overrideWithValue(PlatformShareSource(args: args)),
         accountPicturesProvider.overrideWithValue(FileAccountPictures(dataDir)),
         collapsedSectionsStoreProvider.overrideWithValue(
           FileCollapsedSections(dataDir),

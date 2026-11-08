@@ -124,12 +124,21 @@ class _SendFilesDialogState extends State<_SendFilesDialog> {
       actions: [
         Row(
           children: [
-            if (images > 0)
-              _CompressToggle(
-                value: _compress,
-                onChanged: (on) => setState(() => _compress = on),
-              ),
-            const Spacer(),
+            // Made smaller rather than pushing the buttons out on a phone.
+            Expanded(
+              child: images > 0
+                  ? Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: _CompressToggle(
+                          value: _compress,
+                          onChanged: (on) => setState(() => _compress = on),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
             OutlinedButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
