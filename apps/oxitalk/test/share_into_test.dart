@@ -80,7 +80,12 @@ void main() {
         '/home/me/missing.txt',
         'https://oxitalk.com/x',
       ], isFile: (path) => !path.contains('missing'));
-      expect(items.paths, ['/home/me/report.pdf', '/home/me/My Photo.jpg']);
+      // A file: URI becomes a path in the platform's own form (backslashes
+      // on Windows), as Open with gives it there.
+      expect(items.paths, [
+        '/home/me/report.pdf',
+        Uri.parse('file:///home/me/My%20Photo.jpg').toFilePath(),
+      ]);
       expect(items.text, 'https://oxitalk.com/x');
       expect(sharedFromArgs(const []).isEmpty, isTrue);
     });
