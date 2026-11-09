@@ -14,6 +14,7 @@ import '../../rust/api/room_info.dart' as rust;
 import '../../rust/api/room_list.dart' as rust;
 import '../../rust/api/room_settings.dart' as rust;
 import '../../rust/api/search.dart' as search_api;
+import '../../rust/api/spaces.dart' as spaces_api;
 import '../../rust/api/server_info.dart' as server_api;
 import '../../rust/api/server_updates.dart' as updates_api;
 import '../../rust/api/sections.dart' as rust;
@@ -135,6 +136,28 @@ Room roomOf(rust.RoomSummary summary) => Room(
   joinedMembers: summary.joinedMembers,
   isDm: summary.isDm,
   isEncrypted: summary.isEncrypted,
+  isSpace: summary.isSpace,
+);
+
+Space spaceOf(spaces_api.SpaceSummary space) => Space(
+  id: space.spaceId,
+  name: space.name,
+  avatarUrl: space.avatarUrl,
+  alias: space.alias,
+  roomIds: {...space.roomIds},
+);
+
+SpaceChild spaceChildOf(spaces_api.SpaceChild child) => SpaceChild(
+  id: child.roomId,
+  name: child.name,
+  topic: child.topic,
+  avatarUrl: child.avatarUrl,
+  alias: child.alias,
+  joinedMembers: child.joinedMembers,
+  isSpace: child.isSpace,
+  joined: child.joined,
+  via: child.via,
+  suggested: child.suggested,
 );
 
 NotificationMode notificationModeOf(rust.RoomNotificationMode mode) =>

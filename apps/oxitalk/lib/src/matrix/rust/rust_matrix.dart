@@ -313,6 +313,12 @@ final class RustMatrixSession implements MatrixSession {
         ),
       )
       ..add(
+        _session.subscribeSpaces().listen(
+          (spaces) =>
+              _spaces.value = [for (final space in spaces) spaceOf(space)],
+        ),
+      )
+      ..add(
         _session.subscribeNotificationSettings().listen(
           (state) =>
               _notificationSettings.value = notificationSettingsOf(state),
@@ -372,6 +378,7 @@ final class RustMatrixSession implements MatrixSession {
   final _rooms = Latest<List<Room>?>(null);
   final _profile = Latest(const Profile());
   final _sections = Latest(const Sections());
+  final _spaces = Latest<List<Space>?>(null);
   final _notificationSettings = Latest<NotificationSettings?>(null);
   final _notifications = StreamController<MessageNotification>.broadcast();
   final _typing = Latest(const <String, List<String>>{});
@@ -530,6 +537,38 @@ final class RustMatrixSession implements MatrixSession {
 
   @override
   Stream<Sections> get sections => _sections.stream;
+
+  @override
+  Stream<List<Space>?> get spaces => _spaces.stream;
+
+  @override
+  Future<List<SpaceChild>> spaceChildren(String spaceId) async => [
+    for (final child in await guarded(
+      () => _session.spaceChildren(spaceId: spaceId),
+    ))
+      spaceChildOf(child),
+  ];
+
+  @override
+  Future<List<SpaceLeaveRoom>> leaveSpacePreview(String spaceId) async => [
+    for (final room in await guarded(
+      () => _session.leaveSpacePreview(spaceId: spaceId),
+    ))
+      SpaceLeaveRoom(
+        id: room.roomId,
+        name: room.name,
+        isSpace: room.isSpace,
+        lastAdmin: room.lastAdmin,
+      ),
+  ];
+
+  @override
+  Future<void> leaveSpace(
+    String spaceId, {
+    List<String> alsoLeave = const [],
+  }) => guarded(
+    () => _session.leaveSpace(spaceId: spaceId, alsoLeave: alsoLeave),
+  );
 
   @override
   Stream<Map<String, List<String>>> get typing => _typing.stream;
@@ -1119,6 +1158,7 @@ final class RustMatrixSession implements MatrixSession {
     unawaited(_rooms.close());
     unawaited(_profile.close());
     unawaited(_sections.close());
+    unawaited(_spaces.close());
     unawaited(_notificationSettings.close());
     unawaited(_notifications.close());
     unawaited(_typing.close());

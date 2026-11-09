@@ -85,9 +85,11 @@ final class FakeSession implements MatrixSession {
     List<Room>? rooms,
     Profile profile = const Profile(),
     Sections sections = const Sections(),
+    List<Space>? spaces = const [],
   }) : _rooms = Latest(rooms),
        ownProfile = Latest(profile),
-       sectionState = Latest(sections);
+       sectionState = Latest(sections),
+       spaceState = Latest(spaces);
 
   @override
   final String userId;
@@ -102,6 +104,18 @@ final class FakeSession implements MatrixSession {
 
   /// The room list sections; tests change them.
   final Latest<Sections> sectionState;
+
+  /// The account's spaces (`null` until read); tests change them.
+  final Latest<List<Space>?> spaceState;
+
+  /// What [spaceChildren] answers, by space ID; else nothing.
+  final spaceChildrenById = <String, List<SpaceChild>>{};
+
+  /// What [leaveSpacePreview] answers, by space ID; else nothing.
+  final leaveSpacePreviews = <String, List<SpaceLeaveRoom>>{};
+
+  /// What [leaveSpace] was asked: the space and the rooms left with it.
+  final leftSpaces = <(String, List<String>)>[];
 
   /// The pictures on the server, by `mxc://` URI; [thumbnail] serves them as they are.
   final pictures = <String, Uint8List>{};
@@ -622,6 +636,41 @@ final class FakeSession implements MatrixSession {
 
   @override
   Stream<Sections> get sections => sectionState.stream;
+
+  @override
+  Stream<List<Space>?> get spaces => spaceState.stream;
+
+  @override
+  Future<List<SpaceChild>> spaceChildren(String spaceId) async =>
+      spaceChildrenById[spaceId] ?? const [];
+
+  @override
+  Future<List<SpaceLeaveRoom>> leaveSpacePreview(String spaceId) async =>
+      leaveSpacePreviews[spaceId] ?? const [];
+
+  @override
+  Future<void> leaveSpace(
+    String spaceId, {
+    List<String> alsoLeave = const [],
+  }) async {
+    leftSpaces.add((spaceId, alsoLeave));
+    final gone = {spaceId, ...alsoLeave};
+    roomList = [
+      for (final room in roomList)
+        if (!gone.contains(room.id)) room,
+    ];
+    spaceState.value = [
+      for (final space in spaceState.value ?? const <Space>[])
+        if (space.id != spaceId)
+          Space(
+            id: space.id,
+            name: space.name,
+            avatarUrl: space.avatarUrl,
+            alias: space.alias,
+            roomIds: space.roomIds.difference(gone),
+          ),
+    ];
+  }
 
   @override
   Future<void> setRoomSection(String roomId, String? tag) async {

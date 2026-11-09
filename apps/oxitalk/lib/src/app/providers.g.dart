@@ -3582,12 +3582,14 @@ final class CanRedactOthersFamily extends $Family
   String toString() => r'canRedactOthersProvider';
 }
 
-/// `null` until the first room list has arrived.
+/// `null` until the first room list has arrived. Joined spaces aren't chats: they are left
+/// out (see `spacesProvider`); an invitation to one stays, among the invites.
 
 @ProviderFor(rooms)
 final roomsProvider = RoomsFamily._();
 
-/// `null` until the first room list has arrived.
+/// `null` until the first room list has arrived. Joined spaces aren't chats: they are left
+/// out (see `spacesProvider`); an invitation to one stays, among the invites.
 
 final class RoomsProvider
     extends
@@ -3597,7 +3599,8 @@ final class RoomsProvider
           Stream<List<Room>?>
         >
     with $FutureModifier<List<Room>?>, $StreamProvider<List<Room>?> {
-  /// `null` until the first room list has arrived.
+  /// `null` until the first room list has arrived. Joined spaces aren't chats: they are left
+  /// out (see `spacesProvider`); an invitation to one stays, among the invites.
   RoomsProvider._({
     required RoomsFamily super.from,
     required String super.argument,
@@ -3642,9 +3645,10 @@ final class RoomsProvider
   }
 }
 
-String _$roomsHash() => r'479c67cde191bbbd4c6eaa4512f17ca53ddf0471';
+String _$roomsHash() => r'a31c8590fd4524fabfb6129da431e49a4031cc57';
 
-/// `null` until the first room list has arrived.
+/// `null` until the first room list has arrived. Joined spaces aren't chats: they are left
+/// out (see `spacesProvider`); an invitation to one stays, among the invites.
 
 final class RoomsFamily extends $Family
     with $FunctionalFamilyOverride<Stream<List<Room>?>, String> {
@@ -3657,7 +3661,8 @@ final class RoomsFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// `null` until the first room list has arrived.
+  /// `null` until the first room list has arrived. Joined spaces aren't chats: they are left
+  /// out (see `spacesProvider`); an invitation to one stays, among the invites.
 
   RoomsProvider call(String account) =>
       RoomsProvider._(argument: account, from: this);

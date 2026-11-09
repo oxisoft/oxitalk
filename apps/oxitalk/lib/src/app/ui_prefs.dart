@@ -43,6 +43,10 @@ abstract interface class UiPrefs {
   /// The chat [account] had open, if any.
   String? lastRoom(String account);
 
+  /// The space [account]'s chat list shows, or `null` for all chats. Kept on this device
+  /// only: nothing goes to the account, so other clients are unaffected.
+  String? selectedSpace(String account);
+
   /// The call media server [account] last connected to, if it ever did.
   CallServerSeen? callServer(String account);
 
@@ -67,6 +71,7 @@ abstract interface class UiPrefs {
   Future<void> setNotificationText({required bool on});
   Future<void> setNotificationSound({required bool on});
   Future<void> setLastRoom(String account, String? roomId);
+  Future<void> setSelectedSpace(String account, String? spaceId);
   Future<void> setCallServer(String account, CallServerSeen server);
   Future<void> setServerUpdateCheck(String account, {required bool on});
 }
@@ -173,6 +178,23 @@ final class FileUiPrefs implements UiPrefs {
 
   @override
   String? lastRoom(String account) => _rooms[account] as String?;
+
+  Map<String, Object?> get _spaces => switch (_json['selectedSpaces']) {
+    final Map<String, Object?> spaces => spaces,
+    _ => _json['selectedSpaces'] = <String, Object?>{},
+  };
+
+  @override
+  String? selectedSpace(String account) => _spaces[account] as String?;
+
+  @override
+  Future<void> setSelectedSpace(String account, String? spaceId) => _save(() {
+    if (spaceId == null) {
+      _spaces.remove(account);
+    } else {
+      _spaces[account] = spaceId;
+    }
+  });
 
   @override
   CallServerSeen? callServer(String account) => switch (_json['callServers']) {
@@ -293,8 +315,10 @@ final class MemoryUiPrefs implements UiPrefs {
     this.notificationText = true,
     this.notificationSound = true,
     Map<String, String>? lastRooms,
+    Map<String, String>? selectedSpaces,
     Map<String, CallServerSeen>? callServers,
   }) : lastRooms = {...?lastRooms},
+       selectedSpaces = {...?selectedSpaces},
        callServers = {...?callServers};
 
   @override
@@ -335,7 +359,21 @@ final class MemoryUiPrefs implements UiPrefs {
 
   final Map<String, String> lastRooms;
 
+  final Map<String, String> selectedSpaces;
+
   final Map<String, CallServerSeen> callServers;
+
+  @override
+  String? selectedSpace(String account) => selectedSpaces[account];
+
+  @override
+  Future<void> setSelectedSpace(String account, String? spaceId) async {
+    if (spaceId == null) {
+      selectedSpaces.remove(account);
+    } else {
+      selectedSpaces[account] = spaceId;
+    }
+  }
 
   @override
   String? lastRoom(String account) => lastRooms[account];

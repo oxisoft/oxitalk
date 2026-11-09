@@ -7,6 +7,7 @@ import 'pins.dart';
 import 'search.dart';
 import 'server_info.dart';
 import 'server_updates.dart';
+import 'spaces.dart';
 
 export 'calls.dart';
 export 'membership.dart';
@@ -16,6 +17,7 @@ export 'pins.dart';
 export 'search.dart';
 export 'server_info.dart';
 export 'server_updates.dart';
+export 'spaces.dart';
 
 enum FailureKind {
   invalidServer,
@@ -189,6 +191,20 @@ abstract interface class MatrixSession {
 
   /// Saves the user's sections and the order of the movable ones.
   Future<void> saveSections(List<CustomSection> custom, List<String> order);
+
+  /// The account's top-level joined spaces (`null` until first read), then the whole list
+  /// again after every change to them or to the rooms in them.
+  Stream<List<Space>?> get spaces;
+
+  /// The rooms and subspaces directly in the space [spaceId], joined or not; asks the
+  /// server.
+  Future<List<SpaceChild>> spaceChildren(String spaceId);
+
+  /// The joined rooms inside the space that leaving it could leave too.
+  Future<List<SpaceLeaveRoom>> leaveSpacePreview(String spaceId);
+
+  /// Leaves the space and, of [leaveSpacePreview]'s rooms, those in [alsoLeave].
+  Future<void> leaveSpace(String spaceId, {List<String> alsoLeave = const []});
 
   /// The account's notification settings (`null` until they are read), then every change,
   /// made here or in another client.

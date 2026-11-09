@@ -40,6 +40,7 @@ final class Room {
     this.joinedMembers = 0,
     this.isDm = false,
     this.isEncrypted = false,
+    this.isSpace = false,
   });
 
   final String id;
@@ -80,6 +81,10 @@ final class Room {
   final int joinedMembers;
   final bool isDm;
   final bool isEncrypted;
+
+  /// A Matrix space, not a chat: a joined one is listed as a space, never as a chat; an
+  /// invitation to one shows among the invites, labelled.
+  final bool isSpace;
 
   /// How the user's messages show who read them: ticks with exactly one other member,
   /// the readers' pictures with more.
@@ -143,6 +148,7 @@ final class Room {
     joinedMembers: joinedMembers,
     isDm: isDm,
     isEncrypted: isEncrypted,
+    isSpace: isSpace,
   );
 }
 

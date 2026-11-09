@@ -631,10 +631,19 @@ Future<bool> canRedactOthers(Ref ref, String account, String roomId) async =>
       _ => false,
     };
 
-/// `null` until the first room list has arrived.
+/// `null` until the first room list has arrived. Joined spaces aren't chats: they are left
+/// out (see `spacesProvider`); an invitation to one stays, among the invites.
 @riverpod
 Stream<List<Room>?> rooms(Ref ref, String account) =>
-    _session(ref, account)?.rooms ?? Stream.value(null);
+    (_session(ref, account)?.rooms ?? Stream.value(null)).map(withoutSpaces);
+
+/// [rooms] without the spaces the user is in or knocked on.
+List<Room>? withoutSpaces(List<Room>? rooms) => rooms == null
+    ? null
+    : [
+        for (final room in rooms)
+          if (!room.isSpace || room.membership == Membership.invited) room,
+      ];
 
 /// What the account switcher shows: notifying unread messages plus invites, as Element X
 /// counts; muted rooms count nothing.

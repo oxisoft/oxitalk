@@ -10,6 +10,7 @@ import 'package:oxitalk/src/matrix/rust/sync_supervisor.dart';
 import 'package:oxitalk/src/rust/api/error.dart';
 import 'package:oxitalk/src/rust/api/notifications.dart';
 import 'package:oxitalk/src/rust/api/room_list.dart';
+import 'package:oxitalk/src/rust/api/spaces.dart' as spaces;
 import 'package:oxitalk/src/rust/api/sync.dart';
 import 'package:oxitalk/src/rust/api/timeline.dart';
 
@@ -59,6 +60,34 @@ ReadReceipt _receipt(String user, int ms) => ReadReceipt(
 );
 
 void main() {
+  test('a space stays a space, and a space keeps its rooms', () {
+    expect(roomOf(_room('!s', isSpace: true)).isSpace, isTrue);
+    expect(roomOf(_room('!r')).isSpace, isFalse);
+    final space = spaceOf(
+      const spaces.SpaceSummary(
+        spaceId: '!s',
+        name: 'Acme',
+        alias: '#acme:example.org',
+        roomIds: ['!a', '!b'],
+      ),
+    );
+    expect(space.roomIds, {'!a', '!b'});
+    expect(space.link, 'https://matrix.to/#/#acme:example.org');
+    final child = spaceChildOf(
+      const spaces.SpaceChild(
+        roomId: '!c',
+        name: 'Lobby',
+        joinedMembers: 3,
+        isSpace: false,
+        joined: false,
+        via: ['example.org'],
+        suggested: true,
+      ),
+    );
+    expect(child.joinAddress, 'https://matrix.to/#/!c?via=example.org');
+    expect(child.suggested, isTrue);
+  });
+
   test('a room says whether its default is the direct chat one', () {
     expect(roomOf(_room('a', isOneToOne: true)).isOneToOne, isTrue);
     expect(roomOf(_room('b')).isOneToOne, isFalse);
