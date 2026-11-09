@@ -1,0 +1,3 @@
+Spaces: your spaces sit under the accounts on the side bar, or in a picker at the top of the chat list on phones and narrow windows. Pick one to see only its rooms, or All chats for everything.
+Browse a space's rooms and join the ones you are not in yet; leave a space together with the rooms you choose.
+Spaces no longer show up as empty chats in the list.
