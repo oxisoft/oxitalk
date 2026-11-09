@@ -1,0 +1,257 @@
+name: GitHub release
+
+# On a pushed tag v<version>[+<build>] (or by hand for an existing tag): waits until CI has
+# passed on the tagged commit, then builds the downloads and publishes them as the GitHub
+# release of the tag, with docs/store/release_notes/<version>.txt as its text:
+#   Linux    oxitalk-<v>-x86_64.AppImage, oxitalk-<v>-x86_64.flatpak,
+#            oxitalk-<v>-linux-x86_64.tar.gz           (packaging/linux/build.sh)
+#   Windows  oxitalk-<v>-windows-x64.zip               (unsigned: SmartScreen warns)
+#   Android  oxitalk-<v>-android.apk                   Google Play's signed universal APK of
+#            the build google-play.yml uploads on the same tag, so it updates and is updated
+#            by the app from Google Play and F-Droid
+#   SHA256SUMS
+# iOS and macOS stay on the App Store / TestFlight. Nothing is published unless every file
+# was built.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)publish, e.g. v0.1.45
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  version:
+    name: Version and CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+      code: ${{ steps.version.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+
+      - name: Version
+        id: version
+        run: |
+          version=$(sed -n 's/^version: *//p' apps/oxitalk/pubspec.yaml)
+          case "$version" in *+*) ;; *) echo "pubspec version $version has no +build"; exit 1 ;; esac
+          echo "tag $TAG, pubspec $version"
+          [ "${TAG#v}" = "$version" ] || [ "${TAG#v}" = "${version%%+*}" ] || { echo "tag and pubspec differ"; exit 1; }
+          name=${version%%+*}
+          test -s "docs/store/release_notes/$name.txt" || { echo "missing docs/store/release_notes/$name.txt"; exit 1; }
+          echo "name=$name" >>"$GITHUB_OUTPUT"
+          echo "code=${version#*+}" >>"$GITHUB_OUTPUT"
+
+      # CI runs on the push to main; a tag only points at a commit CI has checked (or is
+      # checking). No green CI on the commit, no release.
+      - name: Wait for CI on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          for _ in $(seq 1 140); do
+            state=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$sha&event=push" \
+              --jq '[.workflow_runs[] | .status + ":" + (.conclusion // "")] | first // "none"')
+            echo "CI on $sha: $state"
+            case "$state" in
+              completed:success) exit 0 ;;
+              completed:*) echo "CI did not pass on $sha"; exit 1 ;;
+            esac
+            sleep 60
+          done
+          echo "CI on $sha did not finish in time"
+          exit 1
+
+  linux:
+    name: Linux (AppImage, Flatpak, tarball)
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      # No cache: a release is built from a clean toolchain.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: apps/oxitalk/pubspec.yaml
+      - name: Build and packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.gnome.Platform//51 org.gnome.Sdk//51
+      - name: Build
+        working-directory: apps/oxitalk
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build linux --release
+      - name: Package
+        env:
+          NAME: ${{ needs.version.outputs.name }}
+        run: packaging/linux/build.sh "$NAME" dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/oxitalk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: apps/oxitalk/pubspec.yaml
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build windows --release
+      # The Visual C++ runtime beside the exe (redistributable files), so the zip runs on a
+      # Windows without the VC++ Redistributable installed.
+      - name: Package
+        shell: pwsh
+        env:
+          NAME: ${{ needs.version.outputs.name }}
+        run: |
+          $release = "build/windows/x64/runner/Release"
+          foreach ($dll in "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
+            Copy-Item "$env:WINDIR/System32/$dll" $release
+          }
+          $dir = "oxitalk-$env:NAME"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item -Recurse $release "dist/$dir"
+          Compress-Archive -Path "dist/$dir" -DestinationPath "dist/oxitalk-$env:NAME-windows-x64.zip"
+          Remove-Item -Recurse "dist/$dir"
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: apps/oxitalk/dist/*
+          if-no-files-found: error
+
+  android:
+    name: Android APK from Google Play
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: google-play
+    permissions:
+      contents: read
+    env:
+      PLAY_PACKAGE: io.oxisoft.oxitalk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - name: Download the universal APK
+        env:
+          PLAY_SA_JSON: ${{ secrets.PLAY_SA_JSON }}
+          NAME: ${{ needs.version.outputs.name }}
+          CODE: ${{ needs.version.outputs.code }}
+        run: |
+          [ -n "$PLAY_SA_JSON" ] || { echo "the google-play environment has no PLAY_SA_JSON"; exit 1; }
+          umask 077
+          mkdir -p "$RUNNER_TEMP/sign" dist
+          printf '%s' "$PLAY_SA_JSON" >"$RUNNER_TEMP/sign/play.json"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet -r scripts/play-requirements.txt
+          PLAY_SA_FILE="$RUNNER_TEMP/sign/play.json" "$RUNNER_TEMP/venv/bin/python" \
+            scripts/play-universal-apk.py "$CODE" "dist/oxitalk-$NAME-android.apk"
+      - name: Check the APK
+        env:
+          NAME: ${{ needs.version.outputs.name }}
+          CODE: ${{ needs.version.outputs.code }}
+        run: |
+          tools=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -1)
+          apk="dist/oxitalk-$NAME-android.apk"
+          "$tools/apksigner" verify --print-certs "$apk" | grep -i 'SHA-256'
+          "$tools/aapt2" dump badging "$apk" | head -1 | tee "$RUNNER_TEMP/badging"
+          grep -q "versionCode='$CODE'" "$RUNNER_TEMP/badging"
+      - name: Remove the service account
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/sign"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    needs: [version, linux, windows, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and notes
+        env:
+          NAME: ${{ needs.version.outputs.name }}
+        run: |
+          (cd dist && sha256sum -- * >SHA256SUMS && cat SHA256SUMS)
+          {
+            cat "docs/store/release_notes/$NAME.txt"
+            echo
+            echo "### Downloads"
+            echo
+            echo "- **Linux:** AppImage (make it executable and run it), Flatpak (\`flatpak install --user oxitalk-$NAME-x86_64.flatpak\`, needs Flathub for the GNOME runtime) or the tarball."
+            echo "- **Windows:** unzip and run \`oxitalk.exe\`. The build is not code-signed yet, so SmartScreen asks once."
+            echo "- **Android:** the APK is Google Play's own signed build: it updates the app from Google Play or [F-Droid](https://fdroid.oxisoft.io) and the other way round."
+            echo "- **iPhone, iPad, Mac:** App Store / TestFlight."
+            echo
+            echo "Check a download with \`sha256sum -c SHA256SUMS --ignore-missing\`."
+          } >"$RUNNER_TEMP/notes.md"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NAME: ${{ needs.version.outputs.name }}
+        run: |
+          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release edit "$TAG" -R "$REPO" --title "OxiTalk $NAME" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release upload "$TAG" -R "$REPO" --clobber dist/*
+          else
+            gh release create "$TAG" -R "$REPO" --verify-tag --title "OxiTalk $NAME" \
+              --notes-file "$RUNNER_TEMP/notes.md" dist/*
+          fi

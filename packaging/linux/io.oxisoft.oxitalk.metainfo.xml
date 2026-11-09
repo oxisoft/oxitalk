@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata for the Flatpak and the AppImage (packaging/linux/README.md). -->
+<component type="desktop-application">
+  <id>io.oxisoft.oxitalk</id>
+  <name>OxiTalk</name>
+  <summary>Chat on Matrix, end-to-end encrypted</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.oxisoft">
+    <name>OxiSoft</name>
+  </developer>
+  <description>
+    <p>OxiTalk is a Matrix client: chats, rooms, spaces, threads, voice messages, calls and
+      several accounts at once, end-to-end encrypted. No tracking, no analytics.</p>
+  </description>
+  <launchable type="desktop-id">io.oxisoft.oxitalk.desktop</launchable>
+  <url type="homepage">https://oxitalk.com</url>
+  <url type="vcs-browser">https://github.com/oxisoft/oxitalk</url>
+  <url type="bugtracker">https://github.com/oxisoft/oxitalk/issues</url>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+  </content_rating>
+  <releases>
+    <!-- packaging/linux/build.sh puts the version being built here. -->
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>

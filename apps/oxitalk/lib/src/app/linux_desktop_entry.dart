@@ -25,11 +25,14 @@ StartupNotify=true
 /// Writes `<data home>/applications/io.oxisoft.oxitalk.desktop`, running [executable], and
 /// the icon from the bundle beside it into the user's icon theme; again when the binary
 /// moved or the icon changed. Not in a Flatpak or when a package installed the entry
-/// ([dataDirs]); failures are ignored, the app runs on with the default icon.
+/// ([dataDirs]); failures are ignored, the app runs on with the default icon. In an AppImage
+/// [executable] is the `.AppImage` file, which stays where the user put it, while the icon
+/// comes from the [bundleDir] it mounted (a new temporary path on every start).
 Future<void> registerLinuxDesktopEntry({
   required String executable,
   required String dataHome,
   required List<String> dataDirs,
+  String? bundleDir,
   bool flatpak = false,
 }) async {
   if (flatpak) return;
@@ -38,7 +41,7 @@ Future<void> registerLinuxDesktopEntry({
   }
   try {
     final bundleIcon = File(
-      '${File(executable).parent.path}/data/app_icon.png',
+      '${bundleDir ?? File(executable).parent.path}/data/app_icon.png',
     );
     if (bundleIcon.existsSync()) {
       final icon = File('$dataHome/icons/hicolor/256x256/apps/$linuxAppId.png');
@@ -65,8 +68,12 @@ Future<void> registerThisLinuxApp() {
   final env = Platform.environment;
   final home = env['HOME'] ?? '';
   final dataHome = env['XDG_DATA_HOME'] ?? '';
+  final appImage = env['APPIMAGE'] ?? '';
   return registerLinuxDesktopEntry(
-    executable: Platform.resolvedExecutable,
+    executable: appImage.isEmpty ? Platform.resolvedExecutable : appImage,
+    bundleDir: appImage.isEmpty
+        ? null
+        : File(Platform.resolvedExecutable).parent.path,
     dataHome: dataHome.isEmpty ? '$home/.local/share' : dataHome,
     dataDirs: (env['XDG_DATA_DIRS'] ?? '').isEmpty
         ? const ['/usr/local/share', '/usr/share']

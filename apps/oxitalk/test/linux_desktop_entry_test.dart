@@ -58,6 +58,21 @@ void main() {
     },
   );
 
+  test(
+    'an AppImage runs the .AppImage file and takes the icon from its mount',
+    () async {
+      final appImage = '${root.path}/Apps/oxitalk-0.1.45-x86_64.AppImage';
+      await registerLinuxDesktopEntry(
+        executable: appImage,
+        bundleDir: '${root.path}/bundle',
+        dataHome: dataHome,
+        dataDirs: const [],
+      );
+      expect(entry().readAsStringSync(), contains('Exec="$appImage" %U'));
+      expect(icon().readAsBytesSync(), [1, 2, 3]);
+    },
+  );
+
   test('an icon installed earlier is announced once more', () async {
     await registerLinuxDesktopEntry(
       executable: executable,
