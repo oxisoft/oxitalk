@@ -1,0 +1,4 @@
+Share files, photos, videos, text and links into OxiTalk from other apps, then pick the chat to send them to.
+Copy an image from a message, and copy or open links from the message menu.
+Text already typed in the message box becomes the caption of a pasted or attached file.
+Encryption library security update.
