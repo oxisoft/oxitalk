@@ -726,10 +726,15 @@ class _LeaveSpaceDialogState extends State<LeaveSpaceDialog> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: room.lastAdmin
+                          subtitle: room.lastAdmin || room.isSpace
                               ? Text(
-                                  'You’re its only admin',
-                                  key: Key('leaveSpace.lastAdmin.${room.id}'),
+                                  [
+                                    if (room.isSpace) 'Space',
+                                    if (room.lastAdmin) 'You’re its only admin',
+                                  ].join(' · '),
+                                  key: room.lastAdmin
+                                      ? Key('leaveSpace.lastAdmin.${room.id}')
+                                      : null,
                                   style: TextStyle(color: muted),
                                 )
                               : null,

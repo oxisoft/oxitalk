@@ -198,9 +198,14 @@ void main() {
     testWidgets('rail visible and the list narrowed: nothing extra', (
       tester,
     ) async {
-      await _open(tester, ui: MemoryUiPrefs(narrowList: true));
+      await _open(
+        tester,
+        ui: MemoryUiPrefs(narrowList: true, selectedSpaces: {_me: _acme.id}),
+      );
       expect(find.byKey(Key('rail.space.${_acme.id}')), findsOneWidget);
       expect(_selector, findsNothing);
+      // The rail marks the space; the header needn't.
+      expect(find.byKey(const Key('account.dropdown.space')), findsNothing);
       await tester.tap(find.byKey(const Key('account.dropdown')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('accountMenu.spaces')), findsNothing);

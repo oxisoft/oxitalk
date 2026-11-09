@@ -386,7 +386,7 @@ class _ServerLetter extends StatelessWidget {
 /// online, what the connection is doing). A click lists every account to switch to, adding
 /// one, and logging out of this one; with [withAppItems] also Settings and About, with
 /// [withSpaces] also the account's spaces to pick (the rail and the space selector being
-/// hidden). Compact, the picture carries the selected space's.
+/// hidden); compact then, the picture carries the selected space's.
 class AccountDropdown extends ConsumerWidget {
   const AccountDropdown({
     required this.account,
@@ -425,7 +425,9 @@ class AccountDropdown extends ConsumerWidget {
         .where((id) => id != account)
         .any((id) => ref.watch(unreadCountProvider(id)) > 0);
     // On the narrow list nothing else says the list is a space's.
-    final space = compact ? ref.watch(currentSpaceProvider(account)) : null;
+    final space = compact && withSpaces
+        ? ref.watch(currentSpaceProvider(account))
+        : null;
     final picture = AccountPicture(account: account, radius: 16);
     return Tooltip(
       message: 'Accounts',
