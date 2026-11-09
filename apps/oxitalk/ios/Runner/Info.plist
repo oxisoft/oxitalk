@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>OxiTalk uses the camera for video calls and to record video messages, when you choose to. Messages are sent only to the chat you record them in; calls are end-to-end encrypted.</string>
+	<string>OxiTalk uses the camera for video calls, to record video messages and to take photos and videos to send, when you choose to. They are sent only to the chat you take them in; calls are end-to-end encrypted.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OxiTalk opens your photo library when you choose photos or videos to send. Only the ones you pick are sent, to the chat you picked them in.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OxiTalk uses the microphone for calls and to record voice and video messages, when you choose to. Messages are sent only to the chat you record them in; calls are end-to-end encrypted.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

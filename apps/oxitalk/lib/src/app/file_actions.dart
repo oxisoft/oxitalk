@@ -3,6 +3,9 @@ import 'dart:math';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -48,6 +51,16 @@ abstract interface class FileActions {
   /// Asks the user for files to send; empty if they cancel.
   Future<List<PendingFile>> pickFiles();
 
+  /// Asks the user for photos and videos from the gallery (the system photo picker on
+  /// Android and iOS); empty if they cancel.
+  Future<List<PendingFile>> pickMedia();
+
+  /// Opens the camera for one photo; empty if the user cancels.
+  Future<List<PendingFile>> takePhoto();
+
+  /// Opens the camera for one video; empty if the user cancels.
+  Future<List<PendingFile>> recordVideo();
+
   /// The files at [paths] (dropped on the window, or copied in a file manager).
   Future<List<PendingFile>> readFiles(List<String> paths);
 
@@ -89,6 +102,39 @@ final class SystemFileActions implements FileActions {
         await file.readAsBytes(),
       ),
   ];
+
+  /// The gallery and the camera. On Android, the system photo picker rather than the
+  /// documents app: it needs no permission and shows photos, not "Recent files".
+  static ImagePicker get _picker {
+    final platform = ImagePickerPlatform.instance;
+    if (platform is ImagePickerAndroid) platform.useAndroidPhotoPicker = true;
+    return ImagePicker();
+  }
+
+  static Future<List<PendingFile>> _read(Iterable<XFile> files) async => [
+    for (final file in files)
+      PendingFile(
+        file.name,
+        file.mimeType ?? mimeTypeOf(file.name),
+        await file.readAsBytes(),
+      ),
+  ];
+
+  @override
+  Future<List<PendingFile>> pickMedia() async =>
+      _read(await _picker.pickMultipleMedia(requestFullMetadata: false));
+
+  @override
+  Future<List<PendingFile>> takePhoto() async => _read([
+    ?await _picker.pickImage(
+      source: ImageSource.camera,
+      requestFullMetadata: false,
+    ),
+  ]);
+
+  @override
+  Future<List<PendingFile>> recordVideo() async =>
+      _read([?await _picker.pickVideo(source: ImageSource.camera)]);
 
   @override
   Future<List<PendingFile>> readFiles(List<String> paths) async => [
@@ -164,6 +210,20 @@ final class FakeFileActions implements FileActions {
 
   @override
   Future<List<PendingFile>> pickFiles() async => picked;
+
+  /// What [pickMedia], [takePhoto] and [recordVideo] answer.
+  List<PendingFile> pickedMedia = const [];
+  List<PendingFile> photo = const [];
+  List<PendingFile> video = const [];
+
+  @override
+  Future<List<PendingFile>> pickMedia() async => pickedMedia;
+
+  @override
+  Future<List<PendingFile>> takePhoto() async => photo;
+
+  @override
+  Future<List<PendingFile>> recordVideo() async => video;
 
   @override
   Future<List<PendingFile>> readFiles(List<String> paths) async => [

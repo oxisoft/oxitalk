@@ -451,7 +451,48 @@ void main() {
         'beach.png': ('Holiday', true),
         'notes.txt': (null, true),
       });
-    });
+    }, variant: desktop);
+
+    testWidgets(
+      'on a phone the paperclip asks what to attach: gallery, camera, video, file',
+      (tester) async {
+        final (_, timeline, files) = await _open(tester);
+        files
+          ..pickedMedia = [PendingFile('beach.jpg', 'image/jpeg', png)]
+          ..photo = [PendingFile('shot.jpg', 'image/jpeg', png)]
+          ..video = [PendingFile('clip.mp4', 'video/mp4', png)]
+          ..picked = [PendingFile('notes.txt', 'text/plain', png)];
+        for (final (source, name) in [
+          ('gallery', 'beach.jpg'),
+          ('photo', 'shot.jpg'),
+          ('video', 'clip.mp4'),
+          ('file', 'notes.txt'),
+        ]) {
+          await tester.tap(find.byKey(const Key('composer.attach')));
+          await tester.pumpAndSettle();
+          expect(find.text('Gallery'), findsOneWidget);
+          expect(find.text('Camera'), findsOneWidget);
+          await tester.tap(find.byKey(Key('attach.$source')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('send.confirm')));
+          await tester.pumpAndSettle();
+          expect(timeline.files.keys, contains(name), reason: source);
+        }
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+
+    testWidgets('closing the attach sheet sends nothing', (tester) async {
+      final (_, timeline, files) = await _open(tester);
+      files.picked = [PendingFile('notes.txt', 'text/plain', png)];
+      await tester.tap(find.byKey(const Key('composer.attach')));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('attach.file')), findsNothing);
+      expect(find.byKey(const Key('sendFiles')), findsNothing);
+      expect(timeline.files, isEmpty);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
     testWidgets('a pasted image goes to the same dialog; Compress can be off', (
       tester,
@@ -493,7 +534,7 @@ void main() {
       expect(find.byKey(const Key('sendFiles')), findsNothing);
       expect(timeline.files.keys, ['beach.png']);
       expect(timeline.files['beach.png']!.$1, startsWith('Sea'));
-    });
+    }, variant: desktop);
 
     testWidgets('an upload shows its progress', (tester) async {
       await _open(

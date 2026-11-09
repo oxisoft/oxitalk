@@ -21,6 +21,7 @@ import '../../app/file_actions.dart';
 import '../calls/call_controller.dart';
 import '../calls/call_ui.dart';
 import '../chats/badges.dart';
+import 'attach_menu.dart';
 import 'chat_search.dart';
 import 'bubble_attachments.dart';
 import 'date_jump.dart';
@@ -2193,9 +2194,31 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
+  /// The paperclip: on a touch screen it asks first what to attach (gallery, camera, video,
+  /// file); on desktop it opens the file picker straight away.
   Future<void> _attach() async {
-    final files = await ref.read(fileActionsProvider).pickFiles();
-    if (!mounted) return;
+    final actions = ref.read(fileActionsProvider);
+    final source = isTouchPlatform(context)
+        ? await showAttachMenu(context)
+        : AttachSource.file;
+    if (source == null || !mounted) return;
+    final List<PendingFile> files;
+    try {
+      files = await switch (source) {
+        AttachSource.gallery => actions.pickMedia(),
+        AttachSource.photo => actions.takePhoto(),
+        AttachSource.video => actions.recordVideo(),
+        AttachSource.file => actions.pickFiles(),
+      };
+    } on PlatformException catch (error) {
+      _showError(
+        error.code.startsWith('camera_access')
+            ? 'OxiTalk may not use the camera: allow it in the system settings'
+            : 'Can’t attach: ${error.message ?? error.code}',
+      );
+      return;
+    }
+    if (!mounted || files.isEmpty) return;
     await _sendFiles(files);
   }
 
@@ -2372,7 +2395,7 @@ class _ComposerState extends ConsumerState<Composer> {
                     else ...[
                       IconButton(
                         key: const Key('composer.attach'),
-                        tooltip: 'Attach files',
+                        tooltip: 'Attach',
                         icon: const Icon(Icons.attach_file_rounded),
                         onPressed: () => unawaited(_attach()),
                       ),
