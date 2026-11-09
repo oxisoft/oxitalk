@@ -91,6 +91,9 @@ class RoomSummary {
   final bool isDm;
   final bool isEncrypted;
 
+  /// A Matrix space rather than a chat: the app lists joined ones as spaces, not chats.
+  final bool isSpace;
+
   const RoomSummary({
     required this.roomId,
     required this.name,
@@ -108,6 +111,7 @@ class RoomSummary {
     required this.joinedMembers,
     required this.isDm,
     required this.isEncrypted,
+    required this.isSpace,
   });
 
   @override
@@ -127,7 +131,8 @@ class RoomSummary {
       isOneToOne.hashCode ^
       joinedMembers.hashCode ^
       isDm.hashCode ^
-      isEncrypted.hashCode;
+      isEncrypted.hashCode ^
+      isSpace.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -149,5 +154,6 @@ class RoomSummary {
           isOneToOne == other.isOneToOne &&
           joinedMembers == other.joinedMembers &&
           isDm == other.isDm &&
-          isEncrypted == other.isEncrypted;
+          isEncrypted == other.isEncrypted &&
+          isSpace == other.isSpace;
 }

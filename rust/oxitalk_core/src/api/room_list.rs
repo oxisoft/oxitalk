@@ -70,6 +70,8 @@ pub struct RoomSummary {
     pub joined_members: u32,
     pub is_dm: bool,
     pub is_encrypted: bool,
+    /// A Matrix space rather than a chat: the app lists joined ones as spaces, not chats.
+    pub is_space: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -345,7 +347,7 @@ async fn thread_free_preview(room: &Room) -> Option<Option<(String, i64)>> {
     )
 }
 
-async fn summary(settings: &NotificationSettings, room: RoomListItem) -> RoomSummary {
+pub(crate) async fn summary(settings: &NotificationSettings, room: RoomListItem) -> RoomSummary {
     let room = room.into_inner();
     let (last_message, last_activity_ms) = match RoomExt::latest_event(&room).await {
         LatestEventValue::Remote {
@@ -400,6 +402,7 @@ async fn summary(settings: &NotificationSettings, room: RoomListItem) -> RoomSum
         joined_members: count(room.joined_members_count()),
         is_dm,
         is_encrypted: room.encryption_state().is_encrypted(),
+        is_space: room.is_space(),
     }
 }
 
@@ -429,6 +432,7 @@ mod tests {
             joined_members: 0,
             is_dm: false,
             is_encrypted: false,
+            is_space: false,
         }
     }
 

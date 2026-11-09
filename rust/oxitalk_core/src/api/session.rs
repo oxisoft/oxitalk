@@ -18,7 +18,7 @@ use matrix_sdk::{
     ruma::{OwnedRoomId, OwnedUserId},
     store::RoomLoadSettings,
 };
-use matrix_sdk_ui::sync_service::SyncService;
+use matrix_sdk_ui::{spaces::SpaceService, sync_service::SyncService};
 use tokio::{runtime::Handle, sync::broadcast, task::AbortHandle};
 
 use super::{
@@ -75,6 +75,8 @@ pub struct Session {
     pub(crate) active_calls: Arc<Mutex<HashSet<OwnedRoomId>>>,
     /// The Jitsi server the homeserver names in its `.well-known`, once it answered.
     pub(crate) jitsi_domain: OnceLock<Option<String>>,
+    /// The account's spaces, kept up to date from every sync; dropped with the session.
+    pub(crate) spaces: SpaceService,
     /// Tasks that feed the app's streams; aborted when the session is dropped.
     tasks: Mutex<Vec<AbortHandle>>,
     /// The runtime the session was made on, where its stores close when it is dropped.
@@ -187,6 +189,7 @@ impl Session {
         let sync = new_sync_service(client.clone()).await?;
         let notification_settings = client.notification_settings().await;
         let notification_candidates = notify::register(&client).await;
+        let spaces = SpaceService::new(client.clone()).await;
         let session = Self {
             client,
             sync,
@@ -196,6 +199,7 @@ impl Session {
             recovery_progress: broadcast::channel(16).0,
             active_calls: Arc::default(),
             jitsi_domain: OnceLock::new(),
+            spaces,
             tasks: Mutex::default(),
             runtime: Handle::current(),
         };

@@ -33,6 +33,8 @@ mod room_settings;
 mod search;
 #[path = "homeserver/server_info.rs"]
 mod server_info;
+#[path = "homeserver/spaces.rs"]
+mod spaces;
 mod support;
 #[path = "homeserver/threads.rs"]
 mod threads;

@@ -30,6 +30,7 @@ import 'search.dart';
 import 'sections.dart';
 import 'server_info.dart';
 import 'server_updates.dart';
+import 'spaces.dart';
 import 'sync.dart';
 import 'threads.dart';
 import 'timeline.dart';
@@ -401,6 +402,26 @@ abstract class Session implements RustOpaqueInterface {
   ///
   /// [`CoreError::InvalidId`] or [`CoreError::RoomNotFound`].
   Future<LeaveInfo> leaveInfo({required String roomId});
+
+  /// Leaves the space and, of the rooms [`Self::leave_space_preview`] listed, those in
+  /// `also_leave`; the rooms inside first, the space last.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], [`CoreError::RoomNotFound`], otherwise as the server
+  /// answers; the rooms left before the error stay left.
+  Future<void> leaveSpace({
+    required String spaceId,
+    required List<String> alsoLeave,
+  });
+
+  /// The joined rooms (and subspaces) inside the space that leaving it could leave too,
+  /// the space itself left out.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], or [`CoreError::RoomNotFound`] for a space the user isn't in.
+  Future<List<SpaceLeaveRoom>> leaveSpacePreview({required String spaceId});
 
   /// The room's draft (or the thread's), if one was kept.
   ///
@@ -883,6 +904,13 @@ abstract class Session implements RustOpaqueInterface {
     String? password,
   });
 
+  /// The rooms and subspaces directly in the space, joined or not, in the space's order.
+  ///
+  /// # Errors
+  ///
+  /// [`CoreError::InvalidId`], otherwise as the server answers.
+  Future<List<SpaceChild>> spaceChildren({required String spaceId});
+
   /// Starts a Jitsi conference in the room as Element does (a Jitsi widget on the server's
   /// Jitsi domain, a new random conference), or returns the one going on there.
   ///
@@ -967,6 +995,10 @@ abstract class Session implements RustOpaqueInterface {
 
   /// Sends every [`SessionChange`].
   Stream<SessionChange> subscribeSessionChanges();
+
+  /// Sends the account's top-level joined spaces, then the whole list again whenever it or
+  /// the rooms in a space change.
+  Stream<List<SpaceSummary>> subscribeSpaces();
 
   /// Sends the current [`SyncState`], then every change.
   Stream<SyncState> subscribeSyncState();

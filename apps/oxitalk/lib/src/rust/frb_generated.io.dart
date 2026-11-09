@@ -30,6 +30,7 @@ import 'api/sections.dart';
 import 'api/server_info.dart';
 import 'api/server_updates.dart';
 import 'api/session.dart';
+import 'api/spaces.dart';
 import 'api/sync.dart';
 import 'api/threads.dart';
 import 'api/timeline.dart';
@@ -215,6 +216,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<List<RoomListDiff>>
   dco_decode_StreamSink_list_room_list_diff_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<List<SpaceSummary>>
+  dco_decode_StreamSink_list_space_summary_Sse(dynamic raw);
 
   @protected
   RustStreamSink<List<ThreadSummary>>
@@ -550,6 +555,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SearchHit> dco_decode_list_search_hit(dynamic raw);
 
   @protected
+  List<SpaceChild> dco_decode_list_space_child(dynamic raw);
+
+  @protected
+  List<SpaceLeaveRoom> dco_decode_list_space_leave_room(dynamic raw);
+
+  @protected
+  List<SpaceSummary> dco_decode_list_space_summary(dynamic raw);
+
+  @protected
   List<SupportContact> dco_decode_list_support_contact(dynamic raw);
 
   @protected
@@ -812,6 +826,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SessionData dco_decode_session_data(dynamic raw);
 
   @protected
+  SpaceChild dco_decode_space_child(dynamic raw);
+
+  @protected
+  SpaceLeaveRoom dco_decode_space_leave_room(dynamic raw);
+
+  @protected
+  SpaceSummary dco_decode_space_summary(dynamic raw);
+
+  @protected
   SupportContact dco_decode_support_contact(dynamic raw);
 
   @protected
@@ -1015,6 +1038,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<List<RoomListDiff>>
   sse_decode_StreamSink_list_room_list_diff_Sse(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<List<SpaceSummary>>
+  sse_decode_StreamSink_list_space_summary_Sse(SseDeserializer deserializer);
 
   @protected
   RustStreamSink<List<ThreadSummary>>
@@ -1402,6 +1429,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SearchHit> sse_decode_list_search_hit(SseDeserializer deserializer);
 
   @protected
+  List<SpaceChild> sse_decode_list_space_child(SseDeserializer deserializer);
+
+  @protected
+  List<SpaceLeaveRoom> sse_decode_list_space_leave_room(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SpaceSummary> sse_decode_list_space_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SupportContact> sse_decode_list_support_contact(
     SseDeserializer deserializer,
   );
@@ -1710,6 +1750,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SessionData sse_decode_session_data(SseDeserializer deserializer);
 
   @protected
+  SpaceChild sse_decode_space_child(SseDeserializer deserializer);
+
+  @protected
+  SpaceLeaveRoom sse_decode_space_leave_room(SseDeserializer deserializer);
+
+  @protected
+  SpaceSummary sse_decode_space_summary(SseDeserializer deserializer);
+
+  @protected
   SupportContact sse_decode_support_contact(SseDeserializer deserializer);
 
   @protected
@@ -1948,6 +1997,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_list_room_list_diff_Sse(
     RustStreamSink<List<RoomListDiff>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_list_space_summary_Sse(
+    RustStreamSink<List<SpaceSummary>> self,
     SseSerializer serializer,
   );
 
@@ -2480,6 +2535,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_space_child(
+    List<SpaceChild> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_space_leave_room(
+    List<SpaceLeaveRoom> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_space_summary(
+    List<SpaceSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_support_contact(
     List<SupportContact> self,
     SseSerializer serializer,
@@ -2847,6 +2920,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_session_data(SessionData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_space_child(SpaceChild self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_space_leave_room(
+    SpaceLeaveRoom self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_space_summary(SpaceSummary self, SseSerializer serializer);
 
   @protected
   void sse_encode_support_contact(

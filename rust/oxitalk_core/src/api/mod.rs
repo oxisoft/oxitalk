@@ -31,6 +31,7 @@ pub mod sections;
 pub mod server_info;
 pub mod server_updates;
 pub mod session;
+pub mod spaces;
 pub mod sync;
 pub mod threads;
 pub mod timeline;

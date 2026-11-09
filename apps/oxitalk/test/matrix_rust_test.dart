@@ -19,6 +19,7 @@ RoomSummary _room(
   String id, {
   bool isOneToOne = false,
   int joinedMembers = 2,
+  bool isSpace = false,
 }) => RoomSummary(
   roomId: id,
   name: id,
@@ -32,6 +33,7 @@ RoomSummary _room(
   joinedMembers: joinedMembers,
   isDm: false,
   isEncrypted: false,
+  isSpace: isSpace,
 );
 
 EventInfo _event({
