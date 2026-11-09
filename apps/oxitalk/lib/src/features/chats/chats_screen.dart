@@ -21,6 +21,8 @@ import '../chat/threads.dart';
 import '../chat_info/chat_info.dart';
 import '../chat_info/room_notifications.dart';
 import '../chat_info/room_settings.dart';
+import '../spaces/space_state.dart';
+import '../spaces/space_widgets.dart';
 import 'badges.dart';
 import 'finders.dart';
 import 'list_filter.dart';
@@ -438,7 +440,7 @@ class _ChatListPaneState extends ConsumerState<ChatListPane> {
   /// Enter opens the first chat the filter left.
   void _openFirst() {
     if (_filter.text.trim().isEmpty) return;
-    final rooms = ref.read(roomsProvider(account)).value ?? const <Room>[];
+    final rooms = ref.read(visibleRoomsProvider(account)) ?? const <Room>[];
     final groups = filteredRoomGroups(
       ref,
       account,
@@ -453,7 +455,12 @@ class _ChatListPaneState extends ConsumerState<ChatListPane> {
   @override
   Widget build(BuildContext context) {
     final phone = widget.phone;
-    final rooms = ref.watch(roomsProvider(account)).value;
+    final allRooms = ref.watch(roomsProvider(account)).value;
+    // The current space's chats, or all of them.
+    final rooms = ref.watch(visibleRoomsProvider(account));
+    final space = ref.watch(currentSpaceProvider(account));
+    final hasSpaces =
+        (ref.watch(spacesProvider(account)).value ?? const []).isNotEmpty;
     final narrow = !phone && ref.watch(narrowListProvider);
     final railHidden = phone || ref.watch(railHiddenProvider);
     final filter = ref.watch(listFilterProvider(account));
@@ -489,6 +496,7 @@ class _ChatListPaneState extends ConsumerState<ChatListPane> {
                     account: account,
                     compact: true,
                     withAppItems: railHidden,
+                    withSpaces: railHidden,
                   ),
                   narrowButton,
                 ],
@@ -506,18 +514,25 @@ class _ChatListPaneState extends ConsumerState<ChatListPane> {
               ),
         actions: [if (!phone && !narrow) narrowButton],
       ),
-      body: switch (rooms) {
+      body: switch (allRooms) {
         null => const Center(child: CircularProgressIndicator()),
-        [] => Center(child: Text(narrow ? '—' : 'No chats yet')),
-        // Pictures only: no room for a field, and the whole list shows.
-        final rooms when narrow => _RoomList(
+        [] when !hasSpaces => Center(
+          child: Text(narrow ? '—' : 'No chats yet'),
+        ),
+        // Pictures only: no room for a field, and the whole list shows. The space is picked
+        // on the rail, or in the account menu with the rail hidden.
+        _ when narrow => _RoomList(
           account: account,
-          rooms: rooms,
+          rooms: rooms ?? const [],
+          allRooms: allRooms,
+          space: space,
           selectedRoomId: widget.selectedRoomId,
           narrow: true,
         ),
-        final rooms => Column(
+        _ => Column(
           children: [
+            // Without the rail, the space is picked here.
+            if (railHidden) SpaceSelectorRow(account: account),
             ListFilterField(
               controller: _filter,
               focusNode: _filterFocus,
@@ -528,7 +543,9 @@ class _ChatListPaneState extends ConsumerState<ChatListPane> {
             Expanded(
               child: _RoomList(
                 account: account,
-                rooms: rooms,
+                rooms: rooms ?? const [],
+                allRooms: allRooms,
+                space: space,
                 selectedRoomId: widget.selectedRoomId,
                 filter: filter,
               ),
@@ -654,19 +671,30 @@ List<RoomGroup> filteredRoomGroups(
 
 /// The rooms in their sections, each under a header that folds it; a plain list while every
 /// room is in Rooms, as in Element. While filtered, only the matching rooms, every section
-/// unfolded.
+/// unfolded. In a space, its chats, then a row to browse its rooms; while filtered there, a
+/// row that tells how many more chats match outside it.
 class _RoomList extends ConsumerWidget {
   const _RoomList({
     required this.account,
     required this.rooms,
     required this.selectedRoomId,
+    this.allRooms = const [],
+    this.space,
     this.narrow = false,
     this.filter = '',
   });
 
   final String account;
+
+  /// The chats shown: [space]'s, or all.
   final List<Room> rooms;
   final String? selectedRoomId;
+
+  /// Every chat of the account, for what the filter finds outside [space].
+  final List<Room> allRooms;
+
+  /// The space the list shows; `null` for all chats.
+  final Space? space;
 
   /// Pictures and short names only: no section headers, every room in section order.
   final bool narrow;
@@ -676,6 +704,7 @@ class _RoomList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final sections =
         ref.watch(sectionsProvider(account)).value ?? const Sections();
     final filtering = filter.trim().isNotEmpty;
@@ -689,32 +718,44 @@ class _RoomList extends ConsumerWidget {
     final groups = filtering
         ? filteredRoomGroups(ref, account, rooms, filter)
         : all;
-    if (groups.isEmpty) {
-      final theme = Theme.of(context);
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Text(
-            'No chats match',
-            key: const Key('list.filter.empty'),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: context.oxi.muted,
-            ),
-          ),
+    final space = this.space;
+    // Matches outside the space, which the filter doesn't show here.
+    final elsewhere = space != null && filtering
+        ? _count(filteredRoomGroups(ref, account, allRooms, filter)) -
+              _count(groups)
+        : 0;
+    Widget note(String text, Key key) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Text(
+          text,
+          key: key,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(color: context.oxi.muted),
         ),
-      );
-    }
+      ),
+    );
     final movable = movableOrder(sections);
     final items = <Object>[
+      if (groups.isEmpty)
+        filtering
+            ? const _Note('No chats match', Key('list.filter.empty'))
+            : space != null
+            ? const _Note('No chats in this space yet', Key('spaces.empty'))
+            : const _Note('No chats yet', Key('list.empty')),
       for (final group in groups) ...[
         if (!flat) group,
         if (flat || !collapsed.contains(group.tag)) ...group.rooms,
       ],
+      if (elsewhere > 0) _Elsewhere(elsewhere),
+      if (space != null && !filtering) space,
     ];
     return ListView.builder(
       itemCount: items.length,
       itemBuilder: (context, index) => switch (items[index]) {
+        final _Note text =>
+          narrow ? const SizedBox.shrink() : note(text.text, text.key),
         final RoomGroup group => SectionHeader(
           account: account,
           group: group,
@@ -730,10 +771,46 @@ class _RoomList extends ConsumerWidget {
           narrow: narrow,
           selected: room.id == selectedRoomId,
         ),
+        final _Elsewhere more => ListTile(
+          key: const Key('spaces.moreInAll'),
+          leading: const SizedBox(width: 48, child: Icon(Icons.layers_rounded)),
+          title: Text(
+            '${more.count} more in All chats',
+            style: TextStyle(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          onTap: () =>
+              ref.read(selectedSpaceProvider(account).notifier).select(null),
+        ),
+        final Space space => BrowseSpaceRow(
+          account: account,
+          space: space,
+          narrow: narrow,
+        ),
         _ => const SizedBox.shrink(),
       },
     );
   }
+
+  static int _count(List<RoomGroup> groups) =>
+      groups.fold(0, (sum, group) => sum + group.rooms.length);
+}
+
+/// A line of text in the list where there are no chats.
+final class _Note {
+  const _Note(this.text, this.key);
+
+  final String text;
+  final Key key;
+}
+
+/// The filter's matches outside the space.
+final class _Elsewhere {
+  const _Elsewhere(this.count);
+
+  final int count;
 }
 
 /// The field above the chat list that filters it as the user types: flat and bevelled
@@ -1106,6 +1183,10 @@ class RoomTile extends ConsumerWidget {
       ),
       title: Row(
         children: [
+          if (room.isSpace) ...[
+            SpaceLabel(key: Key('spaceLabel.${room.id}')),
+            const SizedBox(width: 6),
+          ],
           if (room.isEncrypted) ...[
             Icon(Icons.lock_rounded, size: 13, color: palette.muted),
             const SizedBox(width: 4),
@@ -1144,7 +1225,9 @@ class RoomTile extends ConsumerWidget {
                     )
                   : TextSpan(
                       text: invited
-                          ? 'Invitation — tap to see it'
+                          ? room.isSpace
+                                ? 'Space invitation — tap to see it'
+                                : 'Invitation — tap to see it'
                           : typing ?? room.lastMessage ?? '',
                     ),
               key: draft != null ? Key('draft.${room.id}') : null,
@@ -1223,6 +1306,31 @@ class RoomTile extends ConsumerWidget {
   /// Opens the chat; an invitation opens its preview, which accepts or declines it.
   Future<void> _open(BuildContext context, WidgetRef ref) async =>
       GoRouter.of(context).go(Routes.room(room.id));
+}
+
+/// The tag before the name of a space in the list (only invitations to one show there).
+class SpaceLabel extends StatelessWidget {
+  const SpaceLabel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.oxi.muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: ShapeDecoration(
+        shape: OxiShapes.cut(3, side: BorderSide(color: muted)),
+      ),
+      child: Text(
+        'Space',
+        style: TextStyle(
+          color: muted,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+        ),
+      ),
+    );
+  }
 }
 
 void showFailure(BuildContext context, String what, MatrixFailure failure) =>

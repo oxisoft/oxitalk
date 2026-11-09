@@ -90,6 +90,24 @@ class CountBadge extends StatelessWidget {
   Widget build(BuildContext context) => _Pill(text: badgeCount(count));
 }
 
+/// [badge] as a tag beside a name, for something that isn't a room (a space): a red
+/// count, or a yellow @ with it for a mention; nothing otherwise.
+class BadgeTag extends StatelessWidget {
+  const BadgeTag({required this.badge, super.key});
+
+  final RoomBadge badge;
+
+  @override
+  Widget build(BuildContext context) => switch (badge.kind) {
+    BadgeKind.mention => _Pill(
+      text: badge.count > 0 ? '@ ${badgeCount(badge.count)}' : '@',
+      mention: true,
+    ),
+    BadgeKind.notifying => _Pill(text: badgeCount(badge.count)),
+    _ => const SizedBox.shrink(),
+  };
+}
+
 /// A count in a small tag with cut corners: red under white, or yellow under ink for a
 /// mention.
 class _Pill extends StatelessWidget {

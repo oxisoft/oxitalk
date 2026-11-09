@@ -8,6 +8,7 @@ import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
+import '../spaces/space_state.dart';
 
 /// Leaving rooms and answering invitations, for one account: each asks first where Element
 /// does, and failures show as a snack bar. A room left or declined drops out of the list;
@@ -59,12 +60,20 @@ final class MembershipActions {
     return true;
   }
 
-  /// Joins the room [roomId] the user was invited to; it opens as a chat.
+  /// Joins the room [roomId] the user was invited to; it opens as a chat. A space has no
+  /// chat: the list shows it instead, once it is among the spaces.
   Future<void> accept(String roomId) async {
     final session = _session;
     if (session == null) return;
     final router = GoRouter.of(_context);
     final messenger = ScaffoldMessenger.of(_context);
+    final isSpace =
+        _ref
+            .read(roomsProvider(_account))
+            .value
+            ?.any((room) => room.id == roomId && room.isSpace) ??
+        false;
+    final selected = _ref.read(selectedSpaceProvider(_account).notifier);
     try {
       await session.join(roomId);
     } on MatrixFailure catch (failure) {
@@ -73,7 +82,12 @@ final class MembershipActions {
       );
       return;
     }
-    router.go(Routes.room(roomId));
+    if (isSpace) {
+      selected.select(roomId);
+      router.go(Routes.chats);
+    } else {
+      router.go(Routes.room(roomId));
+    }
   }
 
   /// Asks, then declines the invitation to [roomId]. Returns whether it declined.

@@ -13,6 +13,8 @@ import '../../app/theme.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
 import '../about/about_screen.dart';
+import '../spaces/space_state.dart';
+import '../spaces/space_widgets.dart';
 
 /// Ctrl on Linux and Windows, Cmd on Apple platforms.
 bool get _isApple =>
@@ -29,7 +31,8 @@ List<String> _accountIds(WidgetRef ref) => [
 ];
 
 /// The accounts down the left edge of a wide window: tap one to bring it to the front,
-/// right-click it to log out. At the bottom: hiding the rail, Settings and About.
+/// right-click it to log out. Under them, after a line, the active account's spaces (if it
+/// has any). At the bottom: hiding the rail, Settings and About.
 class AccountRail extends ConsumerWidget {
   const AccountRail({super.key});
 
@@ -55,6 +58,7 @@ class AccountRail extends ConsumerWidget {
                     for (final (index, id) in ids.indexed)
                       _RailAccount(id: id, index: index, active: id == active),
                     const Center(child: _AddAccountButton()),
+                    if (active != null) RailSpaces(account: active),
                   ],
                 ),
               ),
@@ -380,12 +384,15 @@ class _ServerLetter extends StatelessWidget {
 
 /// The account in front, in the chat list's header: its picture and name (and, while not
 /// online, what the connection is doing). A click lists every account to switch to, adding
-/// one, and logging out of this one; with [withAppItems] also Settings and About.
+/// one, and logging out of this one; with [withAppItems] also Settings and About, with
+/// [withSpaces] also the account's spaces to pick (the rail and the space selector being
+/// hidden). Compact, the picture carries the selected space's.
 class AccountDropdown extends ConsumerWidget {
   const AccountDropdown({
     required this.account,
     this.compact = false,
     this.withAppItems = false,
+    this.withSpaces = false,
     super.key,
   });
 
@@ -396,6 +403,9 @@ class AccountDropdown extends ConsumerWidget {
 
   /// Settings and About, which are at the bottom of the rail while it shows.
   final bool withAppItems;
+
+  /// All chats and the spaces, which are on the rail while it shows.
+  final bool withSpaces;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -414,6 +424,9 @@ class AccountDropdown extends ConsumerWidget {
     final othersUnread = _accountIds(ref)
         .where((id) => id != account)
         .any((id) => ref.watch(unreadCountProvider(id)) > 0);
+    // On the narrow list nothing else says the list is a space's.
+    final space = compact ? ref.watch(currentSpaceProvider(account)) : null;
+    final picture = AccountPicture(account: account, radius: 16);
     return Tooltip(
       message: 'Accounts',
       child: InkWell(
@@ -429,7 +442,31 @@ class AccountDropdown extends ConsumerWidget {
                 isLabelVisible: othersUnread,
                 smallSize: 10,
                 backgroundColor: OxiBrand.red,
-                child: AccountPicture(account: account, radius: 16),
+                child: space == null
+                    ? picture
+                    : Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          picture,
+                          Positioned(
+                            left: -4,
+                            bottom: -4,
+                            child: Container(
+                              key: const Key('account.dropdown.space'),
+                              padding: const EdgeInsets.all(1.5),
+                              decoration: ShapeDecoration(
+                                color: theme.colorScheme.surface,
+                                shape: avatarShape(9.5),
+                              ),
+                              child: SpaceAvatar(
+                                account: account,
+                                space: space,
+                                radius: 8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
               if (!compact) ...[
                 const SizedBox(width: 10),
@@ -469,6 +506,46 @@ class AccountDropdown extends ConsumerWidget {
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final ids = _accountIds(ref);
     final notifier = ref.read(accountsProvider.notifier);
+    final spaces = withSpaces
+        ? ref.read(spacesProvider(account)).value ?? const <Space>[]
+        : const <Space>[];
+    final currentSpace = ref.read(currentSpaceProvider(account))?.id;
+    final selectSpace = ref.read(selectedSpaceProvider(account).notifier);
+    PopupMenuItem<VoidCallback> spaceItem(Space? space) => PopupMenuItem(
+      key: Key('accountMenu.space.${space?.id ?? 'all'}'),
+      value: () => selectSpace.select(space?.id),
+      child: Row(
+        children: [
+          const SizedBox(width: 2),
+          if (space == null)
+            const AllChatsAvatar(radius: 14)
+          else
+            SpaceBadge(
+              account: account,
+              spaceId: space.id,
+              child: SpaceAvatar(account: account, space: space, radius: 14),
+            ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              space?.name ?? 'All chats',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(
+            width: 28,
+            child: currentSpace == space?.id
+                ? Icon(
+                    Icons.check_rounded,
+                    key: Key('accountMenu.space.check.${space?.id ?? 'all'}'),
+                    color: Theme.of(context).colorScheme.primary,
+                  )
+                : null,
+          ),
+        ],
+      ),
+    );
     final action = await showMenu<VoidCallback>(
       context: context,
       position: RelativeRect.fromRect(
@@ -505,6 +582,20 @@ class AccountDropdown extends ConsumerWidget {
               ],
             ),
           ),
+        if (spaces.isNotEmpty) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            key: const Key('accountMenu.spaces'),
+            enabled: false,
+            height: 32,
+            child: Text(
+              'Spaces',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+          spaceItem(null),
+          for (final space in spaces) spaceItem(space),
+        ],
         const PopupMenuDivider(),
         PopupMenuItem(
           key: const Key('accountMenu.add'),
@@ -548,7 +639,9 @@ class AccountDropdown extends ConsumerWidget {
 }
 
 /// Ctrl+1…9 (Cmd on Apple platforms) brings account 1–9 to the front, Ctrl+Shift+↑/↓ the
-/// previous or next one. Handled before the focused widget, so it works while typing too.
+/// previous or next one, Ctrl+Alt+↑/↓ (Cmd+Option) the previous or next space of the account
+/// in front (All chats among them). Handled before the focused widget, so it works while
+/// typing too.
 class AccountHotkeys extends ConsumerStatefulWidget {
   const AccountHotkeys({required this.child, super.key});
 
@@ -589,9 +682,22 @@ class _AccountHotkeysState extends ConsumerState<AccountHotkeys> {
     final modifier = _isApple
         ? keyboard.isMetaPressed
         : keyboard.isControlPressed;
-    if (!modifier || keyboard.isAltPressed) return false;
+    if (!modifier) return false;
     final accounts = ref.read(accountsProvider).value;
     if (accounts == null || accounts.sessions.isEmpty) return false;
+    final arrow = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => -1,
+      LogicalKeyboardKey.arrowDown => 1,
+      _ => 0,
+    };
+    if (keyboard.isAltPressed) {
+      final active = accounts.activeId;
+      if (arrow == 0 || keyboard.isShiftPressed || active == null) return false;
+      final spaces = ref.read(spacesProvider(active)).value ?? const <Space>[];
+      if (spaces.isEmpty) return false;
+      ref.read(selectedSpaceProvider(active).notifier).cycle(arrow);
+      return true;
+    }
     final ids = [for (final session in accounts.sessions) session.userId];
     final notifier = ref.read(accountsProvider.notifier);
 

@@ -15,6 +15,7 @@ import '../features/chats/chats_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/share/share_inbox.dart';
 import '../features/share/share_screen.dart';
+import '../features/spaces/space_state.dart';
 import '../features/verify/verify_screen.dart';
 import '../matrix/api/matrix.dart';
 import 'providers.dart';
@@ -340,7 +341,9 @@ GoRouter router(Ref ref) {
       ),
     ],
   );
-  // Remembers the open chat as it changes; the list alone means none.
+  // Remembers the open chat as it changes; the list alone means none. A chat opened from
+  // outside the space the list shows (a notification, a link, Send to…, a new chat) brings
+  // all chats back, so the open chat is always in the list.
   void remember() {
     final account = ref.read(activeAccountProvider);
     final state = router.state;
@@ -350,6 +353,7 @@ GoRouter router(Ref ref) {
       unawaited(prefs.setLastRoom(account, null));
     } else if (state.pathParameters['roomId'] case final room?) {
       unawaited(prefs.setLastRoom(account, room));
+      ref.read(selectedSpaceProvider(account).notifier).reveal(room);
     }
   }
 

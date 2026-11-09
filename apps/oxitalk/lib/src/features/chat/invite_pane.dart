@@ -59,7 +59,13 @@ class InvitePane extends ConsumerWidget {
         leading: showBack
             ? BackButton(onPressed: () => context.go(Routes.chats))
             : null,
-        title: Text(isDm ? 'Chat invitation' : 'Room invitation'),
+        title: Text(
+          isDm
+              ? 'Chat invitation'
+              : room.isSpace
+              ? 'Space invitation'
+              : 'Room invitation',
+        ),
       ),
       body: ColoredBox(
         color: context.oxi.wallpaper,

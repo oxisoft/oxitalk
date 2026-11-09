@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/chats/badges.dart';
+import '../features/spaces/space_state.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -67,7 +68,9 @@ class AppTitleBar extends ConsumerWidget {
   }
 }
 
-/// The app's picture and name, the account in front (its user ID), then the open chat's name.
+/// The app's picture and name, the account in front (its user ID), the space its list
+/// shows (none for all chats), then the open chat's name. Where the bar is too narrow, the
+/// space's name is shortened first, then the account's and the chat's.
 class _Title extends ConsumerWidget {
   const _Title({required this.roomId});
 
@@ -86,79 +89,177 @@ class _Title extends ConsumerWidget {
             .firstOrNull,
       _ => null,
     };
+    final space = account == null
+        ? null
+        : ref.watch(currentSpaceProvider(account));
     const muted = OxiColors.titleBarMuted;
+    final mutedStyle = theme.textTheme.bodyMedium?.copyWith(color: muted);
+    final roomStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: OxiColors.titleBarText,
+    );
     // The whole account, user and server (@bkv:chat.oxisoft.net), not just a name.
     final accountName = account;
+    const chevronStyle = TextStyle(
+      color: OxiBrand.yellow,
+      fontWeight: FontWeight.w800,
+      fontSize: 16,
+      height: 1,
+    );
     Widget chevron() => const Padding(
       padding: EdgeInsets.symmetric(horizontal: 10),
-      child: Text(
-        '›',
-        style: TextStyle(
-          color: OxiBrand.yellow,
-          fontWeight: FontWeight.w800,
-          fontSize: 16,
-          height: 1,
+      child: Text('›', style: chevronStyle),
+    );
+    final appStyle = theme.textTheme.titleSmall?.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.3,
+    );
+    final lead = [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(5),
+        child: Image.asset(
+          'assets/branding/oxitalk-icon-96.png',
+          width: 20,
+          height: 20,
+          filterQuality: FilterQuality.medium,
         ),
       ),
-    );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(5),
-          child: Image.asset(
-            'assets/branding/oxitalk-icon-96.png',
-            width: 20,
-            height: 20,
-            filterQuality: FilterQuality.medium,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'OxiTalk',
-          key: const Key('titleBar.app'),
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-          ),
-        ),
-        if (accountName != null) ...[
-          chevron(),
-          Flexible(
-            child: Text(
-              accountName,
-              key: const Key('titleBar.account'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(color: muted),
-            ),
-          ),
-        ],
-        if (room != null) ...[
-          chevron(),
-          if (room.isEncrypted) ...[
-            const Icon(Icons.lock_rounded, size: 13, color: muted),
-            const SizedBox(width: 4),
-          ],
-          Flexible(
-            child: Text(
-              room.name,
-              key: const Key('titleBar.room'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: OxiColors.titleBarText,
+      const SizedBox(width: 8),
+      Text('OxiTalk', key: const Key('titleBar.app'), style: appStyle),
+    ];
+    if (accountName == null) {
+      return Row(mainAxisAlignment: MainAxisAlignment.center, children: lead);
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context);
+        double widthOf(String text, TextStyle? style) {
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: style),
+            textDirection: Directionality.of(context),
+            textScaler: scale,
+            maxLines: 1,
+          )..layout();
+          final width = painter.width;
+          painter.dispose();
+          return width.ceilToDouble() + 1;
+        }
+
+        // What isn't a name: the picture, OxiTalk, the chevrons and the room's icons.
+        final chevrons = 1 + (space != null ? 1 : 0) + (room != null ? 1 : 0);
+        final fixed =
+            28 +
+            widthOf('OxiTalk', appStyle) +
+            chevrons * (20 + widthOf('›', chevronStyle)) +
+            (room?.isEncrypted ?? false ? 17 : 0) +
+            (room?.isMuted ?? false ? 20 : 0);
+        final names = TitleWidths.fit(
+          // A little room to spare for rounding.
+          available: constraints.maxWidth - fixed - 4,
+          account: widthOf(accountName, mutedStyle),
+          space: space == null ? 0 : widthOf(space.name, mutedStyle),
+          room: room == null ? 0 : widthOf(room.name, roomStyle),
+        );
+        Widget name(String text, Key key, TextStyle? style, double width) =>
+            SizedBox(
+              width: width,
+              child: Text(
+                text,
+                key: key,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
               ),
+            );
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ...lead,
+            chevron(),
+            name(
+              accountName,
+              const Key('titleBar.account'),
+              mutedStyle,
+              names.account,
             ),
-          ),
-          if (room.isMuted) ...[
-            const SizedBox(width: 6),
-            MutedIcon(key: const Key('titleBar.muted'), size: 14, color: muted),
+            if (space != null) ...[
+              chevron(),
+              name(
+                space.name,
+                const Key('titleBar.space'),
+                mutedStyle,
+                names.space,
+              ),
+            ],
+            if (room != null) ...[
+              chevron(),
+              if (room.isEncrypted) ...[
+                const Icon(Icons.lock_rounded, size: 13, color: muted),
+                const SizedBox(width: 4),
+              ],
+              name(
+                room.name,
+                const Key('titleBar.room'),
+                roomStyle,
+                names.room,
+              ),
+              if (room.isMuted) ...[
+                const SizedBox(width: 6),
+                MutedIcon(
+                  key: const Key('titleBar.muted'),
+                  size: 14,
+                  color: muted,
+                ),
+              ],
+            ],
           ],
-        ],
-      ],
+        );
+      },
     );
+  }
+}
+
+/// How wide the title bar's names are drawn: each as wide as it is while they fit; else
+/// the space's is shortened first (down to [spaceMin]), then the account's and the chat's
+/// share what is left, each at least its half of it.
+final class TitleWidths {
+  const TitleWidths(this.account, this.space, this.room);
+
+  final double account;
+  final double space;
+  final double room;
+
+  /// The narrowest a shortened space's name gets before the others give way.
+  static const spaceMin = 48.0;
+
+  static TitleWidths fit({
+    required double available,
+    required double account,
+    required double space,
+    required double room,
+  }) {
+    final room0 = room;
+    var left = available < 0 ? 0.0 : available;
+    if (account + space + room <= left) {
+      return TitleWidths(account, space, room);
+    }
+    // The space first.
+    final spaceFloor = space < spaceMin ? space : spaceMin;
+    final spaceWidth = (left - account - room).clamp(spaceFloor, space);
+    left = (left - spaceWidth).clamp(0, double.infinity).toDouble();
+    if (account + room <= left) {
+      return TitleWidths(account, spaceWidth.toDouble(), room);
+    }
+    // Then the account and the chat: each keeps what it needs up to half, the other takes
+    // the rest.
+    final half = left / 2;
+    final accountWidth = account <= half
+        ? account
+        : room0 <= half
+        ? left - room0
+        : half;
+    final roomWidth = (left - accountWidth).clamp(0, room0).toDouble();
+    return TitleWidths(accountWidth, spaceWidth.toDouble(), roomWidth);
   }
 }
 
