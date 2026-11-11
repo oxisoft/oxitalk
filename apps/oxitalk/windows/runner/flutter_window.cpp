@@ -1,5 +1,7 @@
 #include "flutter_window.h"
 
+#include <flutter/standard_method_codec.h>
+
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -27,6 +29,30 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  // A second launch (a clicked matrix: link) finds this window by the property and hands
+  // its link over with WM_COPYDATA.
+  ::SetPropW(GetHandle(), kWindowProperty, reinterpret_cast<HANDLE>(1));
+  links_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "io.oxisoft.oxitalk/links",
+          &flutter::StandardMethodCodec::GetInstance());
+  links_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() != "takeLink") {
+          result->NotImplemented();
+          return;
+        }
+        if (pending_link_.empty()) {
+          result->Success();
+          return;
+        }
+        result->Success(flutter::EncodableValue(pending_link_));
+        pending_link_.clear();
+      });
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -40,6 +66,8 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  ::RemovePropW(GetHandle(), kWindowProperty);
+  links_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -51,6 +79,20 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // A link from a second launch (see main.cpp).
+  if (message == WM_COPYDATA) {
+    const auto* data = reinterpret_cast<const COPYDATASTRUCT*>(lparam);
+    if (data != nullptr && data->dwData == kLinkMessage &&
+        data->lpData != nullptr && data->cbData > 0 && data->cbData <= 8192) {
+      pending_link_.assign(static_cast<const char*>(data->lpData),
+                           data->cbData);
+      if (links_channel_) {
+        links_channel_->InvokeMethod("linkArrived", nullptr);
+      }
+      return TRUE;
+    }
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
