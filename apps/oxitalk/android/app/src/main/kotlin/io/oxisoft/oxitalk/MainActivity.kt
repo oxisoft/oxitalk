@@ -1,11 +1,14 @@
 package io.oxisoft.oxitalk
 
 import android.content.Intent
+import android.content.pm.verify.domain.DomainVerificationManager
+import android.content.pm.verify.domain.DomainVerificationUserState
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -18,9 +21,18 @@ import java.util.concurrent.Executors
  * videos, text, links) is copied into the app's cache, since the content:// grant ends with
  * the share, and handed to Flutter on the "io.oxisoft.oxitalk/share" channel: Flutter asks
  * with takeShared; sharedArrived tells it something came while it runs.
+ *
+ * Also the target of matrix.to and matrix: links (VIEW intents): the link waits for Flutter
+ * on the "io.oxisoft.oxitalk/links" channel (takeLink; linkArrived while it runs), which also
+ * tells whether the user let OxiTalk open matrix.to links (opensMatrixTo) and opens that
+ * system setting (openLinkSettings).
  */
 class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
+    private var links: MethodChannel? = null
+
+    /** The last link opened with the app, until Flutter takes it; main thread only. */
+    private var pendingLink: String? = null
     private val copier = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
@@ -38,6 +50,73 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+        links = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LINKS).apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "takeLink" -> {
+                        result.success(pendingLink)
+                        pendingLink = null
+                    }
+                    "opensMatrixTo" -> result.success(opensMatrixTo())
+                    "openLinkSettings" -> {
+                        openLinkSettings()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether matrix.to links open here: Android 12+ opens unverified web links in the
+     * browser until the user selects the app for them (Open by default).
+     */
+    private fun opensMatrixTo(): Boolean {
+        val manager = getSystemService(DomainVerificationManager::class.java) ?: return false
+        val state: DomainVerificationUserState? = try {
+            manager.getDomainVerificationUserState(packageName)
+        } catch (e: Exception) {
+            null
+        }
+        if (state == null) return false
+        if (!state.isLinkHandlingAllowed) return false
+        return when (state.hostToStateMap[MATRIX_TO]) {
+            DomainVerificationUserState.DOMAIN_STATE_SELECTED,
+            DomainVerificationUserState.DOMAIN_STATE_VERIFIED -> true
+            else -> false
+        }
+    }
+
+    private fun openLinkSettings() {
+        val intent = Intent(
+            Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS,
+            Uri.parse("package:$packageName"),
+        )
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$packageName"),
+                ),
+            )
+        }
+    }
+
+    /** A matrix.to or matrix: link from a VIEW intent, kept for Flutter; `true` if it was one. */
+    private fun receiveLink(intent: Intent): Boolean {
+        if (intent.action != Intent.ACTION_VIEW) return false
+        val uri = intent.data ?: return false
+        val isLink = uri.scheme == "matrix" ||
+            ((uri.scheme == "https" || uri.scheme == "http") && uri.host == MATRIX_TO)
+        if (!isLink) return false
+        // Handled once: a later recreation of the activity must not open it again.
+        intent.action = Intent.ACTION_MAIN
+        pendingLink = uri.toString()
+        links?.invokeMethod("linkArrived", null)
+        return true
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,6 +146,7 @@ class MainActivity : FlutterActivity() {
 
     private fun receive(intent: Intent?) {
         if (intent == null) return
+        if (receiveLink(intent)) return
         val action = intent.action
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
         val uris = sharedUris(intent, action)
@@ -152,5 +232,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "io.oxisoft.oxitalk/share"
+        private const val LINKS = "io.oxisoft.oxitalk/links"
+        private const val MATRIX_TO = "matrix.to"
     }
 }

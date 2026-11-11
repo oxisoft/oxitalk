@@ -34,6 +34,10 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Links are handled by MainActivity on the links channel, not by Flutter's own
+                 deep linking (on by default since Flutter 3.27), which would hand the URL to
+                 the router. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -51,6 +55,23 @@
                 <action android:name="android.intent.action.SEND_MULTIPLE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="*/*"/>
+            </intent-filter>
+            <!-- matrix.to links: unverified (only matrix.to's owner could verify an app), so
+                 Android 12+ opens them here only once the user selects OxiTalk under Open by
+                 default; Settings › Messages leads there. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="matrix.to"/>
+            </intent-filter>
+            <!-- matrix: URIs (MSC2312), as matrix.to's page and other apps hand them over. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="matrix"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
