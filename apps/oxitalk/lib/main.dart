@@ -11,6 +11,7 @@ import 'src/app/account_pictures.dart';
 import 'src/app/app.dart';
 import 'src/app/collapsed_sections.dart';
 import 'src/app/diagnostics.dart';
+import 'src/app/link_inbox.dart';
 import 'src/app/linux_desktop_entry.dart';
 import 'src/app/media_prefs.dart';
 import 'src/app/providers.dart';
@@ -21,7 +22,7 @@ import 'src/rust/frb_generated.dart';
 import 'src/util/log.dart';
 
 /// [args]: files and links named on the command line, as Open with passes them on Linux and
-/// Windows; they go to "Send to…".
+/// Windows; they go to "Send to…", except a matrix.to or `matrix:` link, which opens.
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // GNOME and other Wayland desktops show the name and icon of an installed entry only.
@@ -59,6 +60,7 @@ Future<void> main(List<String> args) async {
         mediaPrefsProvider.overrideWithValue(mediaPrefs),
         uiPrefsProvider.overrideWithValue(uiPrefs),
         shareSourceProvider.overrideWithValue(PlatformShareSource(args: args)),
+        linkSourceProvider.overrideWithValue(PlatformLinkSource(args: args)),
         accountPicturesProvider.overrideWithValue(FileAccountPictures(dataDir)),
         collapsedSectionsStoreProvider.overrideWithValue(
           FileCollapsedSections(dataDir),

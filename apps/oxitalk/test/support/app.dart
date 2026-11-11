@@ -6,6 +6,7 @@ import 'package:oxitalk/src/app/app.dart';
 import 'package:oxitalk/src/app/collapsed_sections.dart';
 import 'package:oxitalk/src/app/diagnostics.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
+import 'package:oxitalk/src/app/link_inbox.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
 import 'package:oxitalk/src/app/notification_service.dart';
 import 'package:oxitalk/src/app/os_notifications.dart';
@@ -49,6 +50,8 @@ Future<void> pumpApp(
   bool video = false,
   FakeRinger? ringer,
   FakeShareSource? share,
+  FakeLinkSource? links,
+  FakeLinkSettings? linkSettings,
 }) async {
   tester.view
     ..physicalSize = size
@@ -88,6 +91,10 @@ Future<void> pumpApp(
         callMediaFactoryProvider.overrideWithValue(FakeCallMedia.create),
         ringerProvider.overrideWithValue(ringer ?? FakeRinger()),
         shareSourceProvider.overrideWithValue(share ?? FakeShareSource()),
+        linkSourceProvider.overrideWithValue(links ?? FakeLinkSource()),
+        linkSettingsProvider.overrideWithValue(
+          linkSettings ?? FakeLinkSettings(),
+        ),
         // No ticking clock: it would keep pumpAndSettle busy.
         callTickerProvider.overrideWith((ref) => const Stream.empty()),
       ],

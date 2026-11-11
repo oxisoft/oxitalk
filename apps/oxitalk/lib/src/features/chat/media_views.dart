@@ -5,6 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/matrix_link.dart';
+import '../../app/matrix_links.dart';
 import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
@@ -174,6 +176,10 @@ class MediaMessageView extends ConsumerWidget {
 }
 
 void _openLink(WidgetRef ref, String url) {
+  if (isMatrixLink(url)) {
+    openMatrixLinkInApp(ref, url);
+    return;
+  }
   final uri = Uri.tryParse(url);
   if (uri != null) unawaited(ref.read(fileActionsProvider).launch(uri));
 }

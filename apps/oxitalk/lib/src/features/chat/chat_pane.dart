@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/matrix_link.dart';
+import '../../app/matrix_links.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
@@ -722,7 +724,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                 label: 'Open in browser',
                 onPressed: () {
                   region.hideToolbar();
-                  _openLink(link);
+                  _openLink(link, browser: true);
                 },
               ),
             ],
@@ -1066,7 +1068,13 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         ),
       );
 
-  void _openLink(String url) {
+  /// A matrix.to or `matrix:` link opens in OxiTalk; others (and any with [browser], the
+  /// context menu's Open in browser) in the browser.
+  void _openLink(String url, {bool browser = false}) {
+    if (!browser && isMatrixLink(url)) {
+      openMatrixLinkInApp(ref, url);
+      return;
+    }
     final uri = Uri.tryParse(url);
     if (uri != null) unawaited(ref.read(fileActionsProvider).launch(uri));
   }

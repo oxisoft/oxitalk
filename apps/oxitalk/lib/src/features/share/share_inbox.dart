@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/matrix_link.dart';
 import '../../util/log.dart';
 
 /// What another app shared into OxiTalk (the system's share sheet, Open with, a file dropped
@@ -62,8 +63,9 @@ final class SharedItems {
 }
 
 /// The files and links named on the command line, as Linux's and Windows' Open with pass
-/// them (`oxitalk %U`): existing files by path or `file://` URI, web links as text; options
-/// and anything else are left out.
+/// them (`oxitalk %U`): existing files by path or `file://` URI, web links as text; options,
+/// matrix.to and `matrix:` links (they open, see `linkFromArgs`) and anything else are left
+/// out.
 SharedItems sharedFromArgs(
   List<String> args, {
   bool Function(String path)? isFile,
@@ -72,7 +74,7 @@ SharedItems sharedFromArgs(
   final paths = <String>[];
   final links = <String>[];
   for (final arg in args) {
-    if (arg.isEmpty || arg.startsWith('-')) continue;
+    if (arg.isEmpty || arg.startsWith('-') || isMatrixLink(arg)) continue;
     if (arg.startsWith('http://') || arg.startsWith('https://')) {
       links.add(arg);
       continue;

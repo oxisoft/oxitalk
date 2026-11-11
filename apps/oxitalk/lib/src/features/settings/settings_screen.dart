@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/link_inbox.dart';
 import '../../app/media_prefs.dart';
 import '../../app/pick_image.dart';
 import '../../app/providers.dart';
@@ -900,8 +902,39 @@ class _MessageSettings extends ConsumerWidget {
         onChanged: (on) =>
             ref.read(showMembershipEventsProvider.notifier).set(on: on),
       ),
+      if (defaultTargetPlatform == TargetPlatform.android)
+        const _MatrixToLinksTile(),
     ],
   );
+}
+
+/// Android: whether matrix.to links open in OxiTalk, which only the user can turn on
+/// (matrix.to isn't ours to verify the app for); a tap opens the system's Open by default.
+class _MatrixToLinksTile extends ConsumerWidget {
+  const _MatrixToLinksTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(opensMatrixToProvider).value;
+    if (on == null) return const SizedBox.shrink();
+    return ListTile(
+      key: const Key('settings.matrixToLinks'),
+      title: const Text('Open matrix.to links in OxiTalk'),
+      subtitle: Text(
+        on
+            ? 'On: links to rooms and people open here, not in the browser.'
+            : 'Off: Android opens them in the browser. Turn on matrix.to '
+                  'under Open by default.',
+      ),
+      trailing: Text(
+        on ? 'On' : 'Off',
+        key: const Key('settings.matrixToLinks.state'),
+        style: TextStyle(color: on ? null : context.oxi.muted),
+      ),
+      onTap: () =>
+          unawaited(ref.read(linkSettingsProvider).openSystemSettings()),
+    );
+  }
 }
 
 class _DiagnosticsSettings extends ConsumerWidget {
