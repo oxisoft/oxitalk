@@ -39,7 +39,19 @@
 				<string>oxitalk-share</string>
 			</array>
 		</dict>
+		<dict>
+			<!-- matrix: links (MSC2312), as matrix.to's page and other apps hand them over. -->
+			<key>CFBundleURLName</key>
+			<string>io.oxisoft.oxitalk.matrix</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>matrix</string>
+			</array>
+		</dict>
 	</array>
+	<!-- Links go to the links channel (LinkInbox), not to Flutter's router. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

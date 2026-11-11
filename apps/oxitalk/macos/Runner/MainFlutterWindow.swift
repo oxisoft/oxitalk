@@ -39,6 +39,20 @@ class MainFlutterWindow: NSWindow {
     flutterViewController.registrar(forPlugin: "OxiTalkShare")
       .addApplicationDelegate(openedFiles)
 
+    // matrix: links opened with OxiTalk: kept until Dart takes them; linkArrived tells it
+    // one came.
+    let links = FlutterMethodChannel(
+      name: "io.oxisoft.oxitalk/links",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    openedFiles.links = links
+    links.setMethodCallHandler { [openedFiles] call, result in
+      guard call.method == "takeLink" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(openedFiles.takeLink())
+    }
+
     super.awakeFromNib()
   }
 
@@ -46,19 +60,32 @@ class MainFlutterWindow: NSWindow {
   private let openedFiles = OpenedFiles()
 }
 
-/// Receives the files macOS opens with the app (FlutterAppDelegate hands
-/// application(_:open:) to its plugins' application delegates).
+/// Receives the files and matrix: links macOS opens the app with (FlutterAppDelegate hands
+/// application(_:open:) to its plugins' application delegates, until one takes them).
 final class OpenedFiles: NSObject, FlutterAppLifecycleDelegate {
   var channel: FlutterMethodChannel?
+  var links: FlutterMethodChannel?
   private var paths: [String] = []
+  private var link: String?
 
   @objc(handleOpenURLs:)
   func handleOpen(_ urls: [URL]) -> Bool {
+    var handled = false
+    if let url = urls.first(where: { $0.scheme?.lowercased() == "matrix" }) {
+      link = url.absoluteString
+      links?.invokeMethod("linkArrived", arguments: nil)
+      handled = true
+    }
     let files = urls.filter(\.isFileURL).map(\.path)
-    if files.isEmpty { return false }
+    if files.isEmpty { return handled }
     for path in files where !paths.contains(path) { paths.append(path) }
     channel?.invokeMethod("sharedArrived", arguments: nil)
     return true
+  }
+
+  func takeLink() -> String? {
+    defer { link = nil }
+    return link
   }
 
   func take() -> [String: Any]? {

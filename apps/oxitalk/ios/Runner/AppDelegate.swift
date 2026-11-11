@@ -42,6 +42,62 @@ import UserNotifications
         result(SharedInbox.take())
       }
     }
+    // matrix: links opened with the app, for Dart to open the room (LinkInbox).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "OxiTalkLinks") {
+      LinkInbox.shared.attach(registrar)
+    }
+  }
+}
+
+/// matrix: links the system opens the app with: kept until Dart takes them (`takeLink` on
+/// `io.oxisoft.oxitalk/links`); `linkArrived` tells it one came while it runs. Gets them as a
+/// scene life-cycle delegate of the engine, which also hands over the link of a cold start.
+final class LinkInbox: NSObject, FlutterPlugin, FlutterSceneLifeCycleDelegate {
+  static let shared = LinkInbox()
+
+  private var channel: FlutterMethodChannel?
+  private var pending: String?
+
+  static func register(with registrar: FlutterPluginRegistrar) {}
+
+  func attach(_ registrar: FlutterPluginRegistrar) {
+    let channel = FlutterMethodChannel(
+      name: "io.oxisoft.oxitalk/links", binaryMessenger: registrar.messenger())
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "takeLink" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(self?.pending)
+      self?.pending = nil
+    }
+    self.channel = channel
+    registrar.addSceneDelegate(self)
+  }
+
+  /// Takes the first matrix: URL among [urls]; `false` for none (oxitalk-share and others
+  /// go on as before).
+  private func receive(_ urls: [URL]) -> Bool {
+    guard let url = urls.first(where: { $0.scheme?.lowercased() == "matrix" }) else {
+      return false
+    }
+    pending = url.absoluteString
+    channel?.invokeMethod("linkArrived", arguments: nil)
+    return true
+  }
+
+  @objc(scene:willConnectToSession:options:)
+  func scene(
+    _ scene: UIScene, willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions?
+  ) -> Bool {
+    guard let contexts = connectionOptions?.urlContexts else { return false }
+    return receive(contexts.map(\.url))
+  }
+
+  @objc(scene:openURLContexts:)
+  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) -> Bool {
+    return receive(URLContexts.map(\.url))
   }
 }
 

@@ -39,6 +39,21 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<!-- matrix: links (MSC2312), as matrix.to's page and other apps hand them over. -->
+			<key>CFBundleURLName</key>
+			<string>io.oxisoft.oxitalk.matrix</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>matrix</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Links go to the links channel (OpenedFiles), not to Flutter's router. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationCategoryType</key>
