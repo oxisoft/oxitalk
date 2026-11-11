@@ -1,0 +1,1 @@
+Attach on phones: the paperclip now asks what to send first. Gallery opens your photos and videos, Camera takes a photo, Video records one, and File picks any file as before.
