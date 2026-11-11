@@ -40,6 +40,11 @@ void main() {
         entry().readAsStringSync(),
         contains('StartupWMClass=io.oxisoft.oxitalk'),
       );
+      // matrix: links open in OxiTalk.
+      expect(
+        entry().readAsStringSync(),
+        contains('MimeType=x-scheme-handler/matrix;'),
+      );
       expect(icon().readAsBytesSync(), [1, 2, 3]);
       final theme = Directory('$dataHome/icons/hicolor');
       expect(

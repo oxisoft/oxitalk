@@ -8,5 +8,6 @@ Icon=io.oxisoft.oxitalk
 Terminal=false
 Categories=Network;InstantMessaging;Chat;
 Keywords=Matrix;Chat;Messenger;E2EE;
+MimeType=x-scheme-handler/matrix;
 StartupWMClass=io.oxisoft.oxitalk
 StartupNotify=true

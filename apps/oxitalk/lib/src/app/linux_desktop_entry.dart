@@ -3,7 +3,8 @@ import 'dart:io';
 /// The app's ID: the window's Wayland app ID and X11 class, set by the Linux runner.
 const linuxAppId = 'io.oxisoft.oxitalk';
 
-/// What the desktop entry says, for the binary at [executable].
+/// What the desktop entry says, for the binary at [executable]. It handles `matrix:` links:
+/// the desktop runs `oxitalk <link>`, which a running OxiTalk receives.
 String desktopEntry(String executable) =>
     '''
 [Desktop Entry]
@@ -16,6 +17,7 @@ Icon=$linuxAppId
 Terminal=false
 Categories=Network;InstantMessaging;Chat;
 Keywords=Matrix;Chat;Messenger;E2EE;
+MimeType=x-scheme-handler/matrix;
 StartupWMClass=$linuxAppId
 StartupNotify=true
 ''';
@@ -57,6 +59,7 @@ Future<void> registerLinuxDesktopEntry({
     if (!entry.existsSync() || await entry.readAsString() != text) {
       await entry.parent.create(recursive: true);
       await entry.writeAsString(text, flush: true);
+      await _updateMimeCache(entry.parent);
     }
   } on FileSystemException {
     // A read-only home and the like: the default icon it is.
@@ -90,6 +93,16 @@ Future<void> _announceIcons(Directory theme, File icon) async {
   final marker = File('${theme.path}/.oxitalk-icon-update');
   await marker.writeAsString('');
   await marker.delete();
+}
+
+/// Refreshes the folder's handler cache, which some desktops read for `matrix:` links (GIO
+/// reads the entries themselves); without the tool, nothing.
+Future<void> _updateMimeCache(Directory applications) async {
+  try {
+    await Process.run('update-desktop-database', [applications.path]);
+  } on ProcessException {
+    // Not installed.
+  }
 }
 
 bool _same(List<int> a, List<int> b) {

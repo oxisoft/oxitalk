@@ -1,5 +1,7 @@
 #include "my_application.h"
 
+#include <cstring>
+
 #include <flutter_linux/flutter_linux.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
@@ -12,6 +14,12 @@ struct _MyApplication {
   char** dart_entrypoint_arguments;
   // io.oxisoft.oxitalk/clipboard: writes images, which the pasteboard plugin can't on Linux.
   FlMethodChannel* clipboard_channel;
+  // io.oxisoft.oxitalk/links: the matrix.to or matrix: link of a second launch, which
+  // GApplication hands to this (the first) instance; takeLink gives it to Dart.
+  FlMethodChannel* links_channel;
+  gchar* pending_link;
+  // The window, once activated; cleared when it goes.
+  GtkWindow* window;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -48,6 +56,33 @@ static void clipboard_method_cb(FlMethodChannel* channel,
   fl_method_call_respond_success(method_call, nullptr, nullptr);
 }
 
+// Whether |arg| is a link OxiTalk opens (see lib/src/app/matrix_link.dart isMatrixLink).
+static gboolean is_matrix_link(const gchar* arg) {
+  if (arg == nullptr) return FALSE;
+  if (g_ascii_strncasecmp(arg, "matrix:", 7) == 0) return TRUE;
+  const gchar* prefixes[] = {"https://matrix.to/", "http://matrix.to/",
+                             "https://www.matrix.to/", "http://www.matrix.to/"};
+  for (const gchar* prefix : prefixes) {
+    if (g_ascii_strncasecmp(arg, prefix, strlen(prefix)) == 0) return TRUE;
+  }
+  return FALSE;
+}
+
+// takeLink: the link of the last second launch, once; null for none.
+static void links_method_cb(FlMethodChannel* channel, FlMethodCall* method_call,
+                            gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (g_strcmp0(fl_method_call_get_name(method_call), "takeLink") != 0) {
+    fl_method_call_respond_not_implemented(method_call, nullptr);
+    return;
+  }
+  g_autoptr(FlValue) result = self->pending_link != nullptr
+                                  ? fl_value_new_string(self->pending_link)
+                                  : fl_value_new_null();
+  g_clear_pointer(&self->pending_link, g_free);
+  fl_method_call_respond_success(method_call, result, nullptr);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -56,8 +91,16 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  // One window, one engine, one Matrix store: activated again, it comes to the front.
+  if (self->window != nullptr) {
+    gtk_window_present(self->window);
+    return;
+  }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->window = window;
+  g_object_add_weak_pointer(G_OBJECT(window),
+                            reinterpret_cast<gpointer*>(&self->window));
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -124,29 +167,45 @@ static void my_application_activate(GApplication* application) {
       "io.oxisoft.oxitalk/clipboard", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       self->clipboard_channel, clipboard_method_cb, nullptr, nullptr);
+  self->links_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "io.oxisoft.oxitalk/links", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->links_channel,
+                                            links_method_cb, self, nullptr);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
-// Implements GApplication::local_command_line.
-static gboolean my_application_local_command_line(GApplication* application,
-                                                  gchar*** arguments,
-                                                  int* exit_status) {
+// Implements GApplication::command_line, in the first instance: for its own launch, whose
+// arguments (files and links named on the command line) go to Dart's main, and for every
+// later launch (a clicked matrix: link runs `oxitalk %U` again), whose link goes to the
+// running app over the links channel instead of starting a second app.
+static gint my_application_command_line(GApplication* application,
+                                        GApplicationCommandLine* command_line) {
   MyApplication* self = MY_APPLICATION(application);
-  // Strip out the first argument as it is the binary name.
-  self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
-
-  g_autoptr(GError) error = nullptr;
-  if (!g_application_register(application, nullptr, &error)) {
-    g_warning("Failed to register: %s", error->message);
-    *exit_status = 1;
-    return TRUE;
+  gint argc = 0;
+  g_auto(GStrv) argv =
+      g_application_command_line_get_arguments(command_line, &argc);
+  if (self->window == nullptr) {
+    // Strip out the first argument as it is the binary name.
+    g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+    self->dart_entrypoint_arguments =
+        g_strdupv(argc > 0 ? argv + 1 : argv);
+    g_application_activate(application);
+    return 0;
   }
-
-  g_application_activate(application);
-  *exit_status = 0;
-
-  return TRUE;
+  for (gint i = 1; i < argc; i++) {
+    if (!is_matrix_link(argv[i])) continue;
+    g_free(self->pending_link);
+    self->pending_link = g_strdup(argv[i]);
+    if (self->links_channel != nullptr) {
+      fl_method_channel_invoke_method(self->links_channel, "linkArrived",
+                                      nullptr, nullptr, nullptr, nullptr);
+    }
+    break;
+  }
+  gtk_window_present(self->window);
+  return 0;
 }
 
 // Implements GApplication::startup.
@@ -172,13 +231,19 @@ static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->clipboard_channel);
+  g_clear_object(&self->links_channel);
+  g_clear_pointer(&self->pending_link, g_free);
+  if (self->window != nullptr) {
+    g_object_remove_weak_pointer(G_OBJECT(self->window),
+                                 reinterpret_cast<gpointer*>(&self->window));
+    self->window = nullptr;
+  }
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
 static void my_application_class_init(MyApplicationClass* klass) {
   G_APPLICATION_CLASS(klass)->activate = my_application_activate;
-  G_APPLICATION_CLASS(klass)->local_command_line =
-      my_application_local_command_line;
+  G_APPLICATION_CLASS(klass)->command_line = my_application_command_line;
   G_APPLICATION_CLASS(klass)->startup = my_application_startup;
   G_APPLICATION_CLASS(klass)->shutdown = my_application_shutdown;
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
@@ -193,7 +258,10 @@ MyApplication* my_application_new() {
   // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
+  // Unique: a second launch hands its command line to the running instance
+  // (my_application_command_line) and exits.
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     G_APPLICATION_HANDLES_COMMAND_LINE,
+                                     nullptr));
 }
