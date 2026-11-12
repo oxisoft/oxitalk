@@ -1,0 +1,1 @@
+Sharing into OxiTalk works again: send files, photos and links from other apps to any chat. On iPhone and iPad the share sheet no longer says OxiTalk can't take the share, and on Android signing in and sending no longer fail.
