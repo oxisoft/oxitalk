@@ -120,6 +120,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Before Flutter starts the core: its HTTPS client needs Android's trust manager.
+        TlsInit.ensure(this)
         super.onCreate(savedInstanceState)
         // Not again when Android recreates the activity (rotation, back from the background).
         if (savedInstanceState == null) receive(intent)

@@ -33,6 +33,12 @@ tracing.workspace = true
 tracing-appender.workspace = true
 tracing-subscriber.workspace = true
 
+# Android's trust manager for the SDK's TLS (see src/android.rs); the versions the lockfile
+# already has through reqwest.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.22", default-features = false }
+rustls-platform-verifier = "0.7"
+
 [dev-dependencies]
 matrix-sdk = { workspace = true, features = ["testing"] }
 tempfile.workspace = true

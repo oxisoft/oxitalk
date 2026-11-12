@@ -57,6 +57,8 @@ android {
 
     buildTypes {
         release {
+            // Kept from R8: rustls-platform-verifier's classes, called only from the core (JNI).
+            proguardFiles("proguard-rules.pro")
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
@@ -76,6 +78,19 @@ flutter {
     source = "../.."
 }
 
+/**
+ * The version of rustls-platform-verifier's Kotlin half: must be the one of the
+ * rustls-platform-verifier-android crate in the core's Cargo.lock.
+ */
+val rustlsPlatformVerifierVersion: String = run {
+    val lines = rootProject.file("../../../rust/Cargo.lock").readLines()
+    val at = lines.indexOfFirst { it.trim() == "name = \"rustls-platform-verifier-android\"" }
+    require(at >= 0) { "rustls-platform-verifier-android not in rust/Cargo.lock" }
+    lines.drop(at + 1).first { it.trimStart().startsWith("version = ") }
+        .substringAfter('"').substringBefore('"')
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation("org.rustls:rustls-platform-verifier:$rustlsPlatformVerifierVersion")
 }

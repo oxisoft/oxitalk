@@ -8,6 +8,9 @@
 
 pub mod api;
 
+#[cfg(target_os = "android")]
+mod android;
+
 #[allow(
     unsafe_code,
     unreachable_pub,
