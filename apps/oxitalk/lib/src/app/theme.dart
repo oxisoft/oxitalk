@@ -1,3 +1,4 @@
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 /// The brand of the app icon (branding/oxitalk-icon.svg): a yellow bubble with cut

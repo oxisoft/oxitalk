@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';

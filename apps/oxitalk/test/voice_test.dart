@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/gestures.dart';
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/file_actions.dart';

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:oxitalk/src/features/chat/video/video_message.dart';
 import 'package:oxitalk/src/features/chat/voice/audio_io.dart';

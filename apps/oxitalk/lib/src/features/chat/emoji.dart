@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
