@@ -72,6 +72,21 @@ sed -e "s/\$(AppIdentifierPrefix)/$team./g" "$entitlements" >"$out/release.entit
 /usr/libexec/PlistBuddy -c "Set :$aps_key production" "$out/release.entitlements"
 find "$bundle/$frameworks" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) \
   -exec codesign --force --sign - --timestamp=none {} \;
+# App extensions (the iOS Share Extension) with their own entitlements, inside out: unsigned
+# in the archive they reach the export without any, so the App Group was missing in the store
+# build and the extension said "can't take this share on this device" (0.1.44-0.2.0).
+for appex in "$bundle"/PlugIns/*.appex; do
+  [ -d "$appex" ] || continue
+  name=$(basename "$appex" .appex)
+  src=$app/ios/$name/$name.entitlements
+  [ -f "$src" ] || { echo "no entitlements for $name at $src" >&2; exit 1; }
+  sed -e "s/\$(AppIdentifierPrefix)/$team./g" "$src" >"$out/$name.entitlements"
+  codesign --force --sign - --timestamp=none --entitlements "$out/$name.entitlements" "$appex"
+  codesign -d --entitlements - --xml "$appex" >"$out/$name.signed.plist" 2>/dev/null
+  grep -q "group.io.oxisoft.oxitalk" "$out/$name.signed.plist" \
+    || { echo "$name is signed without its App Group" >&2; exit 1; }
+  echo "signed $name with its App Group"
+done
 codesign --force --sign - --timestamp=none --entitlements "$out/release.entitlements" "$bundle"
 codesign -d --entitlements - "$bundle"
 
