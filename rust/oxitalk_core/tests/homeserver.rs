@@ -386,6 +386,96 @@ async fn profile_pictures_show_on_dms_and_messages() -> TestResult {
     Ok(())
 }
 
+/// The user's own picture changed on another device (or in Element) reaches this one: the
+/// account rail and the chat list header show it without a restart (Alex, 2026-11-12).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn the_own_picture_changed_elsewhere_shows_here() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let stores = [
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+    ];
+    let alice = alice_user
+        .login(&stores[0].path().to_string_lossy())
+        .await?;
+    let other = alice_user
+        .login(&stores[1].path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&stores[2].path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    // A room, so the server has a member event of Alice's to update.
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
+    let (sender, mut receiver) = mpsc::unbounded_channel();
+    alice.own_profile_updates(move |profile| sender.send(profile).is_ok());
+
+    other
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let avatar = other
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting one")?;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        let profile = tokio::time::timeout_at(deadline, receiver.recv())
+            .await
+            .map_err(|_| "the new picture never reached the first device")?
+            .ok_or("the profile stream ended")?;
+        if profile.avatar_url.as_ref() == Some(&avatar) {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// A picture the other person sets or removes while the direct chat exists shows in the
+/// chat list too, not only in the chat's details (Alex, 2026-11-12).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn a_new_profile_picture_shows_in_the_chat_list() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.membership == Membership::Joined)
+        })
+        .await?;
+
+    alice
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let avatar = alice
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting one")?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.avatar_url.as_ref() == Some(&avatar))
+        })
+        .await?;
+
+    alice.remove_avatar().await?;
+    bob_rooms
+        .wait_until(|rooms| {
+            rooms
+                .iter()
+                .any(|r| r.room_id == room_id && r.avatar_url.is_none())
+        })
+        .await?;
+    Ok(())
+}
+
 /// Sections as Element keeps them: a room moves between sections by its tags, one at a time,
 /// and the user's sections are saved in Element's settings without losing the rest of them.
 #[tokio::test(flavor = "multi_thread")]

@@ -360,6 +360,17 @@ final class RustMatrixSession implements MatrixSession {
         }),
       )
       ..add(
+        // Changed in another app or on another device: the core sees the user's new member
+        // event.
+        _session.subscribeOwnProfile().listen((profile) {
+          if (_closed) return;
+          _profile.value = Profile(
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+          );
+        }),
+      )
+      ..add(
         _session.subscribeSessionChanges().listen((change) {
           if (change is rust.SessionChange_UnknownToken) {
             unawaited(_onTokenRejected());

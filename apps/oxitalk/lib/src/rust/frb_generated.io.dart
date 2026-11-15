@@ -239,6 +239,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_notification_settings_state_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<Profile> dco_decode_StreamSink_profile_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<RecoveryProgress> dco_decode_StreamSink_recovery_progress_Sse(
     dynamic raw,
   );
@@ -1059,6 +1062,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<NotificationSettingsState>
   sse_decode_StreamSink_notification_settings_state_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<Profile> sse_decode_StreamSink_profile_Sse(
     SseDeserializer deserializer,
   );
 
@@ -2027,6 +2035,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_notification_settings_state_Sse(
     RustStreamSink<NotificationSettingsState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_profile_Sse(
+    RustStreamSink<Profile> self,
     SseSerializer serializer,
   );
 

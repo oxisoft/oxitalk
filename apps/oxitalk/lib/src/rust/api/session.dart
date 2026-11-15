@@ -963,6 +963,11 @@ abstract class Session implements RustOpaqueInterface {
   /// by the push rules (decrypted first if it is encrypted), and it isn't the user's own.
   Stream<NotificationItem> subscribeNotifications();
 
+  /// The user's profile each time it changes, also when another app or device changed it
+  /// (the server then sends the user's new member event in their rooms). Not the current
+  /// profile at the start: that is [`Self::own_profile`].
+  Stream<Profile> subscribeOwnProfile();
+
   /// Sends how far a running [`Self::enable_recovery`] is, from now on.
   Stream<RecoveryProgress> subscribeRecoveryProgress();
 
