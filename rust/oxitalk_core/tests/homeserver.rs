@@ -476,6 +476,124 @@ async fn a_new_profile_picture_shows_in_the_chat_list() -> TestResult {
     Ok(())
 }
 
+/// A room of two people that is not marked direct and has no name or picture (as some apps
+/// make a chat) shows the other person's picture, as Element does, and follows a change.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn a_two_person_room_shows_the_other_persons_picture() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let stores = [tempfile::tempdir()?, tempfile::tempdir()?];
+    let alice = alice_user
+        .login(&stores[0].path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&stores[1].path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    alice
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let first = alice
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting one")?;
+    let mut request = CreateRoomRequest::new();
+    request.preset = Some(RoomPreset::PrivateChat);
+    let room_id = alice
+        .sdk()
+        .create_room(request)
+        .await?
+        .room_id()
+        .to_string();
+    alice.invite(room_id.clone(), bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    bob.join(room_id.clone()).await?;
+    let shows = |rooms: &[RoomSummary], avatar: &String| {
+        rooms.iter().any(|r| {
+            r.room_id == room_id
+                && r.membership == Membership::Joined
+                && !r.is_dm
+                && r.avatar_url.as_ref() == Some(avatar)
+        })
+    };
+    bob_rooms.wait_until(|rooms| shows(rooms, &first)).await?;
+
+    alice
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let second = alice
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting another")?;
+    bob_rooms.wait_until(|rooms| shows(rooms, &second)).await?;
+    Ok(())
+}
+
+/// The other person's new picture shows in the chat list also when it changed while the
+/// app was in the background (sync stopped) or closed (restored from its store).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn a_picture_changed_while_away_shows_in_the_chat_list() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let stores = [tempfile::tempdir()?, tempfile::tempdir()?];
+    let alice = alice_user
+        .login(&stores[0].path().to_string_lossy())
+        .await?;
+    let bob_dir = stores[1].path().to_string_lossy().into_owned();
+    let bob = bob_user.login(&bob_dir).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
+    let shows = |rooms: &[RoomSummary], avatar: Option<&String>| {
+        rooms
+            .iter()
+            .any(|r| r.room_id == room_id && r.avatar_url.as_ref() == avatar)
+    };
+
+    // In the background.
+    bob.stop_sync().await;
+    alice
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let first = alice
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting one")?;
+    bob.start_sync().await;
+    bob_rooms
+        .wait_until(|rooms| shows(rooms, Some(&first)))
+        .await?;
+
+    // Closed and opened again.
+    let bob_data = bob.session_data()?;
+    bob.stop_sync().await;
+    drop(bob_rooms);
+    drop(bob);
+    alice
+        .set_avatar(AVATAR_PNG.to_vec(), "image/png".to_owned())
+        .await?;
+    let second = alice
+        .own_profile()
+        .await?
+        .avatar_url
+        .ok_or("no avatar after setting another")?;
+    assert_ne!(first, second);
+    let bob = restore(bob_data, bob_dir, PASSPHRASE.to_owned()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    bob.start_sync().await;
+    bob_rooms
+        .wait_until(|rooms| shows(rooms, Some(&second)))
+        .await?;
+    Ok(())
+}
+
 /// Sections as Element keeps them: a room moves between sections by its tags, one at a time,
 /// and the user's sections are saved in Element's settings without losing the rest of them.
 #[tokio::test(flavor = "multi_thread")]

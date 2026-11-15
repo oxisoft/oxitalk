@@ -7,7 +7,7 @@ use matrix_sdk::{
     Client, Room, RoomState,
     notification_settings::NotificationSettings,
     ruma::{
-        OwnedRoomId,
+        OwnedMxcUri, OwnedRoomId,
         events::{
             AnySyncMessageLikeEvent, AnySyncTimelineEvent, SyncMessageLikeEvent,
             room::message::Relation,
@@ -347,6 +347,24 @@ async fn thread_free_preview(room: &Room) -> Option<Option<(String, i64)>> {
     )
 }
 
+/// For a room without a picture of its own: the other person's, as Element shows it, in a
+/// direct chat and in any room of two people (also one not marked direct, as a chat made by
+/// an app that didn't set `m.direct`). From the server's heroes, which follow the person's
+/// profile; the user themself is never the other person.
+async fn person_avatar(room: &Room, is_dm: bool) -> Option<OwnedMxcUri> {
+    let two = room.joined_members_count() + room.invited_members_count() <= 2;
+    if !is_dm && !two {
+        return None;
+    }
+    let own = room.own_user_id();
+    let heroes = room.heroes().await;
+    let mut others = heroes.iter().filter(|hero| hero.user_id != own);
+    match (others.next(), others.next()) {
+        (Some(other), None) => other.avatar_url.clone(),
+        _ => None,
+    }
+}
+
 pub(crate) async fn summary(settings: &NotificationSettings, room: RoomListItem) -> RoomSummary {
     let room = room.into_inner();
     let (last_message, last_activity_ms) = match RoomExt::latest_event(&room).await {
@@ -370,11 +388,7 @@ pub(crate) async fn summary(settings: &NotificationSettings, room: RoomListItem)
     let is_dm = room.is_direct().await.unwrap_or(false);
     let avatar_url = match room.avatar_url() {
         Some(url) => Some(url),
-        None if is_dm => match room.heroes().await.as_slice() {
-            [other] => other.avatar_url.clone(),
-            _ => None,
-        },
-        None => None,
+        None => person_avatar(&room, is_dm).await,
     };
     let modes = room_modes(settings, &room).await;
     RoomSummary {
