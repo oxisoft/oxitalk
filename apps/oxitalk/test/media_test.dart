@@ -105,6 +105,7 @@ FakeSession _session() {
 Future<(FakeSession, FakeFileActions)> _openChat(
   WidgetTester tester, {
   Size size = _wide,
+  Widget Function(String path)? inlineVideo,
 }) async {
   final session = _session();
   final files = FakeFileActions();
@@ -113,6 +114,7 @@ Future<(FakeSession, FakeFileActions)> _openChat(
     FakeMatrixClientFactory(saved: [session]),
     size: size,
     files: files,
+    inlineVideo: inlineVideo,
   );
   await tester.tap(find.text('Team'));
   await tester.pumpAndSettle();
@@ -183,6 +185,46 @@ void main() {
     expect(session.saved, {'/tmp/open/demo.mp4': 'video'});
     expect(files.launched, [Uri.file('/tmp/open/demo.mp4')]);
   });
+
+  testWidgets(
+    'where the app has a player, a video plays in it; it still saves and opens '
+    'elsewhere',
+    (tester) async {
+      final (session, files) = await _openChat(
+        tester,
+        inlineVideo: (path) => Text('playing $path', key: const Key('player')),
+      );
+      await tester.tap(_mediaOf(_video));
+      await tester.pumpAndSettle();
+      final viewer = find.byKey(const Key('videoViewer'));
+      expect(viewer, findsOneWidget);
+      // Downloaded into the cache, then handed to the player.
+      expect(session.saved, {'/tmp/open/demo.mp4': 'video'});
+      expect(find.text('playing /tmp/open/demo.mp4'), findsOneWidget);
+      expect(files.launched, isEmpty);
+
+      await tester.tap(
+        find.descendant(of: viewer, matching: find.byTooltip('Save as…')),
+      );
+      await tester.pumpAndSettle();
+      expect(session.saved['/saved/file'], 'video');
+
+      await tester.tap(
+        find.descendant(
+          of: viewer,
+          matching: find.byTooltip('Open in default app'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(files.launched, [Uri.file('/tmp/open/demo.mp4')]);
+
+      await tester.tap(
+        find.descendant(of: viewer, matching: find.byType(CloseButton)),
+      );
+      await tester.pumpAndSettle();
+      expect(viewer, findsNothing);
+    },
+  );
 
   testWidgets('a file shows its name and size; it opens, or saves', (
     tester,

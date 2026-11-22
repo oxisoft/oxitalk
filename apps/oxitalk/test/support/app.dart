@@ -19,6 +19,7 @@ import 'package:oxitalk/src/features/calls/call_controller.dart';
 import 'package:oxitalk/src/features/calls/call_media.dart';
 import 'package:oxitalk/src/features/calls/call_ui.dart';
 import 'package:oxitalk/src/features/chat/video/video_message.dart';
+import 'package:oxitalk/src/features/chat/video/video_viewer.dart';
 import 'package:oxitalk/src/features/chat/voice/audio_io.dart';
 import 'package:oxitalk/src/features/share/share_inbox.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
@@ -49,6 +50,7 @@ Future<void> pumpApp(
   FakeAudioOutput? audio,
   VideoRecorder Function()? camera,
   bool video = false,
+  Widget Function(String path)? inlineVideo,
   FakeRinger? ringer,
   FakeShareSource? share,
   FakeLinkSource? links,
@@ -86,6 +88,7 @@ Future<void> pumpApp(
         ),
         audioOutputProvider.overrideWithValue(audio ?? FakeAudioOutput()),
         videoMessagesSupportedProvider.overrideWithValue(video),
+        inlineVideoPlayerProvider.overrideWithValue(inlineVideo),
         videoRecorderFactoryProvider.overrideWithValue(
           camera ?? FakeVideoRecorder.new,
         ),

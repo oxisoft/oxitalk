@@ -15,6 +15,7 @@ import '../../ui/box_sized_image.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
 import '../../ui/touch.dart';
+import 'video/video_viewer.dart';
 import 'voice/audio_player_view.dart';
 
 /// Opens a message's file in the system's app for it, downloading it into the cache first.
@@ -111,8 +112,8 @@ Future<Uint8List> asPng(Uint8List bytes) async {
   return data.buffer.asUint8List();
 }
 
-/// What a click on a message's file does: images open in the viewer, the rest in the
-/// system's app.
+/// What a click on a message's file does: images open in the viewer, videos play in the
+/// app where it has a player, the rest opens in the system's app.
 void showMedia(
   BuildContext context,
   WidgetRef ref,
@@ -124,6 +125,23 @@ void showMedia(
       showDialog<void>(
         context: context,
         builder: (_) => ImageViewer(account: account, media: media),
+      ),
+    );
+  } else if ((media.kind == MediaKind.video
+          ? ref.read(inlineVideoPlayerProvider)
+          : null)
+      case final player?) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialog) => VideoViewer(
+          account: account,
+          media: media,
+          player: player,
+          onSave: () => unawaited(saveMediaAs(dialog, ref, account, media)),
+          onOpenElsewhere: () =>
+              unawaited(openMedia(dialog, ref, account, media)),
+        ),
       ),
     );
   } else {
