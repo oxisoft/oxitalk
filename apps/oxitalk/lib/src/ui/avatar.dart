@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
 import '../app/theme.dart';
+import 'box_sized_image.dart';
 
 /// A Matrix picture ([url], `mxc://`) of [account]'s server, its corners cut; [InitialsAvatar]
 /// while it loads, when it can't, or when there is none.
@@ -59,11 +60,10 @@ class PictureAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ClipPath(
     clipper: ShapeBorderClipper(shape: avatarShape(radius)),
-    child: Image.memory(
+    child: BoxSizedMemoryImage(
       bytes,
       width: radius * 2,
       height: radius * 2,
-      fit: BoxFit.cover,
       gaplessPlayback: true,
       errorBuilder: (_, _, _) => fallback,
     ),

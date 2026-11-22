@@ -4,11 +4,14 @@
 use std::time::Duration;
 
 use matrix_sdk::{
-    media::{MediaFormat, MediaRequestParameters, MediaRetentionPolicy, MediaThumbnailSettings},
+    media::{
+        MediaFormat, MediaRequestParameters, MediaRetentionPolicy, MediaThumbnailSettings,
+        store::IgnoreMediaRetentionPolicy,
+    },
     ruma::{OwnedMxcUri, UInt, events::room::MediaSource},
 };
 
-use super::{error::CoreError, session::Session};
+use super::{error::CoreError, media_prep::shrink_for_preview, session::Session};
 
 /// How often the cache drops what has expired.
 const CLEANUP_EVERY: Duration = Duration::from_hours(24);
@@ -38,7 +41,8 @@ impl Session {
     }
 
     /// A picture of a message's file about `size` pixels wide: the thumbnail the sender
-    /// attached, else one the server makes of an unencrypted image, else the file itself.
+    /// attached, else one the server makes of an unencrypted image, else one the core makes
+    /// of an encrypted image (or the file itself when it is small, a GIF or unreadable).
     ///
     /// # Errors
     ///
@@ -54,9 +58,55 @@ impl Session {
         }
         match parse_source(&source)? {
             plain @ MediaSource::Plain(_) => self.fetch(plain, Some(size)).await,
-            // The server can't see into an encrypted file.
-            encrypted @ MediaSource::Encrypted(_) => self.fetch(encrypted, None).await,
+            // The server can't see into an encrypted file: the core makes the picture itself.
+            encrypted @ MediaSource::Encrypted(_) => self.encrypted_preview(encrypted, size).await,
         }
+    }
+
+    /// A picture of an encrypted image about `size` pixels on its longest side, made here
+    /// from the whole file and kept in the media cache beside it, so a chat full of photos
+    /// doesn't hand the app every original to decode. The file itself when it is already
+    /// small, a GIF, or not a picture this can read.
+    async fn encrypted_preview(
+        &self,
+        source: MediaSource,
+        size: u32,
+    ) -> Result<Vec<u8>, CoreError> {
+        let pixels = UInt::from(size);
+        let request = MediaRequestParameters {
+            source: source.clone(),
+            format: MediaFormat::Thumbnail(MediaThumbnailSettings::new(pixels, pixels)),
+        };
+        let cached = self
+            .client
+            .media_store()
+            .lock()
+            .await
+            .map_err(|error| CoreError::internal(&error))?
+            .get_media_content(&request)
+            .await
+            .map_err(|error| CoreError::internal(&error))?;
+        if let Some(preview) = cached {
+            return Ok(preview);
+        }
+        let file = self.fetch(source, None).await?;
+        let (file, preview) = tokio::task::spawn_blocking(move || {
+            let preview = shrink_for_preview(&file, size);
+            (file, preview)
+        })
+        .await
+        .map_err(|error| CoreError::internal(&error))?;
+        let Some(preview) = preview else {
+            return Ok(file);
+        };
+        drop(file);
+        // A preview that can't be kept is still shown; it is made again next time.
+        if let Ok(store) = self.client.media_store().lock().await {
+            let _ = store
+                .add_media_content(&request, preview.clone(), IgnoreMediaRetentionPolicy::No)
+                .await;
+        }
+        Ok(preview)
     }
 
     /// Writes a message's whole file to `path`, to open it in another app or keep it.

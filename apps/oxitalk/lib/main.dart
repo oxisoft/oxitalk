@@ -12,6 +12,7 @@ import 'src/app/account_pictures.dart';
 import 'src/app/app.dart';
 import 'src/app/collapsed_sections.dart';
 import 'src/app/diagnostics.dart';
+import 'src/app/image_memory.dart';
 import 'src/app/link_inbox.dart';
 import 'src/app/linux_desktop_entry.dart';
 import 'src/app/media_prefs.dart';
@@ -26,6 +27,7 @@ import 'src/util/log.dart';
 /// Windows; they go to "Send to…", except a matrix.to or `matrix:` link, which opens.
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  limitImageMemory();
   // GNOME and other Wayland desktops show the name and icon of an installed entry only.
   if (Platform.isLinux) unawaited(registerThisLinuxApp());
   // The bundled fonts' licences, in About → View licenses.

@@ -334,11 +334,18 @@ void main() {
       await tester.pump();
       expect(chat.audio.calls.last, 'play 3000');
 
-      // At the end it goes back to the start.
+      // At the end it goes back to the start and lets the sound go; played again, it
+      // loads again.
+      final opened = chat.audio.opened.length;
       chat.audio.finish();
       await tester.pump();
       expect(find.byTooltip('Pause'), findsNothing);
       expect(_text(tester, 'audio.time.voice2'), '0:09');
+      expect(chat.audio.calls.last, 'close');
+      await tester.tap(_key('audio.play.voice2'));
+      await tester.pumpAndSettle();
+      expect(chat.audio.opened.length, opened + 1);
+      expect(chat.audio.calls.last, 'play 0');
     });
 
     testWidgets('a tap on the waveform jumps there', (tester) async {

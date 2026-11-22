@@ -1033,7 +1033,9 @@ class _AccountPicturesState extends ConsumerState<_AccountPictures> {
     final image = await _pick();
     if (image == null) return;
     await _run(() async {
-      await ref.read(accountPicturesProvider).setLocal(_account, image.bytes);
+      await ref
+          .read(accountPicturesProvider)
+          .setLocal(_account, await shrinkPicture(image));
       ref.invalidate(localPictureProvider(_account));
     });
   }

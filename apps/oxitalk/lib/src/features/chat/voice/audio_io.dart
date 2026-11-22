@@ -257,6 +257,9 @@ abstract interface class AudioOutput {
   /// Once the end is reached.
   Stream<void> get completions;
 
+  /// Stops and lets go of what was opened; [open] again to play.
+  Future<void> close();
+
   Future<void> dispose();
 }
 
@@ -338,6 +341,9 @@ final class PlatformAudioOutput implements AudioOutput {
 
   @override
   Stream<void> get completions => _completions.stream;
+
+  @override
+  Future<void> close() => pause();
 
   @override
   Future<void> dispose() async {
@@ -441,7 +447,14 @@ final class PacatAudioOutput implements AudioOutput {
   Stream<void> get completions => _completions.stream;
 
   @override
-  Future<void> dispose() => pause();
+  Future<void> close() async {
+    await pause();
+    _audio = null;
+    _info = null;
+  }
+
+  @override
+  Future<void> dispose() => close();
 }
 
 /// What the player shows for one sound.
@@ -495,8 +508,11 @@ final class VoicePlayback extends ChangeNotifier {
       }),
       _output.completions.listen((_) {
         if (_key == null) return;
-        // Back to the start, as Element does.
-        _set(PlaybackState(duration: _state.duration));
+        // Back to the start, as Element does, and the sound let go (a long message is tens
+        // of MB as WAV); playing it again loads it again from the media cache.
+        _key = null;
+        _set(PlaybackState.idle);
+        unawaited(_output.close());
       }),
     ];
   }

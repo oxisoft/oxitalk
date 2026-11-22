@@ -11,8 +11,10 @@ import '../../app/matrix_links.dart';
 import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
 import '../../ui/avatar.dart';
+import '../../ui/box_sized_image.dart';
 import '../../ui/format.dart';
 import '../../ui/rich_text_view.dart';
+import '../../ui/touch.dart';
 import 'voice/audio_player_view.dart';
 
 /// Opens a message's file in the system's app for it, downloading it into the cache first.
@@ -255,7 +257,17 @@ class MediaPreview extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 if (bytes != null)
-                  _Picture(bytes: bytes, fallback: placeholder)
+                  _PlaysOnHover(
+                    // A GIF without a still thumbnail shows (and moves) as it is.
+                    enabled:
+                        media.mimeType == 'image/gif' &&
+                        media.thumbnail == null,
+                    child: _Picture(
+                      bytes: bytes,
+                      size: size,
+                      fallback: placeholder,
+                    ),
+                  )
                 else
                   placeholder,
                 if (isVideo) ...[
@@ -283,22 +295,66 @@ class MediaPreview extends ConsumerWidget {
 }
 
 class _Picture extends StatelessWidget {
-  const _Picture({required this.bytes, required this.fallback});
+  const _Picture({
+    required this.bytes,
+    required this.size,
+    required this.fallback,
+  });
 
   final Uint8List bytes;
+  final Size size;
   final Widget fallback;
 
   @override
-  Widget build(BuildContext context) => Image.memory(
+  Widget build(BuildContext context) => BoxSizedMemoryImage(
     bytes,
-    fit: BoxFit.cover,
+    width: size.width,
+    height: size.height,
     gaplessPlayback: true,
     errorBuilder: (_, _, _) => fallback,
   );
 }
 
+/// On desktop, an animated picture holds still on its first frame, marked GIF, and moves
+/// only under the mouse: a chat full of GIFs doesn't keep decoding all of them. Where the
+/// screen is touched, it moves while it is on screen, as before.
+class _PlaysOnHover extends StatefulWidget {
+  const _PlaysOnHover({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_PlaysOnHover> createState() => _PlaysOnHoverState();
+}
+
+class _PlaysOnHoverState extends State<_PlaysOnHover> {
+  var _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled || isTouchPlatform(context)) return widget.child;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          TickerMode(enabled: _hovered, child: widget.child),
+          if (!_hovered)
+            const Positioned(
+              left: 6,
+              top: 6,
+              child: _Chip(key: Key('media.gif'), text: 'GIF'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Chip extends StatelessWidget {
-  const _Chip({required this.text});
+  const _Chip({required this.text, super.key});
 
   final String text;
 
@@ -421,17 +477,53 @@ class ImageViewer extends ConsumerWidget {
           child: switch (content) {
             AsyncData(:final value) => InteractiveViewer(
               maxScale: 8,
-              child: Image.memory(
-                value,
-                errorBuilder: (_, _, _) => const _ViewerMessage(
-                  'This image can’t be shown here; open it in another app.',
-                ),
-              ),
+              child: _ViewerImage(value),
             ),
             AsyncError() => const _ViewerMessage('Can’t load the image.'),
             _ => const CircularProgressIndicator(),
           },
         ),
+      ),
+    );
+  }
+}
+
+/// The viewer's image, decoded at twice the window's size (sharp when zoomed in a little,
+/// and a 50-megapixel photo doesn't take 200 MB), and let go as soon as the viewer closes.
+class _ViewerImage extends StatefulWidget {
+  const _ViewerImage(this.bytes);
+
+  final Uint8List bytes;
+
+  @override
+  State<_ViewerImage> createState() => _ViewerImageState();
+}
+
+class _ViewerImageState extends State<_ViewerImage> {
+  BoxSizedImage? _image;
+
+  @override
+  void dispose() {
+    unawaited(_image?.evict());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final window = MediaQuery.sizeOf(context);
+    final ratio = MediaQuery.devicePixelRatioOf(context) * 2;
+    final image = BoxSizedImage(
+      MemoryImage(widget.bytes),
+      width: (window.width * ratio).ceil(),
+      height: (window.height * ratio).ceil(),
+      cover: false,
+    );
+    if (image != _image) unawaited(_image?.evict());
+    _image = image;
+    return Image(
+      image: image,
+      errorBuilder: (_, _, _) => const _ViewerMessage(
+        'This image can’t be shown here; open it in another app.',
       ),
     );
   }

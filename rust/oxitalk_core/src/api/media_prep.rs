@@ -3,7 +3,8 @@
 use std::io::Cursor;
 
 use image::{
-    DynamicImage, ImageDecoder, ImageReader, codecs::jpeg::JpegEncoder, imageops::FilterType,
+    DynamicImage, ImageDecoder, ImageFormat, ImageReader, codecs::jpeg::JpegEncoder,
+    imageops::FilterType,
 };
 
 /// The longest side of a compressed photo, as Element X sends them.
@@ -90,6 +91,34 @@ fn decode_upright(data: &[u8]) -> Option<DynamicImage> {
     Some(image)
 }
 
+/// A picture of an image file no bigger than `side` on its longest side, for showing it small:
+/// turned upright, as JPEG (PNG if it has transparency). `None` when the file should be shown
+/// as it is: it's already that small, it's a GIF (it may move), or it can't be decoded.
+pub(crate) fn shrink_for_preview(data: &[u8], side: u32) -> Option<Vec<u8>> {
+    let reader = ImageReader::new(Cursor::new(data))
+        .with_guessed_format()
+        .ok()?;
+    if reader.format() == Some(ImageFormat::Gif) {
+        return None;
+    }
+    let image = decode_upright(data)?;
+    if image.width().max(image.height()) <= side {
+        return None;
+    }
+    let image = image.resize(side, side, FilterType::Triangle);
+    let mut encoded = Vec::new();
+    if image.color().has_alpha() {
+        DynamicImage::ImageRgba8(image.to_rgba8())
+            .write_to(&mut Cursor::new(&mut encoded), ImageFormat::Png)
+            .ok()?;
+    } else {
+        JpegEncoder::new_with_quality(&mut encoded, JPEG_QUALITY)
+            .encode_image(&DynamicImage::ImageRgb8(image.to_rgb8()))
+            .ok()?;
+    }
+    Some(encoded)
+}
+
 /// The longest side of a video's thumbnail.
 const THUMBNAIL_SIDE: u32 = 800;
 
@@ -146,9 +175,36 @@ pub(crate) fn prepare_thumbnail(
     })
 }
 
+/// A thumbnail to send with an image, at most [`THUMBNAIL_SIDE`] on its longest side, as
+/// JPEG, so other apps (and this one) show the message without fetching the whole file.
+/// `None` for a picture that small already, a GIF (it may move), one with transparency (JPEG
+/// would lose it), or anything that can't be decoded.
+pub(crate) fn image_thumbnail(data: &[u8]) -> Option<PreparedThumbnail> {
+    let reader = ImageReader::new(Cursor::new(data))
+        .with_guessed_format()
+        .ok()?;
+    if reader.format() == Some(ImageFormat::Gif) {
+        return None;
+    }
+    let image = decode_upright(data)?;
+    if image.width().max(image.height()) <= THUMBNAIL_SIDE || image.color().has_alpha() {
+        return None;
+    }
+    let image = image.resize(THUMBNAIL_SIDE, THUMBNAIL_SIDE, FilterType::Triangle);
+    let mut encoded = Vec::new();
+    JpegEncoder::new_with_quality(&mut encoded, JPEG_QUALITY)
+        .encode_image(&DynamicImage::ImageRgb8(image.to_rgb8()))
+        .ok()?;
+    Some(PreparedThumbnail {
+        data: encoded,
+        width: image.width(),
+        height: image.height(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use image::{ImageFormat, RgbImage};
+    use image::{RgbImage, RgbaImage};
 
     use super::*;
 
@@ -208,6 +264,59 @@ mod tests {
         let as_is = prepare_thumbnail(&photo, None, None);
         assert_eq!(as_is.map(|t| (t.width, t.height)), Some((800, 600)));
         assert!(prepare_thumbnail(b"junk", None, None).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn a_preview_is_shrunk_to_the_side_asked_for() -> Result<(), Box<dyn std::error::Error>> {
+        let photo = png(3000, 1500)?;
+        let preview = shrink_for_preview(&photo, 640).ok_or("no preview")?;
+        assert!(preview.starts_with(b"\xff\xd8"));
+        let image = image::load_from_memory(&preview)?;
+        assert_eq!((image.width(), image.height()), (640, 320));
+        Ok(())
+    }
+
+    #[test]
+    fn a_transparent_picture_stays_transparent_in_its_preview()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let image = RgbaImage::from_pixel(1000, 1000, image::Rgba([10, 20, 30, 0]));
+        let mut data = Vec::new();
+        DynamicImage::ImageRgba8(image).write_to(&mut Cursor::new(&mut data), ImageFormat::Png)?;
+        let preview = shrink_for_preview(&data, 100).ok_or("no preview")?;
+        let preview = image::load_from_memory(&preview)?;
+        assert!(preview.color().has_alpha());
+        assert_eq!(preview.width(), 100);
+        Ok(())
+    }
+
+    #[test]
+    fn a_small_picture_a_gif_or_junk_has_no_preview_of_its_own()
+    -> Result<(), Box<dyn std::error::Error>> {
+        assert!(shrink_for_preview(&png(300, 200)?, 640).is_none());
+        let mut gif = Vec::new();
+        DynamicImage::ImageRgb8(RgbImage::new(1000, 1000))
+            .write_to(&mut Cursor::new(&mut gif), ImageFormat::Gif)?;
+        assert!(shrink_for_preview(&gif, 640).is_none());
+        assert!(shrink_for_preview(b"junk", 640).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn an_image_gets_a_thumbnail_to_send_unless_it_is_small_moving_or_transparent()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let thumbnail = image_thumbnail(&png(2048, 1024)?).ok_or("no thumbnail")?;
+        assert_eq!((thumbnail.width, thumbnail.height), (800, 400));
+        assert!(thumbnail.data.starts_with(b"\xff\xd8"));
+        assert!(image_thumbnail(&png(800, 600)?).is_none());
+        let clear = RgbaImage::from_pixel(1600, 1600, image::Rgba([0, 0, 0, 0]));
+        let mut data = Vec::new();
+        DynamicImage::ImageRgba8(clear).write_to(&mut Cursor::new(&mut data), ImageFormat::Png)?;
+        assert!(image_thumbnail(&data).is_none());
+        let mut gif = Vec::new();
+        DynamicImage::ImageRgb8(RgbImage::new(1600, 1600))
+            .write_to(&mut Cursor::new(&mut gif), ImageFormat::Gif)?;
+        assert!(image_thumbnail(&gif).is_none());
         Ok(())
     }
 }

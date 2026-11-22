@@ -486,21 +486,46 @@ class AccountDevices extends _$AccountDevices {
   }
 }
 
-/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
-/// loaded; a failed load is tried again the next time it is shown.
-@riverpod
-Future<Uint8List> picture(
+/// How long a picture nothing shows any more stays loaded: long enough that scrolling back
+/// or switching screens doesn't load it again, short enough that pictures don't pile up over
+/// days. The core keeps them on disk, so loading again doesn't download them.
+const pictureKeptFor = Duration(minutes: 5);
+const mediaThumbnailKeptFor = Duration(seconds: 30);
+
+/// Keeps [ref]'s value while something watches it and for [delay] after the last one stops,
+/// then lets it go. A failed load isn't kept, so it is tried again the next time it is shown.
+Future<T> _keptWhileShown<T>(
   Ref ref,
-  String account,
-  String mxcUrl,
-  int size,
+  Duration delay,
+  Future<T> Function() load,
 ) async {
-  final session = _session(ref, account);
-  if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
-  final bytes = await session.thumbnail(mxcUrl, size);
-  ref.keepAlive();
-  return bytes;
+  final link = ref.keepAlive();
+  Timer? release;
+  ref
+    ..onCancel(() => release = Timer(delay, link.close))
+    ..onResume(() => release?.cancel())
+    ..onDispose(() => release?.cancel());
+  try {
+    return await load();
+  } catch (_) {
+    release?.cancel();
+    link.close();
+    rethrow;
+  }
 }
+
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept while
+/// shown and for [pictureKeptFor] after; a failed load is tried again the next time it is
+/// shown.
+@riverpod
+Future<Uint8List> picture(Ref ref, String account, String mxcUrl, int size) =>
+    _keptWhileShown(ref, pictureKeptFor, () {
+      final session = _session(ref, account);
+      if (session == null) {
+        throw const MatrixFailure(FailureKind.sessionExpired);
+      }
+      return session.thumbnail(mxcUrl, size);
+    });
 
 /// The picture the user picked for [account] on this device, if any.
 @riverpod
@@ -531,20 +556,19 @@ class CollapsedSectionTags extends _$CollapsedSectionTags {
   }
 }
 
-/// A picture of a message's file for showing it in the chat. Kept once loaded.
+/// A picture of a message's file for showing it in the chat. Kept while shown and for
+/// [mediaThumbnailKeptFor] after, so leaving a chat lets its pictures go.
 @riverpod
 Future<Uint8List> mediaThumbnail(
   Ref ref,
   String account,
   String source,
   String? thumbnail,
-) async {
+) => _keptWhileShown(ref, mediaThumbnailKeptFor, () {
   final session = _session(ref, account);
   if (session == null) throw const MatrixFailure(FailureKind.sessionExpired);
-  final bytes = await session.mediaThumbnail(source, thumbnail, 640);
-  ref.keepAlive();
-  return bytes;
-}
+  return session.mediaThumbnail(source, thumbnail, 640);
+});
 
 /// A message's whole file, while something shows it.
 @riverpod

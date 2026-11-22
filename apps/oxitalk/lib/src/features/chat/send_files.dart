@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/file_actions.dart';
 import '../../app/providers.dart';
 import '../../matrix/api/matrix.dart';
+import '../../ui/box_sized_image.dart';
 import '../../ui/format.dart';
 
 /// Shows [files] with a caption field and, for photos, a Compress switch; on Send, sends
@@ -180,11 +181,28 @@ class _Preview extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
-                child: Image.memory(
-                  file.bytes,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) =>
-                      const Icon(Icons.broken_image_outlined, size: 48),
+                // Decoded only as big as it shows, so a handful of photos picked at once
+                // don't take 48 MB of graphics memory each.
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final ratio = MediaQuery.devicePixelRatioOf(context);
+                    return Image(
+                      image: BoxSizedImage(
+                        MemoryImage(file.bytes),
+                        width:
+                            ((constraints.hasBoundedWidth
+                                        ? constraints.maxWidth
+                                        : 960) *
+                                    ratio)
+                                .ceil(),
+                        height: (240 * ratio).ceil(),
+                        cover: false,
+                      ),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.broken_image_outlined, size: 48),
+                    );
+                  },
                 ),
               ),
             ),

@@ -419,6 +419,7 @@ mixin _LoadsOlder<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     _loading = true;
     try {
       final reached = await timeline.loadOlder();
+      _pageLoaded = true;
       if (mounted) setState(() => _reachedStart = reached);
     } on MatrixFailure {
       // Tried again on the next scroll.
@@ -427,9 +428,33 @@ mixin _LoadsOlder<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
   }
 
+  /// Pages loaded one after another without finding anything new, before loading by itself
+  /// stops: a room of mostly text would otherwise be paged through to its very start (and
+  /// all of it held in memory) to find its few files.
+  static const _maxFruitlessPages = 10;
+  var _fruitlessPages = 0;
+  var _lastCount = 0;
+  var _pageLoaded = false;
+
+  /// Whether loading by itself stopped short of the room's start; [lookFurther] goes on.
+  bool get stoppedLooking =>
+      !_reachedStart && _fruitlessPages >= _maxFruitlessPages;
+
+  void lookFurther() {
+    setState(() => _fruitlessPages = 0);
+    unawaited(loadOlder());
+  }
+
   /// Loads more when there are few items yet or the list is near its end.
   void loadIfShort(int count) {
     if (count < 30) {
+      // Counted once per page loaded, not per build.
+      if (_pageLoaded) {
+        _pageLoaded = false;
+        _fruitlessPages = count > _lastCount ? 0 : _fruitlessPages + 1;
+        _lastCount = count;
+      }
+      if (stoppedLooking) return;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => unawaited(loadOlder()),
       );
@@ -443,7 +468,15 @@ mixin _LoadsOlder<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 
   /// The list's state when it has nothing: still looking, or nothing there.
   Widget emptyOr(String empty) => Center(
-    child: _reachedStart ? Text(empty) : const CircularProgressIndicator(),
+    child: _reachedStart
+        ? Text(empty)
+        : stoppedLooking
+        ? OutlinedButton(
+            key: const Key('chatInfo.lookFurther'),
+            onPressed: lookFurther,
+            child: const Text('Look further back'),
+          )
+        : const CircularProgressIndicator(),
   );
 }
 

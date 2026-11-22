@@ -9,6 +9,7 @@ import '../../app/pick_image.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../matrix/api/matrix.dart';
+import '../../ui/box_sized_image.dart';
 import 'finders.dart';
 
 /// The part of a room address made from its name: `Team Alpha!` → `team-alpha`.
@@ -175,7 +176,14 @@ class _NewRoomDialogState extends ConsumerState<NewRoomDialog> {
                     radius: 36,
                     backgroundImage: picture == null
                         ? null
-                        : MemoryImage(picture.bytes),
+                        : BoxSizedImage(
+                            MemoryImage(picture.bytes),
+                            width: (72 * MediaQuery.devicePixelRatioOf(context))
+                                .ceil(),
+                            height:
+                                (72 * MediaQuery.devicePixelRatioOf(context))
+                                    .ceil(),
+                          ),
                     child: picture == null
                         ? const Icon(Icons.add_a_photo_outlined)
                         : null,

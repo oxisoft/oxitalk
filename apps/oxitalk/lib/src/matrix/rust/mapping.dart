@@ -190,11 +190,14 @@ NotificationSettings notificationSettingsOf(
 /// The visible entries of a timeline; events M0 doesn't show are left out. The read
 /// receipts of a notice or of an event left out count for the message before it, as the
 /// SDK does for the events it hides: who read a later event read that message too.
-List<TimelineEntry> entriesOf(Iterable<rust.TimelineItem> items) {
+List<TimelineEntry> entriesOf(
+  Iterable<rust.TimelineItem> items, {
+  TimelineEntry? Function(rust.TimelineItem item) map = entryOf,
+}) {
   final entries = <TimelineEntry>[];
   int? lastMessage;
   for (final item in items) {
-    final entry = entryOf(item);
+    final entry = map(item);
     if (entry != null && entryMeta(entry) != null) lastMessage = entries.length;
     if (entry != null) entries.add(entry);
     final readers = switch (item.content) {

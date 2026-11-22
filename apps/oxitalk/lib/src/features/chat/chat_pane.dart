@@ -678,7 +678,10 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
         (_) => unawaited(_loadOlder()),
       );
     }
-    _bubbleKeys.removeWhere((id, _) => !entries.any((entry) => entry.id == id));
+    if (_bubbleKeys.isNotEmpty) {
+      final ids = {for (final entry in entries) entry.id};
+      _bubbleKeys.removeWhere((id, _) => !ids.contains(id));
+    }
     _entries = entries;
     _scheduleTopDay();
     if (_jump.day case final day? when _dayJumping != _jump.serial) {

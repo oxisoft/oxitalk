@@ -35,7 +35,7 @@ use tokio::task::AbortHandle;
 
 use super::{
     error::{CoreError, parse_id},
-    media_prep::{prepare_image, prepare_thumbnail},
+    media_prep::{image_thumbnail, prepare_image, prepare_thumbnail},
     notices::{RoomNotice, notice},
     rich_text::{RichBlock, plain_line, rich_text},
     session::Session,
@@ -575,8 +575,9 @@ impl Timeline {
 
     /// Sends `data` as a file named `filename` of type `mime_type`, with an optional caption.
     /// It shows at once as a local echo with its upload progress, and is encrypted in an
-    /// encrypted room. An image is sent with its size; with `compress`, a big photo is
-    /// scaled to 2048 pixels and sent as JPEG.
+    /// encrypted room. An image is sent with its size and, when it is bigger than 800 pixels,
+    /// an 800-pixel thumbnail; with `compress`, a big photo is scaled to 2048 pixels and sent
+    /// as JPEG.
     ///
     /// # Errors
     ///
@@ -604,6 +605,13 @@ impl Timeline {
         };
         let (data, filename, mime_type) = if mime_type.starts_with("image/") {
             let image = prepare_image(data, filename, mime_type, compress);
+            config.thumbnail = image_thumbnail(&image.data).map(|thumbnail| Thumbnail {
+                size: UInt::new(thumbnail.data.len() as u64).unwrap_or_default(),
+                data: thumbnail.data,
+                content_type: mime::IMAGE_JPEG,
+                width: thumbnail.width.into(),
+                height: thumbnail.height.into(),
+            });
             config.info = Some(AttachmentInfo::Image(BaseImageInfo {
                 width: image.width.map(UInt::from),
                 height: image.height.map(UInt::from),

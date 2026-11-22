@@ -1239,19 +1239,33 @@ final class RustPinnedEvents implements PinnedEvents {
   }
 }
 
+/// An item's entry, or that it has none, for [Expando] (which can't hold `null`).
+final class _MappedEntry {
+  const _MappedEntry(this.entry);
+
+  final TimelineEntry? entry;
+}
+
 final class RustRoomTimeline implements RoomTimeline {
   RustRoomTimeline._(this._timeline) {
     _subscription = _timeline.subscribeItems().listen((batch) {
       for (final diff in batch) {
         applyTimelineDiff(_items, diff);
       }
-      _entries.value = entriesOf(_items);
+      _entries.value = entriesOf(_items, map: _entryOf);
     });
   }
 
   final rust.Timeline _timeline;
   late final StreamSubscription<List<rust.TimelineDiff>> _subscription;
   final _items = <rust.TimelineItem>[];
+
+  /// Each item's entry, mapped once: a diff replaces only the items that changed, so a new
+  /// message or receipt doesn't parse every loaded message's text again. Gone with its item.
+  final _mapped = Expando<_MappedEntry>('timeline entries');
+
+  TimelineEntry? _entryOf(rust.TimelineItem item) =>
+      (_mapped[item] ??= _MappedEntry(entryOf(item))).entry;
   final _entries = Latest<List<TimelineEntry>>(const []);
 
   @override
@@ -1536,6 +1550,14 @@ final class _RustJoinedCall implements JoinedCall {
     return (url: access.url, token: access.token);
   });
 
+  /// Leaves, then lets go of the core's call at once instead of whenever the garbage
+  /// collector gets to it (the core leaves it even when the server can't be told).
   @override
-  Future<void> leave() => guarded(_call.leave);
+  Future<void> leave() => guarded(() async {
+    try {
+      await _call.leave();
+    } finally {
+      _call.dispose();
+    }
+  });
 }

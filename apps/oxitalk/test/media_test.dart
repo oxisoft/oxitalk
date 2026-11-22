@@ -2,9 +2,13 @@ import 'package:flutter/gestures.dart';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
 import 'package:oxitalk/src/app/media_prefs.dart';
+import 'package:oxitalk/src/app/providers.dart';
+import 'package:oxitalk/src/app/router.dart';
 import 'package:oxitalk/src/features/chat_info/chat_info.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
@@ -148,6 +152,25 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(files.launched, [Uri.file('/tmp/open/office.png')]);
+  });
+
+  testWidgets('a chat’s pictures are let go a little while after leaving it', (
+    tester,
+  ) async {
+    await _openChat(tester);
+    final context = tester.element(_mediaOf(_photo).first);
+    final container = ProviderScope.containerOf(context);
+    final picture = mediaThumbnailProvider(_me, _photo.source, null);
+    expect(container.exists(picture), isTrue);
+
+    GoRouter.of(context).go(Routes.chats);
+    await tester.pumpAndSettle();
+    expect(_mediaOf(_photo), findsNothing);
+    // Kept a moment, for coming straight back.
+    expect(container.exists(picture), isTrue);
+    await tester.pump(mediaThumbnailKeptFor + const Duration(seconds: 1));
+    await tester.pump();
+    expect(container.exists(picture), isFalse);
   });
 
   testWidgets('a video shows its picture and length, and opens in an app', (

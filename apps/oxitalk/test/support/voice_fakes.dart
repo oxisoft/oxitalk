@@ -60,7 +60,7 @@ final class FakeAudioOutput implements AudioOutput {
   /// What was opened, by name.
   final opened = <String>[];
 
-  /// Every `play <ms>` and `pause`, in order.
+  /// Every `play <ms>`, `pause` and `close`, in order.
   final calls = <String>[];
 
   /// Throws [UnplayableAudio] on open, as a speaker does for a file it can't play.
@@ -89,6 +89,9 @@ final class FakeAudioOutput implements AudioOutput {
 
   @override
   Future<void> pause() async => calls.add('pause');
+
+  @override
+  Future<void> close() async => calls.add('close');
 
   @override
   Stream<Duration> get positions => _positions.stream;
