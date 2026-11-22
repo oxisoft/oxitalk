@@ -136,8 +136,12 @@ async fn room_details_are_edited_and_power_levels_gate_them() -> TestResult {
     alice
         .set_power_level(room.clone(), bob.user_id(), 50)
         .await?;
-    let moderator = wait_for_settings(&mut bob_states, "Bob may edit the name", |s| {
-        s.permissions.name
+    // Read again until it shows, not only from the stream: under load the info update for the
+    // new power levels can arrive before they are readable, and the stream then has nothing
+    // new to send.
+    let moderator = poll_until("Bob may edit the name", || async {
+        let settings = bob.room_settings(room.clone()).await?;
+        Ok(settings.permissions.name.then_some(settings))
     })
     .await?;
     // A moderator may send what Synapse's defaults ask 50 for (name, topic, picture,

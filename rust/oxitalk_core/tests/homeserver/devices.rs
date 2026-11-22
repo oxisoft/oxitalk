@@ -10,8 +10,8 @@ use oxitalk_core::api::{
 };
 
 use super::{
-    TIMEOUT, TestResult, TestUser, drive_flow, wait_for_flow, wait_for_status, wait_until_known,
-    watch_flow,
+    TIMEOUT, TestResult, TestUser, drive_flow, poll_until, wait_for_flow, wait_for_status,
+    wait_until_known, watch_flow,
 };
 
 /// Takes device lists until one satisfies `done`, and returns it.
@@ -89,15 +89,16 @@ async fn the_devices_are_listed_and_renamed() -> TestResult {
     first
         .rename_device(first_id.clone(), "Laptop".to_owned())
         .await?;
-    let list = second.devices().await?;
-    assert_eq!(
-        find(&list, &second_id).and_then(|d| d.display_name.as_deref()),
-        Some("My phone")
-    );
-    assert_eq!(
-        find(&list, &first_id).and_then(|d| d.display_name.as_deref()),
-        Some("Laptop")
-    );
+    // The other device's new name reaches this one's list with a later sync: under load the
+    // first read can still have the old one.
+    poll_until("the second sees both new names", || async {
+        let list = second.devices().await?;
+        let name = |id: &str| find(&list, id).and_then(|d| d.display_name.clone());
+        Ok((name(&second_id).as_deref() == Some("My phone")
+            && name(&first_id).as_deref() == Some("Laptop"))
+        .then_some(()))
+    })
+    .await?;
     wait_for_devices(&mut lists, "the rename shows in the list", |list| {
         find(list, &second_id).and_then(|d| d.display_name.as_deref()) == Some("My phone")
     })
