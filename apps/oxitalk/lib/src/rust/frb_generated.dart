@@ -17403,7 +17403,8 @@ class SessionImpl extends RustOpaque implements Session {
       .crateApiSessionSessionMediaContent(that: this, source: source);
 
   /// A picture of a message's file about `size` pixels wide: the thumbnail the sender
-  /// attached, else one the server makes of an unencrypted image, else the file itself.
+  /// attached, else one the server makes of an unencrypted image, else one the core makes
+  /// of an encrypted image (or the file itself when it is small, a GIF or unreadable).
   ///
   /// # Errors
   ///
@@ -18469,8 +18470,9 @@ class TimelineImpl extends RustOpaque implements Timeline {
 
   /// Sends `data` as a file named `filename` of type `mime_type`, with an optional caption.
   /// It shows at once as a local echo with its upload progress, and is encrypted in an
-  /// encrypted room. An image is sent with its size; with `compress`, a big photo is
-  /// scaled to 2048 pixels and sent as JPEG.
+  /// encrypted room. An image is sent with its size and, when it is bigger than 800 pixels,
+  /// an 800-pixel thumbnail; with `compress`, a big photo is scaled to 2048 pixels and sent
+  /// as JPEG.
   ///
   /// # Errors
   ///

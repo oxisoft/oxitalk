@@ -462,7 +462,8 @@ abstract class Session implements RustOpaqueInterface {
   Future<Uint8List> mediaContent({required String source});
 
   /// A picture of a message's file about `size` pixels wide: the thumbnail the sender
-  /// attached, else one the server makes of an unencrypted image, else the file itself.
+  /// attached, else one the server makes of an unencrypted image, else one the core makes
+  /// of an encrypted image (or the file itself when it is small, a GIF or unreadable).
   ///
   /// # Errors
   ///
