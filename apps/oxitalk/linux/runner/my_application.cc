@@ -7,7 +7,12 @@
 #include <gdk/gdkx.h>
 #endif
 
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#endif
+
 #include "flutter/generated_plugin_registrant.h"
+#include "wayland_scale_fix.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -88,6 +93,13 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+// Wayland: tells the scale fix (wayland_scale_fix.cc) about scale changes.
+static void scale_factor_changed_cb(GtkWidget* window,
+                                    GParamSpec* pspec,
+                                    gpointer user_data) {
+  wayland_scale_fix_set_scale(gtk_widget_get_scale_factor(window));
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
@@ -139,6 +151,19 @@ static void my_application_activate(GApplication* application) {
         g_build_filename(dir, "data", "app_icon.png", nullptr);
     gtk_window_set_icon_from_file(window, icon, nullptr);
   }
+
+#ifdef GDK_WINDOWING_WAYLAND
+  // Wayland: keep the Flutter view's surface at the window's scale when it
+  // moves to a monitor with another one (wayland_scale_fix.cc). Installed
+  // before the view creates its surface; the window is realized first, as it
+  // is shown only on Flutter's first frame, so that its scale is known.
+  if (GDK_IS_WAYLAND_DISPLAY(gtk_widget_get_display(GTK_WIDGET(window)))) {
+    gtk_widget_realize(GTK_WIDGET(window));
+    wayland_scale_fix_install(gtk_widget_get_scale_factor(GTK_WIDGET(window)));
+    g_signal_connect(window, "notify::scale-factor",
+                     G_CALLBACK(scale_factor_changed_cb), nullptr);
+  }
+#endif
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
