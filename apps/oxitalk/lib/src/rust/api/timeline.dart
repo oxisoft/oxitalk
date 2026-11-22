@@ -116,8 +116,9 @@ abstract class Timeline implements RustOpaqueInterface {
 
   /// Sends `data` as a file named `filename` of type `mime_type`, with an optional caption.
   /// It shows at once as a local echo with its upload progress, and is encrypted in an
-  /// encrypted room. An image is sent with its size; with `compress`, a big photo is
-  /// scaled to 2048 pixels and sent as JPEG.
+  /// encrypted room. An image is sent with its size and, when it is bigger than 800 pixels,
+  /// an 800-pixel thumbnail; with `compress`, a big photo is scaled to 2048 pixels and sent
+  /// as JPEG.
   ///
   /// # Errors
   ///

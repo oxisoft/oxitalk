@@ -2329,14 +2329,16 @@ abstract class _$AccountDevices extends $AsyncNotifier<List<Device>> {
   }
 }
 
-/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
-/// loaded; a failed load is tried again the next time it is shown.
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept while
+/// shown and for [pictureKeptFor] after; a failed load is tried again the next time it is
+/// shown.
 
 @ProviderFor(picture)
 final pictureProvider = PictureFamily._();
 
-/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
-/// loaded; a failed load is tried again the next time it is shown.
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept while
+/// shown and for [pictureKeptFor] after; a failed load is tried again the next time it is
+/// shown.
 
 final class PictureProvider
     extends
@@ -2346,8 +2348,9 @@ final class PictureProvider
           FutureOr<Uint8List>
         >
     with $FutureModifier<Uint8List>, $FutureProvider<Uint8List> {
-  /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
-  /// loaded; a failed load is tried again the next time it is shown.
+  /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept while
+  /// shown and for [pictureKeptFor] after; a failed load is tried again the next time it is
+  /// shown.
   PictureProvider._({
     required PictureFamily super.from,
     required (String, String, int) super.argument,
@@ -2391,10 +2394,11 @@ final class PictureProvider
   }
 }
 
-String _$pictureHash() => r'47d597f712858f678c0fa90437dae8a09a138e54';
+String _$pictureHash() => r'cbefa474086a0b26593d932b8d828e35616852ca';
 
-/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
-/// loaded; a failed load is tried again the next time it is shown.
+/// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept while
+/// shown and for [pictureKeptFor] after; a failed load is tried again the next time it is
+/// shown.
 
 final class PictureFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<Uint8List>, (String, String, int)> {
@@ -2407,8 +2411,9 @@ final class PictureFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept once
-  /// loaded; a failed load is tried again the next time it is shown.
+  /// The picture at [mxcUrl] (`mxc://`), as a thumbnail about [size] pixels wide. Kept while
+  /// shown and for [pictureKeptFor] after; a failed load is tried again the next time it is
+  /// shown.
 
   PictureProvider call(String account, String mxcUrl, int size) =>
       PictureProvider._(argument: (account, mxcUrl, size), from: this);
@@ -2753,12 +2758,14 @@ abstract class _$CollapsedSectionTags extends $AsyncNotifier<Set<String>> {
   }
 }
 
-/// A picture of a message's file for showing it in the chat. Kept once loaded.
+/// A picture of a message's file for showing it in the chat. Kept while shown and for
+/// [mediaThumbnailKeptFor] after, so leaving a chat lets its pictures go.
 
 @ProviderFor(mediaThumbnail)
 final mediaThumbnailProvider = MediaThumbnailFamily._();
 
-/// A picture of a message's file for showing it in the chat. Kept once loaded.
+/// A picture of a message's file for showing it in the chat. Kept while shown and for
+/// [mediaThumbnailKeptFor] after, so leaving a chat lets its pictures go.
 
 final class MediaThumbnailProvider
     extends
@@ -2768,7 +2775,8 @@ final class MediaThumbnailProvider
           FutureOr<Uint8List>
         >
     with $FutureModifier<Uint8List>, $FutureProvider<Uint8List> {
-  /// A picture of a message's file for showing it in the chat. Kept once loaded.
+  /// A picture of a message's file for showing it in the chat. Kept while shown and for
+  /// [mediaThumbnailKeptFor] after, so leaving a chat lets its pictures go.
   MediaThumbnailProvider._({
     required MediaThumbnailFamily super.from,
     required (String, String, String?) super.argument,
@@ -2812,9 +2820,10 @@ final class MediaThumbnailProvider
   }
 }
 
-String _$mediaThumbnailHash() => r'2e9d6294823e2a510b12d40081523f5d80f8df45';
+String _$mediaThumbnailHash() => r'94d4ac6e66fd12cddd3d824a07aae75c64168cf7';
 
-/// A picture of a message's file for showing it in the chat. Kept once loaded.
+/// A picture of a message's file for showing it in the chat. Kept while shown and for
+/// [mediaThumbnailKeptFor] after, so leaving a chat lets its pictures go.
 
 final class MediaThumbnailFamily extends $Family
     with
@@ -2831,7 +2840,8 @@ final class MediaThumbnailFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// A picture of a message's file for showing it in the chat. Kept once loaded.
+  /// A picture of a message's file for showing it in the chat. Kept while shown and for
+  /// [mediaThumbnailKeptFor] after, so leaving a chat lets its pictures go.
 
   MediaThumbnailProvider call(
     String account,
