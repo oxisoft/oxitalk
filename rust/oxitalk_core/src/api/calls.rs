@@ -36,7 +36,7 @@ use matrix_sdk::{
     deserialized_responses::{RawAnySyncOrStrippedState, TimelineEvent},
     event_handler::EventHandlerDropGuard,
     ruma::{
-        MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
+        EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
         api::client::account::request_openid_token,
         events::{
             AnySyncTimelineEvent, AnyToDeviceEvent, AnyToDeviceEventContent, StateEventType,
@@ -219,6 +219,18 @@ pub enum IncomingCallEnd {
     Declined,
 }
 
+/// What became of the ring (or notification) this device sent when it started its call.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OutgoingRingUpdate {
+    /// Someone it rang declined (MSC4310). Only other users count: a decline from another
+    /// device of our own user is not the callee's. In a group the others may still come.
+    Declined { user_id: String },
+    /// Someone else joined the call: the ring did its job, nothing more comes.
+    Answered { user_id: String },
+    /// The ring's lifetime passed with nobody else in the call; nothing more comes.
+    Expired,
+}
+
 /// A ring starting or stopping.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IncomingCallUpdate {
@@ -368,7 +380,8 @@ pub(crate) fn membership_content(
 }
 
 /// The content of a ring or notification for the call the membership `membership_event_id`
-/// joined, addressed to `user_ids` (and with `room` to the whole room).
+/// joined, addressed to `user_ids` (and with `room` to the whole room), ringing for
+/// `lifetime` ms.
 pub(crate) fn notification_content(
     notify: CallNotify,
     intent: CallIntent,
@@ -376,6 +389,7 @@ pub(crate) fn notification_content(
     user_ids: &[String],
     room: bool,
     now: i64,
+    lifetime: i64,
 ) -> Value {
     json!({
         "slot_id": ROOM_SLOT_ID,
@@ -383,7 +397,7 @@ pub(crate) fn notification_content(
         "notification_type": if notify == CallNotify::Ring { "ring" } else { "notification" },
         "m.relates_to": { "rel_type": "m.reference", "event_id": membership_event_id },
         "sender_ts": now,
-        "lifetime": RING_LIFETIME_MS,
+        "lifetime": lifetime,
         "m.call.intent": intent.as_str(),
     })
 }
@@ -826,12 +840,14 @@ impl Session {
         intent: CallIntent,
         notify: CallNotify,
     ) -> Result<ActiveCall, CoreError> {
-        self.join_call_with(room_id, intent, notify, None).await
+        self.join_call_with(room_id, intent, notify, None, None)
+            .await
     }
 
     /// [`Self::join_call`], for Rust callers. With `no_media`, only the Matrix side: the call
     /// service `no_media` names is written in the membership but no LiveKit token is asked
-    /// (the tests of the signalling run on servers without an SFU).
+    /// (the tests of the signalling run on servers without an SFU). `ring_lifetime` replaces
+    /// the ring's usual lifetime (a minute), for tests that wait for it to run out.
     ///
     /// # Errors
     ///
@@ -843,6 +859,7 @@ impl Session {
         intent: CallIntent,
         notify: CallNotify,
         no_media: Option<String>,
+        ring_lifetime: Option<Duration>,
     ) -> Result<ActiveCall, CoreError> {
         let room = self.room(&room_id)?;
         let (user, device) = self.own_ids()?;
@@ -904,16 +921,23 @@ impl Session {
             active_calls: self.active_calls.clone(),
             keys: broadcast::channel(64).0,
             known_keys: Mutex::default(),
+            ring_updates: broadcast::channel(16).0,
+            ring_log: Mutex::default(),
+            ring_event_id: Mutex::default(),
             tasks: Mutex::default(),
             left: Mutex::new(false),
             runtime: Handle::current(),
         });
         inner.start(joined_at);
 
-        if notify != CallNotify::None
-            && let Err(error) = inner.notify(notify, &sent.event_id).await
-        {
-            tracing::warn!(%error, "couldn't ring the call");
+        if notify != CallNotify::None {
+            let lifetime = ring_lifetime.map_or(RING_LIFETIME_MS, |lifetime| {
+                i64::try_from(lifetime.as_millis()).unwrap_or(MAX_RING_LIFETIME_MS)
+            });
+            match inner.notify(notify, &sent.event_id, lifetime).await {
+                Ok((event_id, expires_at)) => inner.follow_own_ring(&event_id, expires_at),
+                Err(error) => tracing::warn!(%error, "couldn't ring the call"),
+            }
         }
         Ok(ActiveCall { inner })
     }
@@ -1283,6 +1307,11 @@ struct CallInner {
     keys: broadcast::Sender<CallMediaKey>,
     /// Every key so far, latest per identity and index, for a late subscriber.
     known_keys: Mutex<BTreeMap<(String, u32), CallMediaKey>>,
+    ring_updates: broadcast::Sender<OutgoingRingUpdate>,
+    /// Every ring update so far, for a late subscriber; held while one is sent.
+    ring_log: Mutex<Vec<OutgoingRingUpdate>>,
+    /// The ring or notification this device sent, if it sent one.
+    ring_event_id: Mutex<Option<String>>,
     tasks: Mutex<Vec<AbortHandle>>,
     left: Mutex<bool>,
     runtime: Handle,
@@ -1382,6 +1411,53 @@ impl ActiveCall {
                 match receiver.recv().await {
                     Ok(key) => {
                         if !emit(key) {
+                            return;
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => return,
+                }
+            }
+        });
+        lock(&self.inner.tasks).push(task.abort_handle());
+    }
+
+    /// The `m.rtc.notification` this device sent when it started the call, if it rang or
+    /// notified.
+    #[frb(ignore)]
+    #[must_use]
+    pub fn ring_event_id(&self) -> Option<String> {
+        lock(&self.inner.ring_event_id).clone()
+    }
+
+    /// Sends what became of the ring this device sent: each decline by someone else, then
+    /// [`OutgoingRingUpdate::Answered`] or [`OutgoingRingUpdate::Expired`]. Nothing when the
+    /// call was joined without ringing. Updates so far come first.
+    #[allow(
+        clippy::unused_async,
+        reason = "async so flutter_rust_bridge runs it on its tokio runtime, which spawn needs"
+    )]
+    pub async fn subscribe_ring_updates(&self, sink: StreamSink<OutgoingRingUpdate>) {
+        self.ring_updates(move |update| sink.add(update).is_ok());
+    }
+
+    /// Like [`Self::subscribe_ring_updates`], for Rust callers.
+    #[frb(ignore)]
+    pub fn ring_updates(&self, emit: impl Fn(OutgoingRingUpdate) -> bool + Send + 'static) {
+        let (mut receiver, known) = {
+            let log = lock(&self.inner.ring_log);
+            (self.inner.ring_updates.subscribe(), log.clone())
+        };
+        let task = tokio::spawn(async move {
+            for update in known {
+                if !emit(update) {
+                    return;
+                }
+            }
+            loop {
+                match receiver.recv().await {
+                    Ok(update) => {
+                        if !emit(update) {
                             return;
                         }
                     }
@@ -1494,12 +1570,14 @@ impl CallInner {
     }
 
     /// Rings or notifies the room's other members about the call our membership
-    /// `membership_event_id` started.
+    /// `membership_event_id` started, for `lifetime` ms. Gives the notification's event ID and
+    /// when it stops ringing.
     async fn notify(
         &self,
         notify: CallNotify,
         membership_event_id: &OwnedEventId,
-    ) -> Result<(), CoreError> {
+        lifetime: i64,
+    ) -> Result<(OwnedEventId, i64), CoreError> {
         let own = self.room.own_user_id().to_owned();
         let others: Vec<String> = self
             .room
@@ -1509,21 +1587,75 @@ impl CallInner {
             .map(|member| member.user_id().to_string())
             .filter(|user| *user != own.as_str())
             .collect();
+        let now = now_ms();
         let content = notification_content(
             notify,
             self.intent,
             membership_event_id.as_str(),
             &others,
             notify == CallNotify::Notify,
-            now_ms(),
+            now,
+            lifetime,
         );
         // The unstable type: Element Call (matrix-js-sdk `EventType.RTCNotification`) reads
         // only that one, and matrix-rust-sdk (Element X, OxiTalk) reads both (ruma
         // `unstable-msc4075`). Both types at once would show and ring twice there.
-        self.room
+        let sent = self
+            .room
             .send_raw(NOTIFICATION_TYPE_UNSTABLE, content)
             .await?;
-        Ok(())
+        *lock(&self.ring_event_id) = Some(sent.response.event_id.to_string());
+        Ok((sent.response.event_id, ring_expiry(now, now, lifetime)))
+    }
+
+    fn publish_ring_update(&self, update: OutgoingRingUpdate) {
+        let mut log = lock(&self.ring_log);
+        log.push(update.clone());
+        let _ = self.ring_updates.send(update);
+    }
+
+    /// Follows the ring `event_id` this device sent until someone else joins or it runs out
+    /// at `expires_at`, publishing the declines of other users on the way.
+    fn follow_own_ring(self: &Arc<Self>, event_id: &EventId, expires_at: i64) {
+        // Subscribed at once, so no decline that comes while the task starts is missed.
+        let (guard, mut declines) = self.room.subscribe_to_call_decline_events(event_id);
+        let mut infos = self.room.subscribe_info();
+        let this = self.clone();
+        let task = tokio::spawn(async move {
+            let _guard = guard;
+            loop {
+                let left = Duration::from_millis(u64::try_from(expires_at - now_ms()).unwrap_or(0));
+                tokio::select! {
+                    () = tokio::time::sleep(left) => {
+                        this.publish_ring_update(OutgoingRingUpdate::Expired);
+                        return;
+                    }
+                    sender = declines.recv() => match sender {
+                        // Our own other devices declining is not the callee's answer.
+                        Ok(user) if user.as_str() != this.user => {
+                            this.publish_ring_update(OutgoingRingUpdate::Declined {
+                                user_id: user.to_string(),
+                            });
+                        }
+                        Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(broadcast::error::RecvError::Closed) => return,
+                    },
+                    info = infos.next() => {
+                        if info.is_none() {
+                            return;
+                        }
+                        let call = room_call(&this.room, &this.user, &this.device, now_ms()).await;
+                        if let Some(other) = call.participants.iter().find(|p| !p.is_own_user) {
+                            this.publish_ring_update(OutgoingRingUpdate::Answered {
+                                user_id: other.user_id.clone(),
+                            });
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        lock(&self.tasks).push(task.abort_handle());
     }
 
     fn publish_key(&self, key: CallMediaKey) {
@@ -1895,6 +2027,7 @@ mod tests {
             &["@me:x".to_owned()],
             false,
             10_000,
+            RING_LIFETIME_MS,
         );
         assert_eq!(content["notification_type"], "ring");
         assert_eq!(content["m.relates_to"]["rel_type"], "m.reference");
@@ -1954,6 +2087,7 @@ mod tests {
             &[],
             true,
             10_000,
+            RING_LIFETIME_MS,
         );
         let notified = parse_ring(
             &event(NOTIFICATION_TYPE, "@caller:x", &group, 10_100),

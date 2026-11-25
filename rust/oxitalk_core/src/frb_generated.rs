@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1411913388;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1767482593;
 
 // Section: executor
 
@@ -501,6 +501,71 @@ fn wire__crate__api__calls__ActiveCall_subscribe_media_keys_impl(
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok = Ok::<_, ()>({
                             crate::api::calls::ActiveCall::subscribe_media_keys(
+                                &*api_that_guard,
+                                api_sink,
+                            )
+                            .await;
+                        })?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__calls__ActiveCall_subscribe_ring_updates_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ActiveCall_subscribe_ring_updates",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ActiveCall>,
+            >>::sse_decode(&mut deserializer);
+            let api_sink = <StreamSink<
+                crate::api::calls::OutgoingRingUpdate,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_that_guard =
+                                        Some(api_that.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = Ok::<_, ()>({
+                            crate::api::calls::ActiveCall::subscribe_ring_updates(
                                 &*api_that_guard,
                                 api_sink,
                             )
@@ -10930,6 +10995,19 @@ impl SseDecode
 }
 
 impl SseDecode
+    for StreamSink<
+        crate::api::calls::OutgoingRingUpdate,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
+impl SseDecode
     for StreamSink<crate::api::profile::Profile, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -12680,6 +12758,33 @@ impl SseDecode for Option<Vec<crate::api::verification::VerificationEmoji>> {
     }
 }
 
+impl SseDecode for crate::api::calls::OutgoingRingUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_userId = <String>::sse_decode(deserializer);
+                return crate::api::calls::OutgoingRingUpdate::Declined {
+                    user_id: var_userId,
+                };
+            }
+            1 => {
+                let mut var_userId = <String>::sse_decode(deserializer);
+                return crate::api::calls::OutgoingRingUpdate::Answered {
+                    user_id: var_userId,
+                };
+            }
+            2 => {
+                return crate::api::calls::OutgoingRingUpdate::Expired;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::directory::Person {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14129,692 +14234,698 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__pins__Pins_pin_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__pins__Pins_subscribe_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__pins__Pins_unpin_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__session__Session_add_notification_keyword_impl(
+        10 => wire__crate__api__calls__ActiveCall_subscribe_ring_updates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__session__Session_add_recent_emoji_impl(
+        11 => wire__crate__api__pins__Pins_pin_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__pins__Pins_subscribe_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__pins__Pins_unpin_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__session__Session_add_notification_keyword_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        15 => wire__crate__api__session__Session_ban_member_impl(port, ptr, rust_vec_len, data_len),
-        16 => {
+        15 => wire__crate__api__session__Session_add_recent_emoji_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        16 => wire__crate__api__session__Session_ban_member_impl(port, ptr, rust_vec_len, data_len),
+        17 => {
             wire__crate__api__session__Session_call_services_impl(port, ptr, rust_vec_len, data_len)
         }
-        17 => wire__crate__api__session__Session_can_mention_room_impl(
+        18 => wire__crate__api__session__Session_can_mention_room_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__session__Session_can_start_jitsi_conference_impl(
+        19 => wire__crate__api__session__Session_can_start_jitsi_conference_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => {
+        20 => {
             wire__crate__api__session__Session_clear_draft_impl(port, ptr, rust_vec_len, data_len)
         }
-        20 => wire__crate__api__session__Session_clear_media_cache_impl(
+        21 => wire__crate__api__session__Session_clear_media_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__session__Session_create_dm_impl(port, ptr, rust_vec_len, data_len),
-        22 => {
+        22 => wire__crate__api__session__Session_create_dm_impl(port, ptr, rust_vec_len, data_len),
+        23 => {
             wire__crate__api__session__Session_create_room_impl(port, ptr, rust_vec_len, data_len)
         }
-        23 => {
+        24 => {
             wire__crate__api__session__Session_decline_call_impl(port, ptr, rust_vec_len, data_len)
         }
-        24 => wire__crate__api__session__Session_devices_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__session__Session_draft_previews_impl(
+        25 => wire__crate__api__session__Session_devices_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__session__Session_draft_previews_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__session__Session_enable_recovery_impl(
+        28 => wire__crate__api__session__Session_enable_recovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__session__Session_enable_room_encryption_impl(
+        29 => wire__crate__api__session__Session_enable_room_encryption_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__session__Session_end_jitsi_conference_impl(
+        30 => wire__crate__api__session__Session_end_jitsi_conference_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__session__Session_event_timeline_impl(
+        31 => wire__crate__api__session__Session_event_timeline_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        31 => wire__crate__api__session__Session_first_message_since_impl(
+        32 => wire__crate__api__session__Session_first_message_since_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__session__Session_fix_inconsistent_notification_defaults_impl(
+        33 => wire__crate__api__session__Session_fix_inconsistent_notification_defaults_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => {
+        34 => {
             wire__crate__api__session__Session_ignore_user_impl(port, ptr, rust_vec_len, data_len)
         }
-        34 => {
+        35 => {
             wire__crate__api__session__Session_ignored_users_impl(port, ptr, rust_vec_len, data_len)
         }
-        35 => wire__crate__api__session__Session_invite_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__session__Session_invite_details_impl(
+        36 => wire__crate__api__session__Session_invite_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__session__Session_invite_details_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__session__Session_is_last_device_impl(
+        38 => wire__crate__api__session__Session_is_last_device_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__session__Session_is_server_admin_impl(
+        39 => wire__crate__api__session__Session_is_server_admin_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__session__Session_jitsi_conferences_impl(
+        40 => wire__crate__api__session__Session_jitsi_conferences_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => {
+        41 => {
             wire__crate__api__session__Session_jitsi_domain_impl(port, ptr, rust_vec_len, data_len)
         }
-        41 => wire__crate__api__session__Session_jitsi_join_url_impl(
+        42 => wire__crate__api__session__Session_jitsi_join_url_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__session__Session_join_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__session__Session_join_by_address_impl(
+        43 => wire__crate__api__session__Session_join_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__session__Session_join_by_address_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__session__Session_join_call_impl(port, ptr, rust_vec_len, data_len),
-        45 => {
+        45 => wire__crate__api__session__Session_join_call_impl(port, ptr, rust_vec_len, data_len),
+        46 => {
             wire__crate__api__session__Session_known_people_impl(port, ptr, rust_vec_len, data_len)
         }
-        46 => wire__crate__api__session__Session_latest_release_impl(
+        47 => wire__crate__api__session__Session_latest_release_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__session__Session_leave_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__session__Session_leave_info_impl(port, ptr, rust_vec_len, data_len),
-        49 => {
+        48 => wire__crate__api__session__Session_leave_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__session__Session_leave_info_impl(port, ptr, rust_vec_len, data_len),
+        50 => {
             wire__crate__api__session__Session_leave_space_impl(port, ptr, rust_vec_len, data_len)
         }
-        50 => wire__crate__api__session__Session_leave_space_preview_impl(
+        51 => wire__crate__api__session__Session_leave_space_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__session__Session_load_draft_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__session__Session_logout_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__session__Session_mark_room_read_impl(
+        52 => wire__crate__api__session__Session_load_draft_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__session__Session_logout_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__session__Session_mark_room_read_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__session__Session_media_cache_size_impl(
+        55 => wire__crate__api__session__Session_media_cache_size_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => {
+        56 => {
             wire__crate__api__session__Session_media_content_impl(port, ptr, rust_vec_len, data_len)
         }
-        56 => wire__crate__api__session__Session_media_thumbnail_impl(
+        57 => wire__crate__api__session__Session_media_thumbnail_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__session__Session_media_timeline_impl(
+        58 => wire__crate__api__session__Session_media_timeline_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__session__Session_notification_settings_impl(
+        60 => wire__crate__api__session__Session_notification_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => {
+        61 => {
             wire__crate__api__session__Session_own_profile_impl(port, ptr, rust_vec_len, data_len)
         }
-        61 => wire__crate__api__session__Session_pinned_timeline_impl(
+        62 => wire__crate__api__session__Session_pinned_timeline_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__session__Session_pins_impl(port, ptr, rust_vec_len, data_len),
-        63 => {
+        63 => wire__crate__api__session__Session_pins_impl(port, ptr, rust_vec_len, data_len),
+        64 => {
             wire__crate__api__session__Session_public_rooms_impl(port, ptr, rust_vec_len, data_len)
         }
-        64 => {
+        65 => {
             wire__crate__api__session__Session_recent_emojis_impl(port, ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__session__Session_recover_impl(port, ptr, rust_vec_len, data_len),
-        66 => {
+        66 => wire__crate__api__session__Session_recover_impl(port, ptr, rust_vec_len, data_len),
+        67 => {
             wire__crate__api__session__Session_remove_avatar_impl(port, ptr, rust_vec_len, data_len)
         }
-        67 => {
+        68 => {
             wire__crate__api__session__Session_remove_member_impl(port, ptr, rust_vec_len, data_len)
         }
-        68 => wire__crate__api__session__Session_remove_notification_keyword_impl(
+        69 => wire__crate__api__session__Session_remove_notification_keyword_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__session__Session_remove_room_avatar_impl(
+        70 => wire__crate__api__session__Session_remove_room_avatar_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => {
+        71 => {
             wire__crate__api__session__Session_rename_device_impl(port, ptr, rust_vec_len, data_len)
         }
-        71 => {
+        72 => {
             wire__crate__api__session__Session_report_event_impl(port, ptr, rust_vec_len, data_len)
         }
-        72 => {
+        73 => {
             wire__crate__api__session__Session_report_user_impl(port, ptr, rust_vec_len, data_len)
         }
-        73 => wire__crate__api__session__Session_request_self_verification_impl(
+        74 => wire__crate__api__session__Session_request_self_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__session__Session_reset_recovery_key_impl(
+        75 => wire__crate__api__session__Session_reset_recovery_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__session__Session_room_call_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__session__Session_room_created_ms_impl(
+        76 => wire__crate__api__session__Session_room_call_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__session__Session_room_created_ms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => {
+        78 => {
             wire__crate__api__session__Session_room_details_impl(port, ptr, rust_vec_len, data_len)
         }
-        78 => {
+        79 => {
             wire__crate__api__session__Session_room_members_impl(port, ptr, rust_vec_len, data_len)
         }
-        79 => wire__crate__api__session__Session_room_published_impl(
+        80 => wire__crate__api__session__Session_room_published_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => {
+        81 => {
             wire__crate__api__session__Session_room_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        81 => wire__crate__api__session__Session_save_draft_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__session__Session_save_media_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__session__Session_save_section_settings_impl(
+        82 => wire__crate__api__session__Session_save_draft_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__session__Session_save_media_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__session__Session_save_section_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__session__Session_search_load_older_impl(
+        85 => wire__crate__api__session__Session_search_load_older_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => {
+        86 => {
             wire__crate__api__session__Session_search_people_impl(port, ptr, rust_vec_len, data_len)
         }
-        86 => {
+        87 => {
             wire__crate__api__session__Session_search_room_impl(port, ptr, rust_vec_len, data_len)
         }
-        87 => {
+        88 => {
             wire__crate__api__session__Session_server_info_impl(port, ptr, rust_vec_len, data_len)
         }
-        89 => wire__crate__api__session__Session_set_avatar_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__api__session__Session_set_default_notification_mode_impl(
+        90 => wire__crate__api__session__Session_set_avatar_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__session__Session_set_default_notification_mode_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__session__Session_set_invites_enabled_impl(
+        92 => wire__crate__api__session__Session_set_invites_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__session__Session_set_marked_unread_impl(
+        93 => wire__crate__api__session__Session_set_marked_unread_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__session__Session_set_media_retention_impl(
+        94 => wire__crate__api__session__Session_set_media_retention_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__session__Session_set_power_level_impl(
+        95 => wire__crate__api__session__Session_set_power_level_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__session__Session_set_room_avatar_impl(
+        96 => wire__crate__api__session__Session_set_room_avatar_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__session__Session_set_room_history_impl(
+        97 => wire__crate__api__session__Session_set_room_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__session__Session_set_room_join_rule_impl(
+        98 => wire__crate__api__session__Session_set_room_join_rule_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__session__Session_set_room_main_address_impl(
+        99 => wire__crate__api__session__Session_set_room_main_address_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__session__Session_set_room_mentions_enabled_impl(
+        100 => wire__crate__api__session__Session_set_room_mentions_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => {
+        101 => {
             wire__crate__api__session__Session_set_room_name_impl(port, ptr, rust_vec_len, data_len)
         }
-        101 => wire__crate__api__session__Session_set_room_notification_mode_impl(
+        102 => wire__crate__api__session__Session_set_room_notification_mode_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__session__Session_set_room_published_impl(
+        103 => wire__crate__api__session__Session_set_room_published_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__session__Session_set_room_section_impl(
+        104 => wire__crate__api__session__Session_set_room_section_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__session__Session_set_room_topic_impl(
+        105 => wire__crate__api__session__Session_set_room_topic_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__session__Session_sign_out_devices_impl(
+        106 => wire__crate__api__session__Session_sign_out_devices_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__session__Session_space_children_impl(
+        107 => wire__crate__api__session__Session_space_children_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__session__Session_start_jitsi_conference_impl(
+        108 => wire__crate__api__session__Session_start_jitsi_conference_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => {
+        109 => {
             wire__crate__api__session__Session_start_sync_impl(port, ptr, rust_vec_len, data_len)
         }
-        109 => wire__crate__api__session__Session_stop_sync_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__session__Session_subscribe_devices_impl(
+        110 => wire__crate__api__session__Session_stop_sync_impl(port, ptr, rust_vec_len, data_len),
+        111 => wire__crate__api__session__Session_subscribe_devices_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        111 => wire__crate__api__session__Session_subscribe_encryption_status_impl(
+        112 => wire__crate__api__session__Session_subscribe_encryption_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__session__Session_subscribe_ignored_users_impl(
+        113 => wire__crate__api__session__Session_subscribe_ignored_users_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => wire__crate__api__session__Session_subscribe_incoming_calls_impl(
+        114 => wire__crate__api__session__Session_subscribe_incoming_calls_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__session__Session_subscribe_jitsi_conferences_impl(
+        115 => wire__crate__api__session__Session_subscribe_jitsi_conferences_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        115 => wire__crate__api__session__Session_subscribe_notification_settings_impl(
+        116 => wire__crate__api__session__Session_subscribe_notification_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        116 => wire__crate__api__session__Session_subscribe_notifications_impl(
+        117 => wire__crate__api__session__Session_subscribe_notifications_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__session__Session_subscribe_own_profile_impl(
+        118 => wire__crate__api__session__Session_subscribe_own_profile_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        118 => wire__crate__api__session__Session_subscribe_recovery_progress_impl(
+        119 => wire__crate__api__session__Session_subscribe_recovery_progress_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        119 => wire__crate__api__session__Session_subscribe_room_call_impl(
+        120 => wire__crate__api__session__Session_subscribe_room_call_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        120 => wire__crate__api__session__Session_subscribe_room_settings_impl(
+        121 => wire__crate__api__session__Session_subscribe_room_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        121 => wire__crate__api__session__Session_subscribe_rooms_impl(
+        122 => wire__crate__api__session__Session_subscribe_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        122 => wire__crate__api__session__Session_subscribe_sections_impl(
+        123 => wire__crate__api__session__Session_subscribe_sections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        123 => wire__crate__api__session__Session_subscribe_session_changes_impl(
+        124 => wire__crate__api__session__Session_subscribe_session_changes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__session__Session_subscribe_spaces_impl(
+        125 => wire__crate__api__session__Session_subscribe_spaces_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        125 => wire__crate__api__session__Session_subscribe_sync_state_impl(
+        126 => wire__crate__api__session__Session_subscribe_sync_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        126 => wire__crate__api__session__Session_subscribe_typing_impl(
+        127 => wire__crate__api__session__Session_subscribe_typing_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        127 => wire__crate__api__session__Session_subscribe_verification_requests_impl(
+        128 => wire__crate__api__session__Session_subscribe_verification_requests_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        128 => wire__crate__api__session__Session_subscribe_verification_status_impl(
+        129 => wire__crate__api__session__Session_subscribe_verification_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        129 => {
+        130 => {
             wire__crate__api__session__Session_thread_list_impl(port, ptr, rust_vec_len, data_len)
         }
-        130 => wire__crate__api__session__Session_thread_timeline_impl(
+        131 => wire__crate__api__session__Session_thread_timeline_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        131 => wire__crate__api__session__Session_thumbnail_impl(port, ptr, rust_vec_len, data_len),
-        132 => wire__crate__api__session__Session_timeline_impl(port, ptr, rust_vec_len, data_len),
-        133 => {
+        132 => wire__crate__api__session__Session_thumbnail_impl(port, ptr, rust_vec_len, data_len),
+        133 => wire__crate__api__session__Session_timeline_impl(port, ptr, rust_vec_len, data_len),
+        134 => {
             wire__crate__api__session__Session_unban_member_impl(port, ptr, rust_vec_len, data_len)
         }
-        134 => {
+        135 => {
             wire__crate__api__session__Session_unignore_user_impl(port, ptr, rust_vec_len, data_len)
         }
-        136 => {
+        137 => {
             wire__crate__api__session__Session_user_profile_impl(port, ptr, rust_vec_len, data_len)
         }
-        137 => {
+        138 => {
             wire__crate__api__session__Session_verification_impl(port, ptr, rust_vec_len, data_len)
         }
-        138 => {
+        139 => {
             wire__crate__api__session__Session_verify_device_impl(port, ptr, rust_vec_len, data_len)
         }
-        139 => {
+        140 => {
             wire__crate__api__session__Session_verify_user_impl(port, ptr, rust_vec_len, data_len)
         }
-        140 => {
+        141 => {
             wire__crate__api__threads__ThreadList_paginate_impl(port, ptr, rust_vec_len, data_len)
         }
-        141 => {
+        142 => {
             wire__crate__api__threads__ThreadList_subscribe_impl(port, ptr, rust_vec_len, data_len)
         }
-        142 => wire__crate__api__timeline__Timeline_can_redact_others_impl(
+        143 => wire__crate__api__timeline__Timeline_can_redact_others_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        143 => wire__crate__api__timeline__Timeline_draft_target_impl(
+        144 => wire__crate__api__timeline__Timeline_draft_target_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        144 => wire__crate__api__timeline__Timeline_edit_impl(port, ptr, rust_vec_len, data_len),
-        145 => wire__crate__api__timeline__Timeline_edit_message_impl(
+        145 => wire__crate__api__timeline__Timeline_edit_impl(port, ptr, rust_vec_len, data_len),
+        146 => wire__crate__api__timeline__Timeline_edit_message_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        146 => wire__crate__api__timeline__Timeline_forward_impl(port, ptr, rust_vec_len, data_len),
-        147 => wire__crate__api__timeline__Timeline_mark_as_read_impl(
+        147 => wire__crate__api__timeline__Timeline_forward_impl(port, ptr, rust_vec_len, data_len),
+        148 => wire__crate__api__timeline__Timeline_mark_as_read_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        148 => wire__crate__api__timeline__Timeline_paginate_back_impl(
+        149 => wire__crate__api__timeline__Timeline_paginate_back_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        149 => wire__crate__api__timeline__Timeline_paginate_forward_impl(
+        150 => wire__crate__api__timeline__Timeline_paginate_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        150 => wire__crate__api__timeline__Timeline_redact_impl(port, ptr, rust_vec_len, data_len),
-        151 => {
+        151 => wire__crate__api__timeline__Timeline_redact_impl(port, ptr, rust_vec_len, data_len),
+        152 => {
             wire__crate__api__timeline__Timeline_retry_send_impl(port, ptr, rust_vec_len, data_len)
         }
-        152 => {
+        153 => {
             wire__crate__api__timeline__Timeline_send_data_impl(port, ptr, rust_vec_len, data_len)
         }
-        153 => {
+        154 => {
             wire__crate__api__timeline__Timeline_send_file_impl(port, ptr, rust_vec_len, data_len)
         }
-        154 => wire__crate__api__timeline__Timeline_send_message_impl(
+        155 => wire__crate__api__timeline__Timeline_send_message_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        155 => {
+        156 => {
             wire__crate__api__timeline__Timeline_send_reply_impl(port, ptr, rust_vec_len, data_len)
         }
-        156 => {
+        157 => {
             wire__crate__api__timeline__Timeline_send_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        157 => {
+        158 => {
             wire__crate__api__timeline__Timeline_send_video_impl(port, ptr, rust_vec_len, data_len)
         }
-        158 => {
+        159 => {
             wire__crate__api__timeline__Timeline_send_voice_impl(port, ptr, rust_vec_len, data_len)
         }
-        159 => {
+        160 => {
             wire__crate__api__timeline__Timeline_set_typing_impl(port, ptr, rust_vec_len, data_len)
         }
-        160 => wire__crate__api__timeline__Timeline_subscribe_items_impl(
+        161 => wire__crate__api__timeline__Timeline_subscribe_items_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        161 => wire__crate__api__timeline__Timeline_toggle_reaction_impl(
+        162 => wire__crate__api__timeline__Timeline_toggle_reaction_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        162 => wire__crate__api__verification__Verification_accept_impl(
+        163 => wire__crate__api__verification__Verification_accept_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        163 => wire__crate__api__verification__Verification_accept_sas_impl(
+        164 => wire__crate__api__verification__Verification_accept_sas_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        164 => wire__crate__api__verification__Verification_cancel_impl(
+        165 => wire__crate__api__verification__Verification_cancel_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        165 => wire__crate__api__verification__Verification_confirm_impl(
+        166 => wire__crate__api__verification__Verification_confirm_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        166 => wire__crate__api__verification__Verification_mismatch_impl(
+        167 => wire__crate__api__verification__Verification_mismatch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        167 => wire__crate__api__verification__Verification_start_sas_impl(
+        168 => wire__crate__api__verification__Verification_start_sas_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        168 => wire__crate__api__verification__Verification_subscribe_states_impl(
+        169 => wire__crate__api__verification__Verification_subscribe_states_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        170 => wire__crate__api__voice__decoded_wav_impl(port, ptr, rust_vec_len, data_len),
-        171 => wire__crate__api__voice__encode_voice_impl(port, ptr, rust_vec_len, data_len),
-        172 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        174 => wire__crate__api__session__login_impl(port, ptr, rust_vec_len, data_len),
-        175 => wire__crate__api__voice__playable_wav_impl(port, ptr, rust_vec_len, data_len),
-        176 => wire__crate__api__session__restore_impl(port, ptr, rust_vec_len, data_len),
-        177 => {
+        171 => wire__crate__api__voice__decoded_wav_impl(port, ptr, rust_vec_len, data_len),
+        172 => wire__crate__api__voice__encode_voice_impl(port, ptr, rust_vec_len, data_len),
+        173 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        175 => wire__crate__api__session__login_impl(port, ptr, rust_vec_len, data_len),
+        176 => wire__crate__api__voice__playable_wav_impl(port, ptr, rust_vec_len, data_len),
+        177 => wire__crate__api__session__restore_impl(port, ptr, rust_vec_len, data_len),
+        178 => {
             wire__crate__api__rich_text__rich_span_default_impl(port, ptr, rust_vec_len, data_len)
         }
-        180 => wire__crate__api__sections__section_settings_default_impl(
+        181 => wire__crate__api__sections__section_settings_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -14838,16 +14949,16 @@ fn pde_ffi_dispatcher_sync_impl(
         5 => wire__crate__api__calls__ActiveCall_livekit_url_impl(ptr, rust_vec_len, data_len),
         7 => wire__crate__api__calls__ActiveCall_room_id_impl(ptr, rust_vec_len, data_len),
         8 => wire__crate__api__calls__ActiveCall_service_url_impl(ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__session__Session_dm_with_impl(ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__session__Session_mention_rooms_impl(ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__session__Session_session_data_impl(ptr, rust_vec_len, data_len),
-        135 => wire__crate__api__session__Session_user_id_impl(ptr, rust_vec_len, data_len),
-        169 => wire__crate__api__core_version_impl(ptr, rust_vec_len, data_len),
-        173 => wire__crate__api__logging__init_logging_impl(ptr, rust_vec_len, data_len),
-        178 => wire__crate__api__calls__room_call_is_active_impl(ptr, rust_vec_len, data_len),
-        179 => wire__crate__api__jitsi__room_jitsi_current_impl(ptr, rust_vec_len, data_len),
-        181 => wire__crate__api__logging__set_logging_impl(ptr, rust_vec_len, data_len),
-        182 => wire__crate__api__logging__write_log_impl(ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__session__Session_dm_with_impl(ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__session__Session_mention_rooms_impl(ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__session__Session_session_data_impl(ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__session__Session_user_id_impl(ptr, rust_vec_len, data_len),
+        170 => wire__crate__api__core_version_impl(ptr, rust_vec_len, data_len),
+        174 => wire__crate__api__logging__init_logging_impl(ptr, rust_vec_len, data_len),
+        179 => wire__crate__api__calls__room_call_is_active_impl(ptr, rust_vec_len, data_len),
+        180 => wire__crate__api__jitsi__room_jitsi_current_impl(ptr, rust_vec_len, data_len),
+        182 => wire__crate__api__logging__set_logging_impl(ptr, rust_vec_len, data_len),
+        183 => wire__crate__api__logging__write_log_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -15945,6 +16056,34 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::notifications::NotificationSe
     for crate::api::notifications::NotificationSettingsState
 {
     fn into_into_dart(self) -> crate::api::notifications::NotificationSettingsState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::calls::OutgoingRingUpdate {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::calls::OutgoingRingUpdate::Declined { user_id } => {
+                [0.into_dart(), user_id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::calls::OutgoingRingUpdate::Answered { user_id } => {
+                [1.into_dart(), user_id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::calls::OutgoingRingUpdate::Expired => [2.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::calls::OutgoingRingUpdate
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::calls::OutgoingRingUpdate>
+    for crate::api::calls::OutgoingRingUpdate
+{
+    fn into_into_dart(self) -> crate::api::calls::OutgoingRingUpdate {
         self
     }
 }
@@ -17818,6 +17957,18 @@ impl SseEncode
 }
 
 impl SseEncode
+    for StreamSink<
+        crate::api::calls::OutgoingRingUpdate,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
+impl SseEncode
     for StreamSink<crate::api::profile::Profile, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -19249,6 +19400,28 @@ impl SseEncode for Option<Vec<crate::api::verification::VerificationEmoji>> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <Vec<crate::api::verification::VerificationEmoji>>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for crate::api::calls::OutgoingRingUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::calls::OutgoingRingUpdate::Declined { user_id } => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(user_id, serializer);
+            }
+            crate::api::calls::OutgoingRingUpdate::Answered { user_id } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(user_id, serializer);
+            }
+            crate::api::calls::OutgoingRingUpdate::Expired => {
+                <i32>::sse_encode(2, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
         }
     }
 }

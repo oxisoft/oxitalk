@@ -3,19 +3,19 @@
 //! on the plain test servers; the LiveKit token needs the RTC pod (`test-infra/rtc/up.sh`) and
 //! runs with `OXITALK_TEST_RTC=1`.
 
-use std::error::Error;
+use std::{error::Error, time::Duration};
 
 use oxitalk_core::api::{
     calls::{
         ActiveCall, CallIntent, CallMediaKey, CallNotify, IncomingCallEnd, IncomingCallUpdate,
-        RoomCall,
+        OutgoingRingUpdate, RoomCall,
     },
     rooms::NewRoom,
     session::Session,
 };
 use tokio::sync::mpsc;
 
-use super::{TIMEOUT, TestResult, TestUser, joined_dm, watch_rooms};
+use super::{TIMEOUT, TestResult, TestUser, accept_dm, joined_dm, watch_rooms};
 use oxitalk_core::api::room_list::Membership;
 
 /// The call service written in memberships when the test runs without an SFU.
@@ -33,6 +33,12 @@ fn watch_call(
 fn watch_incoming(session: &Session) -> mpsc::UnboundedReceiver<IncomingCallUpdate> {
     let (sender, receiver) = mpsc::unbounded_channel();
     session.incoming_call_updates(move |update| sender.send(update).is_ok());
+    receiver
+}
+
+fn watch_ring(call: &ActiveCall) -> mpsc::UnboundedReceiver<OutgoingRingUpdate> {
+    let (sender, receiver) = mpsc::unbounded_channel();
+    call.ring_updates(move |update| sender.send(update).is_ok());
     receiver
 }
 
@@ -87,12 +93,22 @@ async fn join(
     room_id: &str,
     notify: CallNotify,
 ) -> Result<ActiveCall, Box<dyn Error>> {
+    join_ringing_for(session, room_id, notify, None).await
+}
+
+async fn join_ringing_for(
+    session: &Session,
+    room_id: &str,
+    notify: CallNotify,
+    ring_lifetime: Option<Duration>,
+) -> Result<ActiveCall, Box<dyn Error>> {
     Ok(session
         .join_call_with(
             room_id.to_owned(),
             CallIntent::Video,
             notify,
             Some(NO_MEDIA_SERVICE.to_owned()),
+            ring_lifetime,
         )
         .await?)
 }
@@ -248,6 +264,129 @@ async fn declining_stops_the_ring_and_hanging_up_stops_another() -> TestResult {
         ),
         "{ended:?}"
     );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn the_caller_learns_that_the_callee_declined_not_its_own_other_device() -> TestResult {
+    let (alice_user, bob_user) = (TestUser::register().await?, TestUser::register().await?);
+    let stores = [
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+        tempfile::tempdir()?,
+    ];
+    let alice = alice_user
+        .login(&stores[0].path().to_string_lossy())
+        .await?;
+    let bob = bob_user.login(&stores[1].path().to_string_lossy()).await?;
+    alice.start_sync().await;
+    bob.start_sync().await;
+    let room_id = alice.create_dm(bob.user_id()).await?;
+    let mut bob_rooms = watch_rooms(&bob).await?;
+    accept_dm(&alice, &bob, &mut bob_rooms, &room_id).await?;
+    // Alice's second device, in the DM too.
+    let alice_phone = alice_user
+        .login(&stores[2].path().to_string_lossy())
+        .await?;
+    alice_phone.start_sync().await;
+    let mut phone_rooms = watch_rooms(&alice_phone).await?;
+    phone_rooms
+        .wait_until(|rooms| rooms.iter().any(|r| r.room_id == room_id))
+        .await?;
+    let mut bob_rings = watch_incoming(&bob);
+
+    let call = join(&alice, &room_id, CallNotify::Ring).await?;
+    let mut ring = watch_ring(&call);
+    let ring_event = call.ring_event_id().ok_or("no ring sent")?;
+    let IncomingCallUpdate::Ringing { call: at_bob } =
+        next_matching(&mut bob_rings, "the ring", |u| {
+            matches!(u, IncomingCallUpdate::Ringing { .. })
+        })
+        .await?
+    else {
+        return Err("not a ring".into());
+    };
+    assert_eq!(at_bob.notification_event_id, ring_event);
+
+    // Alice's other device declines first (as a device of hers that rang along would): that is
+    // not Bob's answer. Then Bob declines.
+    alice_phone
+        .decline_call(room_id.clone(), ring_event.clone())
+        .await?;
+    bob.decline_call(room_id.clone(), ring_event.clone())
+        .await?;
+    let first = next_matching(&mut ring, "the decline", |_| true).await?;
+    assert_eq!(
+        first,
+        OutgoingRingUpdate::Declined {
+            user_id: bob.user_id()
+        }
+    );
+    // Alice's own decline never shows, even if it was read after Bob's.
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(ring.try_recv().is_err(), "only Bob's decline counts");
+    // A late subscriber (the app's screen) gets it too.
+    let mut late = watch_ring(&call);
+    assert_eq!(
+        next_matching(&mut late, "the decline again", |_| true).await?,
+        first
+    );
+    call.leave().await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a test homeserver (test-infra/)"]
+async fn an_unanswered_ring_expires_for_the_caller_and_an_answered_one_does_not() -> TestResult {
+    let (alice, bob, room_id, _stores) = joined_dm().await?;
+    let mut bob_rings = watch_incoming(&bob);
+    let lifetime = Some(Duration::from_secs(4));
+
+    let call = join_ringing_for(&alice, &room_id, CallNotify::Ring, lifetime).await?;
+    let mut ring = watch_ring(&call);
+    next_matching(&mut bob_rings, "the ring", |u| {
+        matches!(u, IncomingCallUpdate::Ringing { .. })
+    })
+    .await?;
+    assert_eq!(
+        next_matching(&mut ring, "the ring to run out", |_| true).await?,
+        OutgoingRingUpdate::Expired
+    );
+    // Bob's side stops ringing then too.
+    let stopped = next_matching(&mut bob_rings, "Bob's ring to stop", |u| {
+        matches!(u, IncomingCallUpdate::Ended { .. })
+    })
+    .await?;
+    assert!(
+        matches!(
+            stopped,
+            IncomingCallUpdate::Ended {
+                reason: IncomingCallEnd::Expired,
+                ..
+            }
+        ),
+        "{stopped:?}"
+    );
+    call.leave().await?;
+
+    // Answered in time: Answered, and no Expired after it.
+    let mut bob_call = watch_call(&bob, &room_id)?;
+    next_matching(&mut bob_call, "no call", |call| !call.is_active()).await?;
+    let call = join_ringing_for(&alice, &room_id, CallNotify::Ring, lifetime).await?;
+    let mut ring = watch_ring(&call);
+    next_matching(&mut bob_call, "Alice in the call", RoomCall::is_active).await?;
+    let bob_in = join(&bob, &room_id, CallNotify::None).await?;
+    assert_eq!(
+        next_matching(&mut ring, "the answer", |_| true).await?,
+        OutgoingRingUpdate::Answered {
+            user_id: bob.user_id()
+        }
+    );
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    assert!(ring.try_recv().is_err(), "nothing after the answer");
+    bob_in.leave().await?;
+    call.leave().await?;
     Ok(())
 }
 

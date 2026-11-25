@@ -10,10 +10,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'calls.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `active_memberships`, `as_str`, `decrypted`, `distribute_keys`, `follow_ring`, `homeserver_path`, `identity`, `keep_membership`, `key_content`, `leave`, `listen_for_keys`, `livekit_token`, `livekit_urls`, `lock`, `membership_content`, `membership_events`, `membership_state_key`, `next_expiry`, `notification_content`, `notify`, `now_ms`, `own_ids`, `parse_key`, `parse_membership`, `parse_ring`, `parse`, `plan_keys`, `publish_key`, `random_key`, `retry_decrypt`, `retry_until`, `ring_event`, `ring_expiry`, `room_call`, `send_key`, `start`, `unstable_rtc_transports`
+// These functions are ignored because they are not marked as `pub`: `active_memberships`, `as_str`, `decrypted`, `distribute_keys`, `follow_own_ring`, `follow_ring`, `homeserver_path`, `identity`, `keep_membership`, `key_content`, `leave`, `listen_for_keys`, `livekit_token`, `livekit_urls`, `lock`, `membership_content`, `membership_events`, `membership_state_key`, `next_expiry`, `notification_content`, `notify`, `now_ms`, `own_ids`, `parse_key`, `parse_membership`, `parse_ring`, `parse`, `plan_keys`, `publish_key`, `publish_ring_update`, `random_key`, `retry_decrypt`, `retry_until`, `ring_event`, `ring_expiry`, `room_call`, `send_key`, `start`, `unstable_rtc_transports`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CallInner`, `KeyPlan`, `ReceivedKey`, `Ring`, `RtcMembership`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `incoming_call_updates`, `join_call_with`, `media_key_updates`, `room_call_updates`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `incoming_call_updates`, `join_call_with`, `media_key_updates`, `ring_event_id`, `ring_updates`, `room_call_updates`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ActiveCall>>
 abstract class ActiveCall implements RustOpaqueInterface {
@@ -54,6 +54,11 @@ abstract class ActiveCall implements RustOpaqueInterface {
 
   /// Sends every media key so far (ours and the others'), then each new one.
   Stream<CallMediaKey> subscribeMediaKeys();
+
+  /// Sends what became of the ring this device sent: each decline by someone else, then
+  /// [`OutgoingRingUpdate::Answered`] or [`OutgoingRingUpdate::Expired`]. Nothing when the
+  /// call was joined without ringing. Updates so far come first.
+  Stream<OutgoingRingUpdate> subscribeRingUpdates();
 }
 
 /// Audio only, or video too.
@@ -275,6 +280,23 @@ class LiveKitAccess {
           runtimeType == other.runtimeType &&
           url == other.url &&
           token == other.token;
+}
+
+@freezed
+sealed class OutgoingRingUpdate with _$OutgoingRingUpdate {
+  const OutgoingRingUpdate._();
+
+  /// Someone it rang declined (MSC4310). Only other users count: a decline from another
+  /// device of our own user is not the callee's. In a group the others may still come.
+  const factory OutgoingRingUpdate.declined({required String userId}) =
+      OutgoingRingUpdate_Declined;
+
+  /// Someone else joined the call: the ring did its job, nothing more comes.
+  const factory OutgoingRingUpdate.answered({required String userId}) =
+      OutgoingRingUpdate_Answered;
+
+  /// The ring's lifetime passed with nobody else in the call; nothing more comes.
+  const factory OutgoingRingUpdate.expired() = OutgoingRingUpdate_Expired;
 }
 
 /// A room's call as its state says: who is in it, oldest first. No participants, no call.

@@ -239,6 +239,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_notification_settings_state_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<OutgoingRingUpdate>
+  dco_decode_StreamSink_outgoing_ring_update_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<Profile> dco_decode_StreamSink_profile_Sse(dynamic raw);
 
   @protected
@@ -706,6 +710,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VerificationEmoji>? dco_decode_opt_list_verification_emoji(dynamic raw);
 
   @protected
+  OutgoingRingUpdate dco_decode_outgoing_ring_update(dynamic raw);
+
+  @protected
   Person dco_decode_person(dynamic raw);
 
   @protected
@@ -1064,6 +1071,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_StreamSink_notification_settings_state_Sse(
     SseDeserializer deserializer,
   );
+
+  @protected
+  RustStreamSink<OutgoingRingUpdate>
+  sse_decode_StreamSink_outgoing_ring_update_Sse(SseDeserializer deserializer);
 
   @protected
   RustStreamSink<Profile> sse_decode_StreamSink_profile_Sse(
@@ -1631,6 +1642,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  OutgoingRingUpdate sse_decode_outgoing_ring_update(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Person sse_decode_person(SseDeserializer deserializer);
 
   @protected
@@ -2035,6 +2051,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_notification_settings_state_Sse(
     RustStreamSink<NotificationSettingsState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_outgoing_ring_update_Sse(
+    RustStreamSink<OutgoingRingUpdate> self,
     SseSerializer serializer,
   );
 
@@ -2782,6 +2804,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_list_verification_emoji(
     List<VerificationEmoji>? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_outgoing_ring_update(
+    OutgoingRingUpdate self,
     SseSerializer serializer,
   );
 
