@@ -21,7 +21,7 @@ version: 0.2.2+50
 environment:
   sdk: ^3.13.5
   # Exact Flutter version; CI reads it from here.
-  flutter: 3.50.0
+  flutter: 3.50.1
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
