@@ -1545,6 +1545,10 @@ final class _RustJoinedCall implements JoinedCall {
       _call.subscribeMediaKeys().map(callMediaKeyOf);
 
   @override
+  Stream<OutgoingRingUpdate> get ringUpdates =>
+      _call.subscribeRingUpdates().map(outgoingRingUpdateOf);
+
+  @override
   Future<({String url, String token})> renewAccess() => guarded(() async {
     final access = await _call.renewLivekitAccess();
     return (url: access.url, token: access.token);

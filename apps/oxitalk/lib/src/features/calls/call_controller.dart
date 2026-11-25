@@ -22,6 +22,19 @@ enum CallPhase {
 
   /// It couldn't start; [ActiveCallState.error] says why.
   failed,
+
+  /// Nobody came: the call is left and the screen says why
+  /// ([ActiveCallState.unanswered]) for a moment, then closes.
+  ended,
+}
+
+/// Why a call of two ended before the other came.
+enum CallUnanswered {
+  /// The other declined the ring.
+  declined,
+
+  /// The ring ran out.
+  noAnswer,
 }
 
 /// The call this device is in (one at a time).
@@ -36,6 +49,8 @@ final class ActiveCallState {
     this.minimized = false,
     this.error,
     this.roomCall,
+    this.ringing = false,
+    this.unanswered,
   });
 
   final String account;
@@ -52,12 +67,21 @@ final class ActiveCallState {
   /// The room's call as Matrix says (who joined, by device).
   final RoomCall? roomCall;
 
+  /// This device's ring (a direct chat's, not a group's notification) is still ringing:
+  /// nobody else came yet and it hasn't run out.
+  final bool ringing;
+
+  /// Why the call ended unanswered ([CallPhase.ended]).
+  final CallUnanswered? unanswered;
+
   ActiveCallState copyWith({
     CallPhase? phase,
     CallMediaState? media,
     bool? minimized,
     String? error,
     RoomCall? roomCall,
+    bool? ringing,
+    CallUnanswered? unanswered,
   }) => ActiveCallState(
     account: account,
     roomId: roomId,
@@ -68,6 +92,8 @@ final class ActiveCallState {
     minimized: minimized ?? this.minimized,
     error: error ?? this.error,
     roomCall: roomCall ?? this.roomCall,
+    ringing: ringing ?? this.ringing,
+    unanswered: unanswered ?? this.unanswered,
   );
 }
 
@@ -83,10 +109,70 @@ final class CallController extends Notifier<ActiveCallState?> {
   /// Someone else was in the call at some point (to end a two-person call when they leave).
   bool _hadOthers = false;
 
+  /// Closes the screen of a call that ended unanswered.
+  Timer? _closeEnded;
+
+  /// How long the screen of a call that ended unanswered says why.
+  static const endedNotice = Duration(seconds: 2);
+
   @override
   ActiveCallState? build() {
-    ref.onDispose(() => unawaited(_teardown()));
+    ref.onDispose(() {
+      _closeEnded?.cancel();
+      unawaited(_teardown());
+    });
     return null;
+  }
+
+  /// A call of two: a direct chat, or a room of two members with the user.
+  bool _ofTwo(String account, String roomId) {
+    final room = ref
+        .read(roomsProvider(account))
+        .value
+        ?.where((room) => room.id == roomId)
+        .firstOrNull;
+    return room != null && (room.isDm || room.joinedMembers == 2);
+  }
+
+  /// What became of this device's ring. In a call of two that nobody else joined yet, a
+  /// decline or the ring running out ends the call (as Element Call does); in a group one
+  /// decline changes nothing and the call stays open after the ring, for later joiners.
+  void _onRing(String account, String roomId, OutgoingRingUpdate update) {
+    final current = state;
+    if (current == null || current.phase == CallPhase.ended) return;
+    final ofTwo = _ofTwo(account, roomId);
+    switch (update) {
+      case RingDeclined():
+        if (ofTwo && !_hadOthers) {
+          unawaited(_endUnanswered(CallUnanswered.declined));
+        }
+      case RingExpired():
+        state = current.copyWith(ringing: false);
+        if (ofTwo && !_hadOthers) {
+          unawaited(_endUnanswered(CallUnanswered.noAnswer));
+        }
+      case RingAnswered():
+        state = current.copyWith(ringing: false);
+    }
+  }
+
+  /// Leaves the call (media and membership), says [why] on the call's screen for
+  /// [endedNotice], then closes it.
+  Future<void> _endUnanswered(CallUnanswered why) async {
+    final current = state;
+    if (current == null) return;
+    appLog(LogLevel.info, 'calls', 'unanswered: ${why.name}');
+    final ended = current.copyWith(
+      phase: CallPhase.ended,
+      ringing: false,
+      unanswered: why,
+    );
+    state = ended;
+    _closeEnded?.cancel();
+    _closeEnded = Timer(endedNotice, () {
+      if (identical(state, ended)) state = null;
+    });
+    await _teardown();
   }
 
   /// Joins the call of [roomId] as [account] (starting it if nobody is in it), with the camera
@@ -97,9 +183,12 @@ final class CallController extends Notifier<ActiveCallState?> {
     required CallIntent intent,
     CallNotify notify = CallNotify.none,
   }) async {
+    _closeEnded?.cancel();
     final current = state;
     if (current != null) {
-      if (current.roomId == roomId && current.account == account) {
+      if (current.roomId == roomId &&
+          current.account == account &&
+          current.phase != CallPhase.ended) {
         state = current.copyWith(minimized: false);
         return;
       }
@@ -114,6 +203,8 @@ final class CallController extends Notifier<ActiveCallState?> {
       phase: CallPhase.joining,
       startedAt: DateTime.now(),
       media: CallMediaState(cameraOn: intent == CallIntent.video),
+      // A group is notified, not rung: it waits for others.
+      ringing: notify == CallNotify.ring,
     );
     final JoinedCall joined;
     try {
@@ -156,6 +247,10 @@ final class CallController extends Notifier<ActiveCallState?> {
           state = current.copyWith(roomCall: call);
           final others = call.participants.any((p) => !p.isThisDevice);
           if (others) _hadOthers = true;
+          // Someone else came: the ring did its job.
+          if (current.ringing && call.participants.any((p) => !p.isOwnUser)) {
+            state = state?.copyWith(ringing: false);
+          }
           // A call of two ends when the other leaves, as Element's 1:1 calls do.
           final dm =
               ref
@@ -167,6 +262,12 @@ final class CallController extends Notifier<ActiveCallState?> {
               false;
           if (dm && _hadOthers && !others) unawaited(hangUp());
         }, onError: (Object _) {}),
+      )
+      ..add(
+        joined.ringUpdates.listen(
+          (update) => _onRing(account, roomId, update),
+          onError: (Object _) {},
+        ),
       );
     state = state?.copyWith(phase: CallPhase.inCall);
     await _connect(account, joined, media, camera: intent == CallIntent.video);
@@ -243,6 +344,7 @@ final class CallController extends Notifier<ActiveCallState?> {
 
   /// Leaves the call.
   Future<void> hangUp() async {
+    _closeEnded?.cancel();
     state = null;
     await _teardown();
   }
@@ -267,7 +369,10 @@ final class CallController extends Notifier<ActiveCallState?> {
 
   /// Takes back a failed call's screen.
   void dismiss() {
-    if (state?.phase == CallPhase.failed) state = null;
+    if (state?.phase case CallPhase.failed || CallPhase.ended) {
+      _closeEnded?.cancel();
+      state = null;
+    }
   }
 
   CallMedia? get media => _media;

@@ -960,6 +960,14 @@ IncomingCallUpdate incomingCallUpdateOf(calls_api.IncomingCallUpdate update) =>
         ),
     };
 
+OutgoingRingUpdate outgoingRingUpdateOf(
+  calls_api.OutgoingRingUpdate update,
+) => switch (update) {
+  calls_api.OutgoingRingUpdate_Declined(:final userId) => RingDeclined(userId),
+  calls_api.OutgoingRingUpdate_Answered(:final userId) => RingAnswered(userId),
+  calls_api.OutgoingRingUpdate_Expired() => const RingExpired(),
+};
+
 ReleaseCheck releaseCheckOf(updates_api.ReleaseCheck check) => ReleaseCheck(
   project: check.project,
   latest: check.latest,

@@ -1792,6 +1792,12 @@ final class FakeJoinedCall implements JoinedCall {
   @override
   Stream<CallMediaKey> get mediaKeys => keys.stream;
 
+  /// What [ringUpdates] sends; tests add declines, answers and expiries.
+  final ring = StreamController<OutgoingRingUpdate>.broadcast();
+
+  @override
+  Stream<OutgoingRingUpdate> get ringUpdates => ring.stream;
+
   /// How often [renewAccess] was called; the n-th renewal gives `fake-token-<n+1>`.
   int renewals = 0;
 

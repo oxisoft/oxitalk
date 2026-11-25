@@ -564,10 +564,17 @@ class OngoingCallBar extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              _Elapsed(
-                since: call.startedAt,
-                style: const TextStyle(color: Color(0xFFA8A8B8)),
-              ),
+              if (call.phase == CallPhase.ended)
+                Text(
+                  callStatus(call, room) ?? '',
+                  key: const Key('call.bar.status'),
+                  style: const TextStyle(color: Color(0xFFA8A8B8)),
+                )
+              else
+                _Elapsed(
+                  since: call.startedAt,
+                  style: const TextStyle(color: Color(0xFFA8A8B8)),
+                ),
               const Spacer(),
               IconButton(
                 key: const Key('call.bar.mic'),
@@ -603,6 +610,28 @@ class OngoingCallBar extends ConsumerWidget {
   }
 }
 
+/// What the call screen says over the tiles, if anything. "Ringing…" only while this device's
+/// own ring is live; whoever answered waits for the other by name.
+String? callStatus(ActiveCallState call, Room? room) =>
+    switch ((call.phase, call.media.connection)) {
+      (CallPhase.failed, _) => call.error ?? 'The call failed',
+      (CallPhase.ended, _) => switch (call.unanswered) {
+        CallUnanswered.declined => 'Declined',
+        CallUnanswered.noAnswer || null => 'No answer',
+      },
+      (CallPhase.joining, _) => 'Joining…',
+      (_, CallConnection.idle || CallConnection.connecting) => 'Connecting…',
+      (_, CallConnection.reconnecting) => 'Reconnecting…',
+      (_, CallConnection.disconnected) => 'Disconnected',
+      _ when call.media.tiles.length < 2 =>
+        call.ringing
+            ? 'Ringing…'
+            : (room != null && room.isDm)
+            ? 'Waiting for ${room.name}…'
+            : 'Waiting for others…',
+      _ => null,
+    };
+
 /// The call: everybody's video or picture, and the buttons.
 class CallScreen extends ConsumerWidget {
   const CallScreen({required this.call, super.key});
@@ -614,16 +643,7 @@ class CallScreen extends ConsumerWidget {
     final controller = ref.read(callControllerProvider.notifier);
     final room = _roomOf(ref, call.account, call.roomId);
     final media = controller.media;
-    final status = switch ((call.phase, call.media.connection)) {
-      (CallPhase.failed, _) => call.error ?? 'The call failed',
-      (CallPhase.joining, _) => 'Joining…',
-      (_, CallConnection.idle || CallConnection.connecting) => 'Connecting…',
-      (_, CallConnection.reconnecting) => 'Reconnecting…',
-      (_, CallConnection.disconnected) => 'Disconnected',
-      _ when call.media.tiles.length < 2 =>
-        (room?.isDm ?? false) ? 'Ringing…' : 'Waiting for others…',
-      _ => null,
-    };
+    final status = callStatus(call, room);
     return Material(
       key: const Key('call.screen'),
       color: OxiBrand.ink,
@@ -663,7 +683,7 @@ class CallScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            if (call.phase == CallPhase.failed)
+            if (call.phase case CallPhase.failed || CallPhase.ended)
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: OutlinedButton(
@@ -697,7 +717,8 @@ class _CallHeader extends ConsumerWidget {
           tooltip: 'Back to the chats',
           color: Colors.white,
           icon: const Icon(Icons.close_fullscreen_rounded),
-          onPressed: call.phase == CallPhase.failed
+          onPressed:
+              call.phase == CallPhase.failed || call.phase == CallPhase.ended
               ? null
               : () => ref
                     .read(callControllerProvider.notifier)

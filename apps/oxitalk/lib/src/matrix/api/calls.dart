@@ -133,6 +133,31 @@ final class CallRingEnded extends IncomingCallUpdate {
   final IncomingCallEnd reason;
 }
 
+/// What became of the ring (or notification) this device sent when it started its call.
+sealed class OutgoingRingUpdate {
+  const OutgoingRingUpdate();
+}
+
+/// Someone it rang declined (another user; the user's own devices don't count). In a group
+/// the others may still come.
+final class RingDeclined extends OutgoingRingUpdate {
+  const RingDeclined(this.userId);
+
+  final String userId;
+}
+
+/// Someone else joined the call; nothing more comes.
+final class RingAnswered extends OutgoingRingUpdate {
+  const RingAnswered(this.userId);
+
+  final String userId;
+}
+
+/// The ring ran out with nobody else in the call; nothing more comes.
+final class RingExpired extends OutgoingRingUpdate {
+  const RingExpired();
+}
+
 /// This device in a room's call, on the Matrix side: its LiveKit address and token, and the
 /// media keys. [leave] ends it.
 abstract interface class JoinedCall {
@@ -146,6 +171,10 @@ abstract interface class JoinedCall {
 
   /// Every key so far, then each new one.
   Stream<CallMediaKey> get mediaKeys;
+
+  /// What became of the ring this device sent when it joined (updates so far first);
+  /// nothing when it joined without ringing.
+  Stream<OutgoingRingUpdate> get ringUpdates;
 
   /// A new LiveKit address and token, for a media connect that failed. The call service also
   /// makes the LiveKit room again if LiveKit closed it after the first token.

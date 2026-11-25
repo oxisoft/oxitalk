@@ -18,17 +18,20 @@ const _me = '@me:acme.com';
 const _bob = '@bob:acme.com';
 const _dm = '!dm:acme.com';
 const _team = '!team:acme.com';
+const _pair = '!pair:acme.com';
 
 FakeSession _session() {
   final session = FakeSession(
     userId: _me,
     rooms: const [
-      Room(id: _dm, name: 'Bob', isDm: true),
-      Room(id: _team, name: 'Team'),
+      Room(id: _dm, name: 'Bob', isDm: true, joinedMembers: 2),
+      Room(id: _team, name: 'Team', joinedMembers: 5),
+      Room(id: _pair, name: 'Pair', joinedMembers: 2),
     ],
   );
   session.timelines[_dm] = FakeTimeline(ownUserId: _me, entries: const []);
   session.timelines[_team] = FakeTimeline(ownUserId: _me, entries: const []);
+  session.timelines[_pair] = FakeTimeline(ownUserId: _me, entries: const []);
   return session;
 }
 
@@ -152,6 +155,104 @@ void main() {
     expect(session.joinedCalls, [(_team, CallIntent.audio, CallNotify.notify)]);
     expect(FakeCallMedia.made.single.state.cameraOn, isFalse);
     expect(find.text('Waiting for others…'), findsOneWidget);
+  });
+
+  testWidgets('a direct call the other declines ends with Declined', (
+    tester,
+  ) async {
+    final session = await _open(tester, 'Bob');
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ringing…'), findsOneWidget);
+    final media = FakeCallMedia.made.single;
+
+    session.lastJoinedCall!.ring.add(const RingDeclined(_bob));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Declined'), findsOneWidget);
+    expect(find.text('Ringing…'), findsNothing);
+    // Out of the call at once, on both sides; the screen says why for a moment.
+    expect(session.lastJoinedCall!.left, isTrue);
+    expect(media.closed, isTrue);
+    expect(session.callOf(_dm).value.isActive, isFalse);
+    expect(find.byKey(const Key('call.hangUp')), findsNothing);
+
+    await tester.pump(CallController.endedNotice);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('call.screen')), findsNothing);
+  });
+
+  testWidgets('a direct call nobody answers ends with No answer', (
+    tester,
+  ) async {
+    final session = await _open(tester, 'Bob');
+    await tester.tap(find.byKey(const Key('chat.videoCall')));
+    await tester.pumpAndSettle();
+    session.lastJoinedCall!.ring.add(const RingExpired());
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('No answer'), findsOneWidget);
+    expect(session.lastJoinedCall!.left, isTrue);
+    // Close takes it away before the notice runs out.
+    await tester.tap(find.byKey(const Key('call.close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('call.screen')), findsNothing);
+    await tester.pump(CallController.endedNotice);
+  });
+
+  testWidgets('a room of two counts as a call of two', (tester) async {
+    final session = await _open(tester, 'Pair');
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pumpAndSettle();
+    expect(session.joinedCalls, [(_pair, CallIntent.audio, CallNotify.notify)]);
+    session.lastJoinedCall!.ring.add(const RingDeclined(_bob));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Declined'), findsOneWidget);
+    expect(session.lastJoinedCall!.left, isTrue);
+    await tester.pump(CallController.endedNotice);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('call.screen')), findsNothing);
+  });
+
+  testWidgets('a group call stays after a decline and after the ring', (
+    tester,
+  ) async {
+    final session = await _open(tester, 'Team');
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pumpAndSettle();
+    session.lastJoinedCall!.ring.add(const RingDeclined(_bob));
+    await tester.pumpAndSettle();
+    session.lastJoinedCall!.ring.add(const RingExpired());
+    await tester.pumpAndSettle();
+    await tester.pump(CallController.endedNotice);
+    await tester.pumpAndSettle();
+    expect(session.lastJoinedCall!.left, isFalse);
+    expect(find.byKey(const Key('call.screen')), findsOneWidget);
+    expect(find.text('Waiting for others…'), findsOneWidget);
+  });
+
+  testWidgets('a decline after the other came changes nothing', (tester) async {
+    final session = await _open(tester, 'Bob');
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pumpAndSettle();
+    // Bob joins on one device; another of his devices declines the ring.
+    final latest = session.callOf(_dm);
+    latest.value = RoomCall(
+      roomId: _dm,
+      participants: [...latest.value.participants, _bobInCall],
+    );
+    await tester.pumpAndSettle();
+    // Joined on Matrix, media not here yet: no longer ringing.
+    expect(find.text('Ringing…'), findsNothing);
+    expect(find.text('Waiting for Bob…'), findsOneWidget);
+    session.lastJoinedCall!.ring
+      ..add(const RingDeclined(_bob))
+      ..add(const RingExpired());
+    await tester.pumpAndSettle();
+    expect(session.lastJoinedCall!.left, isFalse);
+    expect(find.text('Declined'), findsNothing);
+    expect(find.byKey(const Key('call.screen')), findsOneWidget);
   });
 
   testWidgets('the media keys go to the media', (tester) async {
@@ -279,6 +380,9 @@ void main() {
     expect(FakeCallMedia.made.single.state.cameraOn, isFalse);
     expect(find.byKey(const Key('call.screen')), findsOneWidget);
     expect(ringer.ringing, isFalse);
+    // The one who answered waits for the caller; only the caller hears it ring.
+    expect(find.text('Ringing…'), findsNothing);
+    expect(find.text('Waiting for Bob…'), findsOneWidget);
   });
 
   testWidgets('a group notification shows without ringing', (tester) async {
