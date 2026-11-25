@@ -77,7 +77,8 @@ void main() {
   testWidgets(
     'a voice call is answered, both media connect through LiveKit, encrypted '
     'both ways with sound, and hanging up ends it on both sides; then the other '
-    'calls back at once and it works again',
+    'calls back at once and it works again; then a declined call ends for the '
+    'caller',
     (tester) async {
       final alice = await _registerUser('alice');
       final bob = await _registerUser('bob');
@@ -257,6 +258,43 @@ void main() {
         expect(await _whileWaiting(tester, calls.moveNext()), isTrue);
       } while (calls.current.isActive);
       _step('second call ended, room call empty');
+
+      // Alice calls once more and Bob declines on his card: Alice's call ends by itself
+      // ("Declined" on her screen, then it closes), out of LiveKit and the room's call.
+      await tester.tap(find.byKey(const Key('chat.voiceCall')));
+      await _pumpUntil(tester, find.byKey(const Key('call.screen')));
+      // Alone in LiveKit while her own ring is live.
+      await _pumpUntil(tester, find.text('Ringing…'));
+      _step('alice rings again');
+      await _until(
+        tester,
+        'Bob rings again',
+        () => bobApp.read(incomingCallsProvider).ringing.isNotEmpty,
+      );
+      final third = bobApp.read(incomingCallsProvider).ringing.single;
+      await _whileWaiting(
+        tester,
+        bobApp.read(incomingCallsProvider.notifier).decline(third),
+      );
+      _step('bob declined');
+      await _pumpUntil(tester, find.text('Declined'));
+      expect(aliceApp.read(callControllerProvider)?.phase, CallPhase.ended);
+      expect(aliceApp.read(callControllerProvider.notifier).media, isNull);
+      await _pumpUntil(
+        tester,
+        find.byKey(const Key('call.screen')),
+        gone: true,
+      );
+      expect(aliceApp.read(callControllerProvider), isNull);
+      expect(bobApp.read(callControllerProvider), isNull);
+      // The room's call had Alice in it, then nobody.
+      do {
+        expect(await _whileWaiting(tester, calls.moveNext()), isTrue);
+      } while (!calls.current.isActive);
+      do {
+        expect(await _whileWaiting(tester, calls.moveNext()), isTrue);
+      } while (calls.current.isActive);
+      _step('declined call ended, room call empty');
 
       // Let both log out of LiveKit and the homeserver before the containers go.
       await _pumpFor(tester, const Duration(seconds: 1));

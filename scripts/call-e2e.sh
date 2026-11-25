@@ -72,12 +72,17 @@ watcher_pid=$!
 
 cd "$root/apps/oxitalk"
 status=0
+# The Linux app is a unique GApplication: on the user's session bus, an OxiTalk already
+# running there takes the test app's launch and the test can't start ("Unable to start the
+# app on the device"). A session bus of its own for the test, when there is dbus-run-session.
+own_bus=()
+command -v dbus-run-session >/dev/null && own_bus=(dbus-run-session --)
 OXITALK_TEST_RTC=1 \
   OXITALK_TEST_HOMESERVER=http://localhost:$hs_port \
   OXITALK_CALL_E2E_LOGS=$out/core \
   PULSE_SOURCE=${tag}_mic PULSE_SINK=${tag}_out \
   timeout 900 env -u WAYLAND_DISPLAY GDK_BACKEND=x11 \
-  xvfb-run -a flutter test integration_test/call_test.dart -d linux 2>&1 |
+  "${own_bus[@]}" xvfb-run -a flutter test integration_test/call_test.dart -d linux 2>&1 |
   tee "$out/test.log" || status=$?
 kill "$watcher_pid" 2>/dev/null || true
 # tee hides flutter's status: read it from the result line.
