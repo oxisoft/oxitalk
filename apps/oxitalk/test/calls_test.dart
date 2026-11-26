@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/features/calls/call_controller.dart';
 import 'package:oxitalk/src/features/calls/call_media.dart';
@@ -43,6 +44,7 @@ Future<FakeSession> _open(
 }) async {
   FakeCallMedia.made.clear();
   FakeCallMedia.failConnects = 0;
+  FakeCallMedia.holdClose = null;
   final fake = session ?? _session();
   await pumpApp(
     tester,
@@ -180,6 +182,43 @@ void main() {
     await tester.pump(CallController.endedNotice);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('call.screen')), findsNothing);
+  });
+
+  testWidgets('a call right after one the other declined connects its media only once the '
+      'last call’s media has left', (tester) async {
+    final session = await _open(tester, 'Bob');
+    await tester.tap(find.byKey(const Key('chat.voiceCall')));
+    await tester.pumpAndSettle();
+    final first = FakeCallMedia.made.single;
+    final calls = ProviderScope.containerOf(
+      tester.element(find.byKey(const Key('call.screen'))),
+    ).read(callControllerProvider.notifier);
+
+    // Declined while its media is still on its way out of LiveKit.
+    final leaving = Completer<void>();
+    FakeCallMedia.holdClose = leaving;
+    session.lastJoinedCall!.ring.add(const RingDeclined(_bob));
+    await tester.pump();
+    await tester.pump();
+    expect(first.closed, isTrue);
+
+    // Called again at once: the new media waits. (Two connections of this device in the
+    // LiveKit room under one identity displace each other: DUPLICATE_IDENTITY.)
+    unawaited(
+      calls.join(_me, _dm, intent: CallIntent.audio, notify: CallNotify.ring),
+    );
+    await tester.pump();
+    await tester.pump();
+    final second = FakeCallMedia.made.last;
+    expect(second, isNot(same(first)));
+    expect(second.connects, isEmpty);
+
+    leaving.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(second.connects, ['fake-token']);
+    await calls.hangUp();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a direct call nobody answers ends with No answer', (

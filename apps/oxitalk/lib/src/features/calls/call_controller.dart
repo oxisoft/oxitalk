@@ -289,6 +289,10 @@ final class CallController extends Notifier<ActiveCallState?> {
   }) async {
     var url = joined.livekitUrl;
     var token = joined.livekitToken;
+    // The last call's media first leaves LiveKit: under the same identity, a connection of
+    // ours still there and this one would displace each other.
+    await _mediaClosed;
+    if (!identical(_media, media)) return;
     for (var attempt = 0; ; attempt++) {
       try {
         await media.connect(url: url, token: token, camera: camera);
@@ -358,14 +362,19 @@ final class CallController extends Notifier<ActiveCallState?> {
     final media = _media;
     _joined = null;
     _media = null;
+    final mediaClosed = media?.close().catchError((Object _) {});
+    if (mediaClosed != null) _mediaClosed = mediaClosed;
     await Future.wait([
-      if (media != null) media.close().catchError((Object _) {}),
+      ?mediaClosed,
       if (joined != null)
         joined.leave().catchError((Object error) {
           appLog(LogLevel.warn, 'calls', 'leave failed: $error');
         }),
     ]);
   }
+
+  /// Done when the media of the last call is closed.
+  Future<void> _mediaClosed = Future.value();
 
   /// Takes back a failed call's screen.
   void dismiss() {

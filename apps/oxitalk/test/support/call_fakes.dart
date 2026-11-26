@@ -108,8 +108,14 @@ final class FakeCallMedia implements CallMedia {
   Widget videoView(CallTile tile, {BoxFit fit = BoxFit.cover}) =>
       const ColoredBox(color: Colors.black);
 
+  /// When set, [close] waits for it (a LiveKit connection still leaving).
+  static Completer<void>? holdClose;
+
   @override
-  Future<void> close() async => closed = true;
+  Future<void> close() async {
+    closed = true;
+    await holdClose?.future;
+  }
 }
 
 /// A ringer that counts instead of ringing.

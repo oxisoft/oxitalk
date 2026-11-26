@@ -424,6 +424,9 @@ final class LiveKitCallMedia implements CallMedia {
   FrameCryptors? _cryptors;
   bool _closed = false;
 
+  /// Done when the LiveKit connect under way is up, failed, or was taken down again.
+  Future<void>? _joining;
+
   /// The LiveKit room while connected, for checks on a real call.
   @visibleForTesting
   lk.Room? get room => _room;
@@ -470,10 +473,29 @@ final class LiveKitCallMedia implements CallMedia {
     required String token,
     required bool camera,
   }) async {
+    if (_closed) return;
+    final joined = Completer<void>();
+    _joining = joined.future;
+    try {
+      await _connect(url: url, token: token, camera: camera, joined: joined);
+    } finally {
+      joined.tryComplete();
+    }
+  }
+
+  /// [connect]; completes [joined] once the LiveKit connection is up, or failed, or taken
+  /// down again because [close] came meanwhile.
+  Future<void> _connect({
+    required String url,
+    required String token,
+    required bool camera,
+    required Completer<void> joined,
+  }) async {
     _set(_state.copyWith(connection: CallConnection.connecting));
     final provider = await _keyProvider;
     // Tracks published from here on encrypt with the latest own key.
     await _keys.applied;
+    if (_closed) return;
     final room = lk.Room(
       roomOptions: lk.RoomOptions(
         adaptiveStream: true,
@@ -520,8 +542,14 @@ final class LiveKitCallMedia implements CallMedia {
         _events = null;
         _cryptors = null;
       }
+      if (_closed) return;
       rethrow;
+    } finally {
+      joined.tryComplete();
     }
+    // Closed while connecting: [close] waited for this connect and takes the room down now.
+    // (Taking it down then would not have stopped it: see [close].)
+    if (_closed) return;
     appLog(
       LogLevel.info,
       'calls',
@@ -537,9 +565,11 @@ final class LiveKitCallMedia implements CallMedia {
     try {
       await _enable(lk.TrackSource.microphone);
     } on Object catch (error) {
+      if (_closed) return;
       appLog(LogLevel.warn, 'calls', 'microphone: $error');
       _set(_state.copyWith(micOn: false, error: 'microphone'));
     }
+    if (_closed) return;
     if (camera) await setCamera(true);
     _refresh();
   }
@@ -750,6 +780,13 @@ final class LiveKitCallMedia implements CallMedia {
     if (_closed) return;
     _closed = true;
     await _events?.dispose();
+    // A connect still under way is waited for: livekit_client 2.13.2 doesn't stop a connect
+    // that is under way when its room disconnects (the engine joins after all and stays in
+    // the LiveKit room, unseen), and the disconnect then waits 10 s for an event it sent
+    // before waiting. A connection left behind keeps this device's identity in the LiveKit
+    // room; the next call's connection displaced it (DUPLICATE_IDENTITY) and, as it was
+    // taken down meanwhile, never got its microphone out (2026-11-26, rtc.oxisoft.net).
+    await _joining?.timeout(_joinLimit, onTimeout: () {});
     final room = _room;
     _room = null;
     if (room != null) {
@@ -760,4 +797,8 @@ final class LiveKitCallMedia implements CallMedia {
     _set(_state.copyWith(connection: CallConnection.disconnected));
     await _states.close();
   }
+
+  /// The longest a LiveKit connect takes before it gives up (livekit_client's connection
+  /// timeouts: the signal, the join, the peer connection), with some to spare.
+  static const _joinLimit = Duration(seconds: 40);
 }
