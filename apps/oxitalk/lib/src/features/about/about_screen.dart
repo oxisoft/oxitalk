@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../app/providers.dart';
@@ -15,36 +15,31 @@ import '../../rust/api.dart';
 
 part 'about_screen.g.dart';
 
-/// The app's version, and its build number where the build says it.
+/// The app's version (pubspec.yaml) with its build number where the platform has one, and
+/// the version of the app's Rust core (rust/Cargo.toml), which is released on its own.
 final class AppVersion {
-  const AppVersion(this.version, [this.build]);
+  const AppVersion(this.version, {this.build, required this.core});
 
   final String version;
   final String? build;
+  final String core;
 
   String get label =>
       build == null ? 'Version $version' : 'Version $version ($build)';
+
+  String get coreLabel => 'Core $core';
 }
 
-/// The core's version, which is the app's, with the build number once it is read.
+/// The app's version as the platform's bundle has it (Info.plist, the APK, the Windows
+/// resources, Linux's version.json), and the core's.
 @Riverpod(keepAlive: true)
-AppVersion appVersion(Ref ref) =>
-    AppVersion(coreVersion(), ref.watch(appBuildProvider).value);
-
-/// The build number, where the build bundles it: Linux and web builds have it in
-/// `version.json` (the other platforms would need a plugin); `null` elsewhere.
-@Riverpod(keepAlive: true)
-Future<String?> appBuild(Ref ref) async {
-  try {
-    final json = jsonDecode(await rootBundle.loadString('version.json'));
-    if (json case {'version': final String version, 'build_number': final build}
-        when version == coreVersion()) {
-      return '$build';
-    }
-  } on Object {
-    // Not bundled on this platform.
-  }
-  return null;
+Future<AppVersion> appVersion(Ref ref) async {
+  final info = await PackageInfo.fromPlatform();
+  return AppVersion(
+    info.version,
+    build: info.buildNumber.isEmpty ? null : info.buildNumber,
+    core: coreVersion(),
+  );
 }
 
 abstract final class AboutLinks {
@@ -107,7 +102,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final version = ref.watch(appVersionProvider);
+    final version = ref.watch(appVersionProvider).value;
     return Scaffold(
       key: const Key('about'),
       extendBodyBehindAppBar: true,
@@ -168,7 +163,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                             onTap: () => showLicensePage(
                               context: context,
                               applicationName: 'OxiTalk',
-                              applicationVersion: version.label,
+                              applicationVersion: version?.label,
                               applicationIcon: const Padding(
                                 padding: EdgeInsets.all(8),
                                 child: _AppIcon(size: 64),
@@ -238,7 +233,8 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
 class _Hero extends StatelessWidget {
   const _Hero({required this.version});
 
-  final AppVersion version;
+  /// `null` until the platform has said it.
+  final AppVersion? version;
 
   @override
   Widget build(BuildContext context) {
@@ -274,30 +270,44 @@ class _Hero extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  _Appear(
-                    delay: 120,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: const ShapeDecoration(
-                        color: OxiBrand.yellow,
-                        shape: BeveledRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(6)),
+                  if (version case final version?) ...[
+                    _Appear(
+                      delay: 120,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
                         ),
-                      ),
-                      child: Text(
-                        version.label,
-                        key: const Key('about.version'),
-                        style: const TextStyle(
-                          color: OxiBrand.ink,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                        decoration: const ShapeDecoration(
+                          color: OxiBrand.yellow,
+                          shape: BeveledRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(6)),
+                          ),
+                        ),
+                        child: Text(
+                          version.label,
+                          key: const Key('about.version'),
+                          style: const TextStyle(
+                            color: OxiBrand.ink,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    _Appear(
+                      delay: 120,
+                      child: Text(
+                        version.coreLabel,
+                        key: const Key('about.coreVersion'),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

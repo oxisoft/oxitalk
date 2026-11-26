@@ -10,6 +10,7 @@ import 'package:oxitalk/src/features/chat_info/chat_info.dart';
 import 'package:oxitalk/src/features/chats/chats_screen.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'support/app.dart';
 import 'support/rust_core.dart';
@@ -92,6 +93,15 @@ Future<void> _open(
 void main() {
   // About shows the core's version, which is the app's.
   setUpAll(initRustCore);
+  setUp(
+    () => PackageInfo.setMockInitialValues(
+      appName: 'OxiTalk',
+      packageName: 'io.oxisoft.oxitalk',
+      version: '0.2.2',
+      buildNumber: '50',
+      buildSignature: '',
+    ),
+  );
 
   group('title bar', () {
     testWidgets('only the buttons GNOME is set to show, where it shows them', (
@@ -335,7 +345,7 @@ void main() {
 
       await pickFromAccountMenu(tester, 'accountMenu.about');
       expect(find.byKey(const Key('about')), findsOneWidget);
-      expect(find.text('Version 0.1.43'), findsOneWidget);
+      expect(find.text('Version 0.2.2 (50)'), findsOneWidget);
       await tester.tap(find.byKey(const Key('about.back')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('about')), findsNothing);
@@ -363,7 +373,7 @@ void main() {
       await tester.tap(find.byKey(const Key('rail.about')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('about')), findsOneWidget);
-      expect(find.text('Version 0.1.43'), findsOneWidget);
+      expect(find.text('Version 0.2.2 (50)'), findsOneWidget);
       await tester.tap(find.byKey(const Key('about.back')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('about')), findsNothing);

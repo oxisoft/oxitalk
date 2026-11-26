@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oxitalk/src/app/file_actions.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:oxitalk/src/app/ui_prefs.dart';
 import 'package:oxitalk/src/app/window_controls.dart';
 import 'package:oxitalk/src/features/about/about_screen.dart';
 import 'package:oxitalk/src/matrix/api/matrix.dart';
 import 'package:oxitalk/src/matrix/fakes/fakes.dart';
+import 'package:oxitalk/src/rust/api.dart';
 
 import 'support/app.dart';
 import 'support/rust_core.dart';
@@ -73,6 +75,15 @@ Future<FakeFileActions> _openAbout(
 
 void main() {
   setUpAll(initRustCore);
+  setUp(
+    () => PackageInfo.setMockInitialValues(
+      appName: 'OxiTalk',
+      packageName: 'io.oxisoft.oxitalk',
+      version: '0.2.2',
+      buildNumber: '50',
+      buildSignature: '',
+    ),
+  );
 
   testWidgets('About is a full-screen page: icon, name, version, what it is '
       'and its links', (tester) async {
@@ -88,7 +99,9 @@ void main() {
     expect(find.byKey(const Key('about.hero')), findsOneWidget);
     expect(find.bySemanticsLabel('OxiTalk icon'), findsWidgets);
     expect(find.text('OxiTalk'), findsWidgets);
-    expect(find.text('Version 0.1.43'), findsOneWidget);
+    // The app's version from the platform, the core's from the core itself.
+    expect(find.text('Version 0.2.2 (50)'), findsOneWidget);
+    expect(find.text('Core ${coreVersion()}'), findsOneWidget);
     expect(
       find.text(
         'An open-source Matrix client, privacy first, built with Flutter on '
@@ -174,8 +187,11 @@ void main() {
     );
   });
 
-  test('the version shows its build number when the build says it', () {
-    expect(const AppVersion('0.1.26', '27').label, 'Version 0.1.26 (27)');
-    expect(const AppVersion('0.1.26').label, 'Version 0.1.26');
+  test('the version shows its build number when the build says it, and the '
+      "core's version apart", () {
+    const built = AppVersion('0.2.2', build: '50', core: '0.1.43');
+    expect(built.label, 'Version 0.2.2 (50)');
+    expect(built.coreLabel, 'Core 0.1.43');
+    expect(const AppVersion('0.2.2', core: '0.1.43').label, 'Version 0.2.2');
   });
 }
