@@ -296,6 +296,75 @@ void main() {
       } while (calls.current.isActive);
       _step('declined call ended, room call empty');
 
+      // Alice calls and hangs up while her media still connects (as when the callee
+      // declines at once): no connection of hers stays behind in LiveKit. One that did kept
+      // her device's identity there, and her next call's connection displaced it
+      // (DUPLICATE_IDENTITY) and never got its microphone out (rtc.oxisoft.net, 2026-11-26).
+      unawaited(
+        aliceApp
+            .read(callControllerProvider.notifier)
+            .join(aliceId, roomId, intent: CallIntent.audio),
+      );
+      await _until(
+        tester,
+        'Alice’s media connecting',
+        () =>
+            aliceApp.read(callControllerProvider)?.media.connection ==
+            CallConnection.connecting,
+      );
+      await _whileWaiting(
+        tester,
+        aliceApp.read(callControllerProvider.notifier).hangUp(),
+      );
+      _step('alice hung up while connecting');
+      // Long enough for a connection left behind to finish connecting (10-16 s on the pod).
+      await _pumpFor(tester, const Duration(seconds: 20));
+      // From here on: Bob's encryptor starts before Alice comes.
+      since = _log.length;
+      unawaited(
+        bobApp
+            .read(callControllerProvider.notifier)
+            .join(bobId, roomId, intent: CallIntent.audio),
+      );
+      await _until(
+        tester,
+        'Bob in LiveKit',
+        () =>
+            bobApp.read(callControllerProvider)?.media.connection ==
+            CallConnection.connected,
+      );
+      await _pumpFor(tester, const Duration(seconds: 2));
+      final media = bobApp.read(callControllerProvider.notifier).media;
+      final left = (media! as LiveKitCallMedia).room!.remoteParticipants.values
+          .map((p) => p.identity)
+          .toList();
+      expect(left, isEmpty, reason: 'a LiveKit connection left behind');
+      _step('nothing left behind');
+      // And Bob, there already, is called by Alice: they talk.
+      unawaited(
+        aliceApp
+            .read(callControllerProvider.notifier)
+            .join(aliceId, roomId, intent: CallIntent.audio),
+      );
+      await _expectTalking(
+        tester,
+        aliceApp,
+        bobApp,
+        aliceId: aliceId,
+        bobId: bobId,
+        since: since,
+      );
+      await _whileWaiting(
+        tester,
+        bobApp.read(callControllerProvider.notifier).hangUp(),
+      );
+      await _pumpUntil(
+        tester,
+        find.byKey(const Key('call.screen')),
+        gone: true,
+      );
+      _step('fourth call ended');
+
       // Let both log out of LiveKit and the homeserver before the containers go.
       await _pumpFor(tester, const Duration(seconds: 1));
       await tester.pumpWidget(const SizedBox());

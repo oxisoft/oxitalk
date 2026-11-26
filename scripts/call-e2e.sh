@@ -99,4 +99,10 @@ elif [ "$recorded" != "$mic" ]; then
 else
   echo "the app recorded from the fake microphone only (source $mic)"
 fi
+# No connection of ours was ever displaced by another under the same identity (one left
+# behind by a call ended while it connected did that to the next call's).
+if podman logs "$pod-livekit" 2>&1 | grep -q DUPLICATE_IDENTITY; then
+  echo "LiveKit displaced a participant (DUPLICATE_IDENTITY): a connection was left behind" >&2
+  status=1
+fi
 exit "$status"
