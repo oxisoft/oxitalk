@@ -86,6 +86,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
+  # livekit_client's log (package:logging) in the manual call test over a real server.
+  logging: ^1.3.0
   freezed: ^4.0.3
   # 2.17 needs build 5; riverpod_generator 4.0.9 still needs build <5.
   build_runner: ^2.16.2
