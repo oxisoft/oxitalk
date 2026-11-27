@@ -1,0 +1,1 @@
+Chats full of photos open with less memory: OxiTalk now makes their previews one at a time, without a big burst of memory, so your computer or phone stays fast.
