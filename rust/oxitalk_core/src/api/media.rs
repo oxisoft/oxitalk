@@ -10,11 +10,16 @@ use matrix_sdk::{
     },
     ruma::{OwnedMxcUri, UInt, events::room::MediaSource},
 };
+use tokio::sync::Semaphore;
 
 use super::{error::CoreError, media_prep::shrink_for_preview, session::Session};
 
 /// How often the cache drops what has expired.
 const CLEANUP_EVERY: Duration = Duration::from_hours(24);
+
+/// Previews are made one at a time: each decodes a whole photo (~36 MB for 12 MP), and a
+/// chat full of photos asked for many at once.
+static PREVIEW_SLOT: Semaphore = Semaphore::const_new(1);
 
 impl Session {
     /// A square thumbnail of the picture at `mxc_uri`, about `size` pixels wide, as encoded
@@ -90,12 +95,17 @@ impl Session {
             return Ok(preview);
         }
         let file = self.fetch(source, None).await?;
+        let slot = PREVIEW_SLOT
+            .acquire()
+            .await
+            .map_err(|error| CoreError::internal(&error))?;
         let (file, preview) = tokio::task::spawn_blocking(move || {
             let preview = shrink_for_preview(&file, size);
             (file, preview)
         })
         .await
         .map_err(|error| CoreError::internal(&error))?;
+        drop(slot);
         let Some(preview) = preview else {
             return Ok(file);
         };

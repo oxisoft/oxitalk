@@ -105,7 +105,14 @@ pub(crate) fn shrink_for_preview(data: &[u8], side: u32) -> Option<Vec<u8>> {
     if image.width().max(image.height()) <= side {
         return None;
     }
-    let image = image.resize(side, side, FilterType::Triangle);
+    // Far smaller: average blocks of pixels straight into the preview. `resize` filters
+    // through float buffers that took ~100 MB with a few camera photos at once; near the
+    // final size, where averaging would alias, those buffers are small.
+    let image = if image.width().max(image.height()) >= side * 2 {
+        image.thumbnail(side, side)
+    } else {
+        image.resize(side, side, FilterType::Triangle)
+    };
     let mut encoded = Vec::new();
     if image.color().has_alpha() {
         DynamicImage::ImageRgba8(image.to_rgba8())
@@ -272,6 +279,14 @@ mod tests {
         let photo = png(3000, 1500)?;
         let preview = shrink_for_preview(&photo, 640).ok_or("no preview")?;
         assert!(preview.starts_with(b"\xff\xd8"));
+        let image = image::load_from_memory(&preview)?;
+        assert_eq!((image.width(), image.height()), (640, 320));
+        Ok(())
+    }
+
+    #[test]
+    fn a_preview_just_above_its_side_is_shrunk_too() -> Result<(), Box<dyn std::error::Error>> {
+        let preview = shrink_for_preview(&png(900, 450)?, 640).ok_or("no preview")?;
         let image = image::load_from_memory(&preview)?;
         assert_eq!((image.width(), image.height()), (640, 320));
         Ok(())
